@@ -2,12 +2,14 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelmetProvider } from 'react-helmet-async';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './src/context/AuthContext';
 import Home from './src/screens/Home';
 import NovelPage from './src/screens/NovelPage';
 import Library from './src/screens/Library';
 import MyPage from './src/screens/MyPage';
-import Reader from './src/screens/Reader'; // الملف الجديد
+import Reader from './src/screens/Reader';
+import { Login, Signup } from './src/screens/auth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,12 +27,15 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Router>
+            <Toaster position="top-center" reverseOrder={false} />
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/novel/:slug" element={<NovelPage />} />
               <Route path="/novel/:novelId/reader/:chapterId" element={<Reader />} />
               <Route path="/library" element={<Library />} />
               <Route path="/my-page" element={<MyPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
             </Routes>
           </Router>
         </AuthProvider>
