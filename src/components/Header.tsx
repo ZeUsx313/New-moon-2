@@ -26,7 +26,6 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
   return (
     <>
       <nav className="sticky top-0 z-50 w-full h-16 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/10 shadow-sm">
-        {/* تم تغيير justify-between إلى justify-start لجعل العناصر تبدأ من اليمين */}
         <div className="max-w-7xl mx-auto h-full px-4 md:px-8 flex items-center justify-start gap-6">
           
           {/* Logo Section */}
@@ -34,14 +33,11 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
             <img
               src={logoImg}
               alt="Qamar Logo"
-              /* تم تصغير الحجم إلى h-12 لجعلها متناسقة */
               className="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
             />
-            {/* تم حذف نص "قمر الروايات" من هنا */}
           </Link>
 
-          {/* Desktop Navigation - الآن بجانب الشعار مباشرة */}
-          {/* تم تغيير flex المنتصف إلى h-full و flex items-center لجعلها متناسقة عمودياً */}
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6 h-full">
             {navItems.map((item) => (
               <Link
@@ -50,12 +46,13 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
                 className="relative flex items-center gap-2 h-full text-gray-300 hover:text-white transition-colors group"
               >
                 <span className="text-current group-hover:text-white transition-colors">{item.icon}</span>
-                {/* تم تصغير حجم الخط قليلاً إلى text-xs */}
                 <span className="text-xs font-medium">{item.label}</span>
+                
                 {isActive(item.path) && (
                   <motion.div
                     layoutId="activeUnderline"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full"
+                    /* تم تغيير bottom-0 إلى bottom-3 لرفع الخط وتقريبه من الكلمة */
+                    className="absolute bottom-3 left-0 right-0 h-0.5 bg-white rounded-full"
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
                 )}
@@ -63,8 +60,7 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
             ))}
           </div>
 
-          {/* Actions Section - ستبقى في اليسار الأقصى */}
-          {/* تم إضافة ms-auto لنقل هذا القسم إلى اليسار الأقصى */}
+          {/* Actions Section */}
           <div className="flex items-center gap-2 ms-auto">
             <button className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-300 hover:text-white">
               <Search size={18} />
