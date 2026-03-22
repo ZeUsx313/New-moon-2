@@ -1,54 +1,3 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Azora Moon - الصفحة الرئيسية</title>
-    <!-- Import Cairo Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Tailwind CDN (for build, but we rely on existing classes) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Custom overrides to ensure Cairo font is applied */
-        body, * {
-            font-family: 'Cairo', sans-serif !important;
-        }
-        /* Additional style for better borders */
-        .mobile-menu-item {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .mobile-menu-item:last-child {
-            border-bottom: none;
-        }
-        /* For swiper custom styles if needed */
-        .popular-swiper .swiper-button-next,
-        .popular-swiper .swiper-button-prev {
-            color: white;
-            background: rgba(0,0,0,0.5);
-            border-radius: 50%;
-            width: 35px;
-            height: 35px;
-        }
-        .popular-swiper .swiper-button-next:after,
-        .popular-swiper .swiper-button-prev:after {
-            font-size: 18px;
-        }
-    </style>
-</head>
-<body>
-<div id="root"></div>
-
-<!-- The React code is embedded below; we'll provide the complete component file -->
-<script type="text/javascript">
-// We'll output the full App component with the requested changes.
-// Note: In a real environment, this would be a .jsx file. Here it's a code block to copy.
-// The user expects the full code to replace the existing App.jsx/component.
-</script>
-
-<!-- START OF THE FULL COMPONENT CODE -->
-<!-- Paste this entire code into your App.jsx (or equivalent) file. -->
-<pre style="display:none;">
-```jsx
 import React, { useState, useEffect } from 'react';
 import { 
   Home, 
@@ -463,7 +412,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* Recently Added Section - Moved to be directly under Most Read */}
+        {/* Recently Added Section - moved to be directly under Most Read */}
         <section className="px-4 md:px-8 mt-16">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-2 mb-6 text-white">
@@ -509,7 +458,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* Latest Updates Section - Now placed last */}
+        {/* Latest Updates Section - placed last */}
         <section className="px-4 md:px-8 mt-16">
           <div className="max-w-7xl mx-auto">
             
