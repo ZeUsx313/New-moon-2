@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
@@ -11,11 +11,13 @@ import {
   Library as LibraryIcon,
   Check,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
 import { novelService, Novel } from '../services/novel';
 import { categoryService, Category } from '../services/category';
 import { useDebounce } from '../hooks/useDebounce';
+import Header from '../components/Header';
 
 // صورة الخلفية
 import backgroundImage from '../assets/adaptive-icon.png';
@@ -44,6 +46,9 @@ const getStatusColor = (status: string) => {
     default: return '#2980b9';
   }
 };
+
+// التحقق مما إذا كان النص يحتوي على أحرف إنجليزية
+const containsEnglish = (text: string) => /[a-zA-Z]/.test(text);
 
 // مكون البطاقة
 const NovelCard = ({ novel, onClick }: { novel: Novel; onClick: () => void }) => {
@@ -93,7 +98,7 @@ const NovelCard = ({ novel, onClick }: { novel: Novel; onClick: () => void }) =>
   );
 };
 
-// مكون النافذة المنبثقة للفلترة
+// مكون النافذة المنبثقة للفلترة (مع تمرير)
 const FilterModal = ({
   isOpen,
   onClose,
@@ -134,22 +139,25 @@ const FilterModal = ({
                   <X size={20} className="text-gray-400" />
                 </button>
               </div>
-              <div className="divide-y divide-white/10">
-                {options.map((option) => (
-                  <button
-                    key={option.id}
-                    onClick={() => {
-                      onSelect(option.id);
-                      onClose();
-                    }}
-                    className="w-full flex items-center justify-between py-3 hover:bg-white/5 transition-colors"
-                  >
-                    <span className={`text-right ${selectedId === option.id ? 'text-white font-bold' : 'text-gray-300'}`}>
-                      {option.name}
-                    </span>
-                    {selectedId === option.id && <Check size={18} className="text-primary" />}
-                  </button>
-                ))}
+              {/* إضافة منطقة تمرير */}
+              <div className="max-h-[60vh] overflow-y-auto">
+                <div className="divide-y divide-white/10">
+                  {options.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => {
+                        onSelect(option.id);
+                        onClose();
+                      }}
+                      className="w-full flex items-center justify-between py-3 hover:bg-white/5 transition-colors"
+                    >
+                      <span className={`text-right ${selectedId === option.id ? 'text-white font-bold' : 'text-gray-300'}`}>
+                        {option.name}
+                      </span>
+                      {selectedId === option.id && <Check size={18} className="text-primary" />}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </motion.div>
@@ -161,6 +169,7 @@ const FilterModal = ({
 
 export default function Library() {
   const navigate = useNavigate();
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -172,15 +181,18 @@ export default function Library() {
   // Modal states
   const [modalType, setModalType] = useState<'sort' | 'category' | 'status' | null>(null);
 
-  // جلب التصنيفات
-  const { data: categories = [] } = useQuery({
+  // جلب التصنيفات وتصفيتها (إزالة التي تحتوي على إنجليزية)
+  const { data: rawCategories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoryService.getCategories(),
     staleTime: 30 * 60 * 1000,
   });
 
+  // تصفية التصنيفات: استبعاد أي تصنيف يحتوي على أحرف إنجليزية
+  const categories = rawCategories.filter((cat: any) => !containsEnglish(cat.name));
+
   // جلب الروايات
-  const { data, isLoading, isFetching, refetch } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['novels', page, selectedCategory, selectedStatus, selectedSort, debouncedSearch],
     queryFn: () =>
       novelService.getNovels({
@@ -285,108 +297,120 @@ export default function Library() {
     );
   };
 
+  // تأثير الوضع المظلم
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   return (
     <>
       <Helmet>
         <title>قمر الروايات - المكتبة</title>
       </Helmet>
-      <div className="min-h-screen relative overflow-hidden bg-black">
-        {/* خلفية زجاجية */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src={backgroundImage}
-            alt=""
-            className="w-full h-full object-cover opacity-40 blur-sm"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black" />
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 py-6">
-          {/* العنوان */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-white">المكتبة</h1>
-            <p className="text-white/60 mt-1">تصفح جميع الروايات</p>
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-500" dir="rtl">
+        <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        <div className="relative overflow-hidden bg-black">
+          {/* خلفية زجاجية */}
+          <div className="absolute inset-0 z-0">
+            <img
+              src={backgroundImage}
+              alt=""
+              className="w-full h-full object-cover opacity-40 blur-sm"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black" />
           </div>
 
-          {/* شريط البحث */}
-          <div className="relative mb-5">
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 w-5 h-5" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث داخل المكتبة..."
-              className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl py-3 pr-12 pl-12 text-white placeholder:text-white/40 focus:outline-none focus:border-primary transition-colors"
-            />
-            {searchQuery && (
+          <div className="relative z-10 max-w-7xl mx-auto px-4 py-6">
+            {/* العنوان مع شعار */}
+            <div className="flex items-center gap-3 mb-6">
+              <Sparkles size={28} className="text-white" />
+              <h1 className="text-3xl font-bold text-white">المكتبة</h1>
+            </div>
+
+            {/* شريط البحث */}
+            <div className="relative mb-5">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 w-5 h-5" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ابحث داخل المكتبة..."
+                className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl py-3 pr-12 pl-12 text-white placeholder:text-white/40 focus:outline-none focus:border-primary transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            {/* أزرار الفلاتر */}
+            <div className="flex flex-wrap gap-3 mb-6">
               <button
-                onClick={() => setSearchQuery('')}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                onClick={() => setModalType('sort')}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/20 transition-colors"
               >
-                <X size={18} />
+                <span className="text-white text-sm">{getSelectedSortName()}</span>
+                <ChevronDown size={14} className="text-white/60" />
               </button>
+              <button
+                onClick={() => setModalType('category')}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/20 transition-colors"
+              >
+                <span className="text-white text-sm">{getSelectedCategoryName()}</span>
+                <ChevronDown size={14} className="text-white/60" />
+              </button>
+              <button
+                onClick={() => setModalType('status')}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/20 transition-colors"
+              >
+                <span className="text-white text-sm">{getSelectedStatusName()}</span>
+                <ChevronDown size={14} className="text-white/60" />
+              </button>
+            </div>
+
+            {/* قائمة الروايات */}
+            {isLoading ? (
+              <div className="flex justify-center items-center py-20">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : novels.length === 0 ? (
+              <div className="text-center py-20">
+                <LibraryIcon size={48} className="mx-auto text-white/20" />
+                <p className="text-white/40 mt-2">لا توجد روايات تطابق بحثك</p>
+              </div>
+            ) : (
+              <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+                {novels.map((novel, idx) => (
+                  <motion.div
+                    key={novel._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: idx * 0.03 }}
+                  >
+                    <NovelCard novel={novel} onClick={() => navigate(`/novel/${novel._id}`)} />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* أزرار الصفحات */}
+            {totalPages > 1 && !isLoading && renderPageButtons()}
+
+            {/* مؤشر تحميل عند تحديث البيانات */}
+            {isFetching && !isLoading && (
+              <div className="flex justify-center py-4">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
             )}
           </div>
-
-          {/* أزرار الفلاتر */}
-          <div className="flex flex-wrap gap-3 mb-6">
-            <button
-              onClick={() => setModalType('sort')}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/20 transition-colors"
-            >
-              <span className="text-white text-sm">{getSelectedSortName()}</span>
-              <ChevronDown size={14} className="text-white/60" />
-            </button>
-            <button
-              onClick={() => setModalType('category')}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/20 transition-colors"
-            >
-              <span className="text-white text-sm">{getSelectedCategoryName()}</span>
-              <ChevronDown size={14} className="text-white/60" />
-            </button>
-            <button
-              onClick={() => setModalType('status')}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/20 transition-colors"
-            >
-              <span className="text-white text-sm">{getSelectedStatusName()}</span>
-              <ChevronDown size={14} className="text-white/60" />
-            </button>
-          </div>
-
-          {/* قائمة الروايات */}
-          {isLoading ? (
-            <div className="flex justify-center items-center py-20">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : novels.length === 0 ? (
-            <div className="text-center py-20">
-              <LibraryIcon size={48} className="mx-auto text-white/20" />
-              <p className="text-white/40 mt-2">لا توجد روايات تطابق بحثك</p>
-            </div>
-          ) : (
-            <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
-              {novels.map((novel, idx) => (
-                <motion.div
-                  key={novel._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.03 }}
-                >
-                  <NovelCard novel={novel} onClick={() => navigate(`/novel/${novel._id}`)} />
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {/* أزرار الصفحات */}
-          {totalPages > 1 && !isLoading && renderPageButtons()}
-
-          {/* مؤشر تحميل عند تحديث البيانات */}
-          {isFetching && !isLoading && (
-            <div className="flex justify-center py-4">
-              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
         </div>
 
         {/* النوافذ المنبثقة للفلترة */}
