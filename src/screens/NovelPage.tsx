@@ -204,6 +204,31 @@ export default function NovelPage() {
     return 'bg-red-500/20 text-red-300 border-red-500/30';
   };
 
+  // Function to render description with preserved line breaks
+  const renderDescription = (text: string) => {
+    if (!text) return null;
+    // If text contains HTML tags, render as HTML
+    if (text.includes('<') && text.includes('>')) {
+      return <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: text }} />;
+    }
+    // Otherwise, replace newlines with <br/> and wrap in paragraphs
+    const paragraphs = text.split(/\n\s*\n/);
+    return (
+      <div className="prose dark:prose-invert max-w-none">
+        {paragraphs.map((para, idx) => (
+          <p key={idx} className="mb-4 leading-relaxed">
+            {para.split('\n').map((line, i) => (
+              <React.Fragment key={i}>
+                {line}
+                {i < para.split('\n').length - 1 && <br />}
+              </React.Fragment>
+            ))}
+          </p>
+        ))}
+      </div>
+    );
+  };
+
   if (loadingNovel) {
     return <NovelPageSkeleton />;
   }
@@ -218,7 +243,7 @@ export default function NovelPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-background text-foreground">
+    <div className="relative min-h-screen bg-background text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
       <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
       {/* Background */}
@@ -451,18 +476,16 @@ export default function NovelPage() {
                             </div>
                             <div className="flex w-full flex-col pr-2 sm:pr-[.875rem] ml-2 min-w-0">
                               <div className="flex flex-row gap-1 items-center">
-                                <span className="text-xs sm:text-sm font-medium line-clamp-1">{chapter.title || `الفصل ${chapter.number}`}</span>
+                                <span className="text-sm sm:text-base font-semibold font-cairo line-clamp-1 text-white">
+                                  {chapter.title || `الفصل ${chapter.number}`}
+                                </span>
                               </div>
                               <div className="flex flex-col sm:flex-row sm:justify-start sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-gray-400 mt-1">
                                 <time dateTime={chapter.createdAt}>{formatDate(chapter.createdAt)}</time>
                               </div>
                             </div>
                           </div>
-                          <div className="last flex flex-row items-center justify-between gap-2 sm:gap-3 pr-2 sm:pr-4">
-                            <div className="flex items-center gap-1.5">
-                              <MessageCircle size={14} className="text-gray-500" />
-                              <p className="text-sm font-bold text-gray-400">0</p>
-                            </div>
+                          <div className="last flex flex-row items-center gap-2 sm:gap-3 pr-2 sm:pr-4">
                             <div className="flex items-center gap-1.5">
                               <Eye size={14} className="text-gray-500" />
                               <p className="text-sm font-bold text-gray-400">{chapter.views}</p>
@@ -520,9 +543,7 @@ export default function NovelPage() {
             )}
 
             {/* Description Tab */}
-            {activeTab === 'description' && (
-              <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: novel.description }} />
-            )}
+            {activeTab === 'description' && renderDescription(novel.description)}
 
             {/* Comments Tab */}
             {activeTab === 'comments' && (
