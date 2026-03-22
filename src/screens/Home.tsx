@@ -64,19 +64,32 @@ const NovelCard = ({ novel }: { novel: Novel }) => (
   </motion.div>
 );
 
-// Helper: format date as YYYY/M/D
-const formatDate = (date: Date | string) => {
+// Helper: format relative time (منذ X ...)
+const formatRelativeTime = (date: Date | string): string => {
+  const now = new Date();
   const d = new Date(date);
+  const diffMs = now.getTime() - d.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  const diffMonth = Math.floor(diffDay / 30);
+
+  if (diffMin < 1) return 'الآن';
+  if (diffHour < 1) return `منذ ${diffMin} دقيقة`;
+  if (diffDay < 1) return `منذ ${diffHour} ساعة`;
+  if (diffMonth < 1) return `منذ ${diffDay} يوم`;
+  // أكثر من شهر: عرض التاريخ الكامل YYYY/M/D
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 };
 
-// Helper: check if date is today (same day)
-const isToday = (date: Date | string) => {
+// Helper: check if chapter is within last 24 hours
+const isNewChapter = (date: Date | string): boolean => {
+  const now = new Date();
   const d = new Date(date);
-  const today = new Date();
-  return d.getFullYear() === today.getFullYear() &&
-         d.getMonth() === today.getMonth() &&
-         d.getDate() === today.getDate();
+  const diffMs = now.getTime() - d.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  return diffHours < 24;
 };
 
 // Helper: get status pill style (as in NovelPage)
@@ -88,54 +101,26 @@ const getStatusStyle = (status: string) => {
 
 export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [topViewedNovels, setTopViewedNovels] = useState<Novel[]>([]);
+  const [heroNovels, setHeroNovels] = useState<Novel[]>([]);
   const [trendingNovels, setTrendingNovels] = useState<Novel[]>([]);
+  const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
   const [latestUpdates, setLatestUpdates] = useState<Novel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Hero Slider Data (static)
-  const heroSlides = [
-    {
-      id: 1,
-      title: 'The Substitute Bride Is Doted on by the Cold-Blooded Emperor',
-      image: 'https://storage.azoramoon.com/public/upload/2026/02/21/3d193696-84b3-46b8-91d4-a80e698ed920.webp',
-      slug: 'the-substitute-bride-is-doted-on-by-the-cold-blooded-emperor',
-      tags: ['انتقام', 'رومانسي', 'خيال'],
-      status: 'جديد',
-      statusIcon: '👋',
-    },
-    {
-      id: 2,
-      title: 'Once an Assassin, Now a Royal Nanny',
-      image: 'https://storage.azoramoon.com/public/upload/2026/03/20/12c4fba7-71bf-4242-94fc-a8a7ba640189.webp',
-      slug: 'once-an-assassin-now-a-royal-nanny',
-      tags: ['خيال', 'رومانسي', 'تناسخ'],
-      status: 'جديد',
-      statusIcon: '👋',
-    },
-    {
-      id: 3,
-      title: 'Vengeance Begins with Marriage',
-      image: 'https://storage.azoramoon.com/public/upload/2026/03/19/71666fa0-54f3-4b4b-aea5-a5ca55e52fe7.webp',
-      slug: 'vengeance-begins-with-marriage',
-      tags: ['دراما', 'رومانسي'],
-      status: 'رائج',
-      statusIcon: '🔥',
-    },
-  ];
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [topViewed, trending, updates] = await Promise.all([
-          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 5 }), // Top 5 most viewed
-          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 12 }), // For "Most Read" section
-          novelService.getNovels({ filter: 'latest_updates', limit: 8 }),
+        const [hero, trending, recent, updates] = await Promise.all([
+          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 5 }), // Top 5 for hero slider
+          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 12 }), // Most Read section
+          novelService.getNovels({ filter: 'latest_added', limit: 12 }),                // Recently Added
+          novelService.getNovels({ filter: 'latest_updates', limit: 8 }),               // Latest Updates
         ]);
-        setTopViewedNovels(topViewed.novels);
+        setHeroNovels(hero.novels);
         setTrendingNovels(trending.novels);
+        setRecentNovels(recent.novels);
         setLatestUpdates(updates.novels);
       } catch (err: any) {
         setError(err.message);
@@ -174,7 +159,7 @@ export default function Home() {
       <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
       <main className="pb-16">
-        {/* Hero Slider */}
+        {/* Hero Slider - dynamic from API */}
         <section className="h-[430px] w-full overflow-hidden">
           <Swiper
             modules={[Autoplay, Pagination, Navigation]}
@@ -183,84 +168,56 @@ export default function Home() {
             loop
             className="h-full w-full"
           >
-            {heroSlides.map((slide) => (
-              <SwiperSlide key={slide.id}>
-                <Link to={`/novel/${slide.slug}`} className="block h-full w-full">
-                  <div className="relative h-full w-full group">
-                    <img
-                      src={slide.image}
-                      alt={slide.title}
-                      className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-                    <div className="absolute bottom-12 left-0 right-0 px-6 text-center z-10">
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="flex flex-col items-center gap-3"
-                      >
-                        <span className="px-3 py-1 rounded-full bg-gradient-to-r from-cyan-400 to-teal-400 text-black text-xs font-bold flex items-center gap-1">
-                          {slide.statusIcon} {slide.status}
-                        </span>
-                        <h2 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg max-w-3xl">
-                          {slide.title}
-                        </h2>
-                        <div className="flex flex-wrap justify-center gap-2">
-                          {slide.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-3 py-1 rounded-full border border-white/20 bg-white/5 text-xs text-white backdrop-blur-sm"
-                            >
-                              {tag}
+            {loading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <SwiperSlide key={i}>
+                    <div className="relative h-full w-full bg-gray-800 animate-pulse" />
+                  </SwiperSlide>
+                ))
+              : heroNovels.map((novel) => (
+                  <SwiperSlide key={novel._id}>
+                    <Link to={`/novel/${novel._id}`} className="block h-full w-full">
+                      <div className="relative h-full w-full group">
+                        <img
+                          src={novel.cover}
+                          alt={novel.title}
+                          className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                        <div className="absolute bottom-12 left-0 right-0 px-6 text-center z-10">
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6 }}
+                            className="flex flex-col items-center gap-3"
+                          >
+                            <span className="px-3 py-1 rounded-full bg-gradient-to-r from-cyan-400 to-teal-400 text-black text-xs font-bold flex items-center gap-1">
+                              🔥 رائج
                             </span>
-                          ))}
+                            <h2 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg max-w-3xl">
+                              {novel.title}
+                            </h2>
+                            <div className="flex flex-wrap justify-center gap-2">
+                              {novel.tags?.slice(0, 3).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-3 py-1 rounded-full border border-white/20 bg-white/5 text-xs text-white backdrop-blur-sm"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </motion.div>
                         </div>
-                      </motion.div>
-                    </div>
-                  </div>
-                </Link>
-              </SwiperSlide>
-            ))}
+                      </div>
+                    </Link>
+                  </SwiperSlide>
+                ))}
           </Swiper>
         </section>
 
-        {/* Section: Top 5 Most Viewed */}
+        {/* Section: Most Read (الأكثر قراءة) */}
         <section className="px-4 md:px-8 mt-12">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center gap-2 mb-6">
-              <TrendingUp size={24} className="text-orange-500" />
-              <h2 className="text-xl font-bold">الأكثر مشاهدة</h2>
-            </div>
-            <Swiper
-              modules={[Navigation]}
-              spaceBetween={16}
-              slidesPerView={2}
-              navigation
-              breakpoints={{
-                640: { slidesPerView: 3 },
-                768: { slidesPerView: 4 },
-                1024: { slidesPerView: 5 },
-              }}
-              className="py-4"
-            >
-              {loading
-                ? Array.from({ length: 5 }).map((_, i) => (
-                    <SwiperSlide key={i}>
-                      <NovelCardSkeleton />
-                    </SwiperSlide>
-                  ))
-                : topViewedNovels.map((novel) => (
-                    <SwiperSlide key={novel._id}>
-                      <NovelCard novel={novel} />
-                    </SwiperSlide>
-                  ))}
-            </Swiper>
-          </div>
-        </section>
-
-        {/* Section: Most Read */}
-        <section className="px-4 md:px-8 mt-16">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-2 mb-6">
               <TrendingUp size={24} className="text-orange-500" />
@@ -293,22 +250,44 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Section: Latest Updates */}
+        {/* Section: Recently Added (أضيف حديثاً) */}
         <section className="px-4 md:px-8 mt-16">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl md:text-[26px] font-bold">آخر التحديثات</h2>
-              <div className="flex items-center bg-[#111111] rounded-full p-1 border border-white/5">
-                <button className="flex items-center gap-2 text-gray-500 hover:text-gray-300 px-4 md:px-5 py-2 rounded-full transition-colors text-sm font-bold">
-                  <Clock size={16} />
-                  جديد
-                </button>
-                <button className="flex items-center gap-2 bg-[#ff3b8d]/10 text-[#ff3b8d] border border-[#ff3b8d]/30 px-4 md:px-5 py-2 rounded-full text-sm font-bold shadow-[0_0_10px_rgba(255,59,141,0.1)] transition-all">
-                  <Flame size={16} className="fill-[#ff3b8d]" />
-                  رائج
-                </button>
-              </div>
+            <div className="flex items-center gap-2 mb-6">
+              <PlusCircle size={24} className="text-green-500" />
+              <h2 className="text-xl font-bold">أضيف حديثاً</h2>
             </div>
+            <Swiper
+              modules={[Navigation]}
+              spaceBetween={16}
+              slidesPerView={2}
+              navigation
+              breakpoints={{
+                640: { slidesPerView: 3 },
+                768: { slidesPerView: 4 },
+                1024: { slidesPerView: 6 },
+              }}
+              className="py-4"
+            >
+              {loading
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <SwiperSlide key={i}>
+                      <NovelCardSkeleton />
+                    </SwiperSlide>
+                  ))
+                : recentNovels.map((novel) => (
+                    <SwiperSlide key={novel._id}>
+                      <NovelCard novel={novel} />
+                    </SwiperSlide>
+                  ))}
+            </Swiper>
+          </div>
+        </section>
+
+        {/* Section: Latest Updates (آخر التحديثات) */}
+        <section className="px-4 md:px-8 mt-16">
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-2xl md:text-[26px] font-bold mb-8">آخر التحديثات</h2>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
               {loading
@@ -358,9 +337,8 @@ export default function Home() {
                         </div>
 
                         <div className="flex flex-col gap-2 flex-1 overflow-hidden">
-                          {novel.chapters?.slice(0, 5).map((chapter) => {
-                            const chapterDate = new Date(chapter.createdAt);
-                            const isNew = isToday(chapterDate);
+                          {(novel.chapters || []).slice(0, 5).map((chapter) => {
+                            const isNew = isNewChapter(chapter.createdAt);
                             return (
                               <div
                                 key={chapter._id}
@@ -378,7 +356,7 @@ export default function Home() {
                                   )}
                                 </div>
                                 <span className="text-[11px] font-bold text-gray-500">
-                                  {formatDate(chapterDate)}
+                                  {formatRelativeTime(chapter.createdAt)}
                                 </span>
                               </div>
                             );
