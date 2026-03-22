@@ -4,11 +4,11 @@ import { motion } from 'motion/react';
 import Header from '../components/Header';
 import { novelService, Novel, ChapterMeta, ChapterFull } from '../services/novel';
 import { commentService, Comment } from '../services/comment';
-import { Star, ChevronLeft, ChevronRight, Heart, Eye, BookOpen, ArrowUpDown, Calendar, MessageCircle, Search } from 'lucide-react';
+import { Star, ChevronLeft, ChevronRight, Heart, Eye, BookOpen, ArrowUpDown, Calendar, MessageCircle, Search, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Skeleton, NovelPageSkeleton } from '../components/Skeleton';
 import { CommentSection } from '../components/CommentSection';
 import { ChapterReader } from '../components/ChapterReader';
-import { PageSelectorModal } from '../components/PageSelectorModal'; // same as before
+import { PageSelectorModal } from '../components/PageSelectorModal';
 
 export default function NovelPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -33,16 +33,23 @@ export default function NovelPage() {
     readChapters: [],
   });
   const [isPageModalOpen, setIsPageModalOpen] = useState(false);
+  const [reactionStats, setReactionStats] = useState({ like: 0, love: 0, funny: 0, sad: 0, angry: 0 });
+  const [userReaction, setUserReaction] = useState<string | null>(null);
 
   const chaptersPerPage = 25;
   const totalPages = Math.ceil(totalChapters / chaptersPerPage);
 
-  // Format date as YYYY/M/D
   const formatDate = (date: Date | string) => {
     const d = new Date(date);
     return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
   };
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Fetch novel data
   useEffect(() => {
     if (!slug) return;
     const fetchNovel = async () => {
@@ -70,6 +77,7 @@ export default function NovelPage() {
     fetchNovel();
   }, [slug]);
 
+  // Fetch chapters
   useEffect(() => {
     if (!slug) return;
     const fetchChapters = async () => {
@@ -86,6 +94,7 @@ export default function NovelPage() {
     fetchChapters();
   }, [slug, chaptersPage, sortOrder]);
 
+  // Fetch comments and reactions
   useEffect(() => {
     if (!slug) return;
     const fetchComments = async () => {
@@ -93,6 +102,16 @@ export default function NovelPage() {
       try {
         const res = await commentService.getComments(slug, undefined, 1, 20);
         setComments(res.comments);
+        if (res.stats) {
+          setReactionStats({
+            like: res.stats.like,
+            love: res.stats.love,
+            funny: res.stats.funny,
+            sad: res.stats.sad,
+            angry: res.stats.angry,
+          });
+          setUserReaction(res.stats.userReaction);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -101,6 +120,23 @@ export default function NovelPage() {
     };
     fetchComments();
   }, [slug]);
+
+  const handleReaction = async (type: 'like' | 'love' | 'funny' | 'sad' | 'angry') => {
+    if (!slug) return;
+    try {
+      const result = await novelService.reactToNovel(slug, type);
+      setReactionStats({
+        like: result.like,
+        love: result.love,
+        funny: result.funny,
+        sad: result.sad,
+        angry: result.angry,
+      });
+      setUserReaction(result.userReaction);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleAddToFavorites = async () => {
     if (!slug || !novel) return;
@@ -225,7 +261,7 @@ export default function NovelPage() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => chapters.length > 0 && handleChapterClick(chapters[0])}
-                      className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-primary-foreground px-4 h-full w-full rounded bg-white/20 backdrop-blur-sm text-black font-bold py-3 hover:bg-white/30"
+                      className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-white px-4 h-full w-full rounded bg-white/20 backdrop-blur-sm font-bold py-3 hover:bg-white/30"
                     >
                       اقرأ الفصل {chapters[0]?.number || '1'}
                     </motion.button>
@@ -235,7 +271,7 @@ export default function NovelPage() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={handleAddToFavorites}
-                      className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-black px-4 py-2 select-none w-full rounded h-12 bg-white/20 backdrop-blur-sm hover:bg-white/30"
+                      className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-white px-4 py-2 select-none w-full rounded h-12 bg-white/20 backdrop-blur-sm hover:bg-white/30"
                     >
                       <Heart size={16} className={`ml-1 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
                       {isFavorite ? 'تمت الإضافة' : 'إضافة للمفضلة'}
@@ -244,7 +280,7 @@ export default function NovelPage() {
                 </div>
               </div>
               <div className="flex-center pt-2">
-                <button className="justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 px-4 py-2 w-full rounded h-12 bg-white/20 backdrop-blur-sm text-black hover:bg-white/30 flex items-center gap-2">
+                <button className="justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 px-4 py-2 w-full rounded h-12 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-flag w-5 h-5">
                     <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                     <line x1="4" x2="4" y1="22" y2="15"></line>
@@ -254,7 +290,7 @@ export default function NovelPage() {
               </div>
             </div>
 
-            {/* Stats: Views & Favorites side by side */}
+            {/* Stats: Views & Favorites */}
             <div className="grid grid-cols-2 gap-3 mt-2">
               <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 text-center border border-white/10">
                 <Eye className="w-6 h-6 text-blue-400 mx-auto mb-1" />
@@ -271,15 +307,12 @@ export default function NovelPage() {
             <div className="h-px bg-white/10 my-2" />
 
             <div className="text-foreground space-y-3">
-              {/* Status pill */}
               <div className="flex justify-between items-center py-1">
                 <span className="text-sm font-medium text-gray-400">الحالة</span>
                 <span className={`px-3 py-1 rounded-md text-xs font-medium border ${getStatusStyle(novel.status)}`}>
                   {novel.status}
                 </span>
               </div>
-
-              {/* Categories */}
               <div className="flex justify-between items-center py-1">
                 <span className="text-sm font-medium text-gray-400">التصنيفات</span>
                 <div className="flex flex-wrap gap-1 justify-end">
@@ -290,14 +323,10 @@ export default function NovelPage() {
                   ))}
                 </div>
               </div>
-
-              {/* Chapters count */}
               <div className="flex justify-between items-center py-1">
                 <span className="text-sm font-medium text-gray-400">الفصول</span>
                 <span className="text-sm">{totalChapters}</span>
               </div>
-
-              {/* Last update */}
               <div className="flex justify-between items-center py-1">
                 <span className="text-sm font-medium text-gray-400">آخر تحديث</span>
                 <span className="text-sm">{formatDate(novel.lastChapterUpdate)}</span>
@@ -312,14 +341,14 @@ export default function NovelPage() {
               <div className="text-sm text-gray-400">بواسطة {novel.author}</div>
             </div>
 
-            {/* Small screen action buttons (same glass style) */}
+            {/* Small screen action buttons (glass style with white text) */}
             <div className="block lg:hidden md:hidden sm:hidden">
               <div className="flex flex-col gap-2">
                 <div className="grid grid-cols-2 gap-[.5rem] text-[.75rem] leading-4">
                   <div>
                     <button
                       onClick={() => chapters.length > 0 && handleChapterClick(chapters[0])}
-                      className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-black px-4 h-full w-full rounded bg-white/20 backdrop-blur-sm font-bold py-3 hover:bg-white/30"
+                      className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-white px-4 h-full w-full rounded bg-white/20 backdrop-blur-sm font-bold py-3 hover:bg-white/30"
                     >
                       اقرأ الفصل {chapters[0]?.number || '1'}
                     </button>
@@ -327,7 +356,7 @@ export default function NovelPage() {
                   <div>
                     <button
                       onClick={handleAddToFavorites}
-                      className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-black px-4 py-2 select-none w-full rounded h-12 bg-white/20 backdrop-blur-sm hover:bg-white/30"
+                      className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-white px-4 py-2 select-none w-full rounded h-12 bg-white/20 backdrop-blur-sm hover:bg-white/30"
                     >
                       <Heart size={16} className={`ml-1 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
                       {isFavorite ? 'تمت الإضافة' : 'إضافة للمفضلة'}
@@ -409,20 +438,20 @@ export default function NovelPage() {
                       >
                         <div className="w-full h-full flex items-center justify-between gap-2 sm:gap-3">
                           <div className="flex w-full items-center text-left justify-between text-gray-900 dark:text-white min-w-0">
-                            <div className="relative w-[60px] h-[60px] sm:w-[70px] sm:h-[70px] shrink-0 overflow-hidden rounded-md border border-white/10">
+                            <div className="relative w-[60px] h-[60px] sm:w-[70px] sm:h-[70px] shrink-0 overflow-hidden rounded-md border border-white/10 bg-black/30">
                               <img
                                 alt={`الفصل ${chapter.number}`}
                                 loading="lazy"
                                 className="object-cover rounded-md absolute inset-0 w-full h-full"
                                 src={novel.cover}
                               />
-                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-md">
-                                <BookOpen className="text-white w-6 h-6" />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                                <span className="text-white font-bold text-lg">{chapter.number}</span>
                               </div>
                             </div>
                             <div className="flex w-full flex-col pr-2 sm:pr-[.875rem] ml-2 min-w-0">
                               <div className="flex flex-row gap-1 items-center">
-                                <span className="text-xs sm:text-sm font-medium">الفصل {chapter.number}</span>
+                                <span className="text-xs sm:text-sm font-medium line-clamp-1">{chapter.title || `الفصل ${chapter.number}`}</span>
                               </div>
                               <div className="flex flex-col sm:flex-row sm:justify-start sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-gray-400 mt-1">
                                 <time dateTime={chapter.createdAt}>{formatDate(chapter.createdAt)}</time>
@@ -497,12 +526,38 @@ export default function NovelPage() {
 
             {/* Comments Tab */}
             {activeTab === 'comments' && (
-              <CommentSection
-                novelId={slug!}
-                comments={comments}
-                loading={loadingComments}
-                onAddComment={handleAddComment}
-              />
+              <>
+                {/* Reactions Row */}
+                <div className="flex flex-wrap justify-center gap-4 py-4 border-b border-white/10 mb-4">
+                  <button onClick={() => handleReaction('like')} className={`flex flex-col items-center gap-1 p-2 rounded-lg transition ${userReaction === 'like' ? 'bg-blue-500/20' : 'hover:bg-white/5'}`}>
+                    <ThumbsUp className="w-8 h-8" />
+                    <span>{reactionStats.like}</span>
+                  </button>
+                  <button onClick={() => handleReaction('love')} className={`flex flex-col items-center gap-1 p-2 rounded-lg transition ${userReaction === 'love' ? 'bg-red-500/20' : 'hover:bg-white/5'}`}>
+                    <Heart className="w-8 h-8 text-red-500" />
+                    <span>{reactionStats.love}</span>
+                  </button>
+                  <button onClick={() => handleReaction('funny')} className={`flex flex-col items-center gap-1 p-2 rounded-lg transition ${userReaction === 'funny' ? 'bg-yellow-500/20' : 'hover:bg-white/5'}`}>
+                    <span className="text-2xl">😂</span>
+                    <span>{reactionStats.funny}</span>
+                  </button>
+                  <button onClick={() => handleReaction('sad')} className={`flex flex-col items-center gap-1 p-2 rounded-lg transition ${userReaction === 'sad' ? 'bg-blue-500/20' : 'hover:bg-white/5'}`}>
+                    <span className="text-2xl">😢</span>
+                    <span>{reactionStats.sad}</span>
+                  </button>
+                  <button onClick={() => handleReaction('angry')} className={`flex flex-col items-center gap-1 p-2 rounded-lg transition ${userReaction === 'angry' ? 'bg-red-500/20' : 'hover:bg-white/5'}`}>
+                    <span className="text-2xl">😠</span>
+                    <span>{reactionStats.angry}</span>
+                  </button>
+                </div>
+
+                <CommentSection
+                  novelId={slug!}
+                  comments={comments}
+                  loading={loadingComments}
+                  onAddComment={handleAddComment}
+                />
+              </>
             )}
           </div>
         </div>
