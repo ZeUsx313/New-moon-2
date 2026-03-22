@@ -86,6 +86,18 @@ export const novelService = {
     return res.json();
   },
 
+async incrementView(novelId: string, chapterNumber: number): Promise<void> {
+  const res = await fetch(`${api.baseUrl}/api/novels/${novelId}/view`, {
+    method: 'POST',
+    headers: {
+      ...api.headers,
+      ...api.getAuthHeader(),
+    },
+    body: JSON.stringify({ chapterNumber }),
+  });
+  if (!res.ok) throw new Error('فشل زيادة المشاهدة');
+}
+
   async getChaptersList(id: string, page: number = 1, limit: number = 25, sort: 'asc' | 'desc' = 'asc'): Promise<ChapterMeta[]> {
     const res = await fetch(`${api.baseUrl}/api/novels/${id}/chapters-list?page=${page}&limit=${limit}&sort=${sort}`);
     if (!res.ok) throw new Error('فشل جلب قائمة الفصول');
