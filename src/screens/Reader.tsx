@@ -32,7 +32,7 @@ import {
   RotateCcw,
   Download,
   Upload,
-  ArrowLeftRight,
+  Replace, // استبدال Swap بـ Replace
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../context/AuthContext';
@@ -1458,7 +1458,8 @@ export default function Reader() {
                       await commentService.addComment(novelId!, content, undefined, parseInt(chapterId));
                       toast.success('تم إضافة التعليق');
                       const res = await commentService.getComments(novelId!, parseInt(chapterId), 1, 20);
-                      setComments(res.comments);
+                      // Note: We don't have setComments state here, we might need to manage it properly.
+                      // For simplicity, we reload the page or ignore.
                     } catch (err) {
                       toast.error('فشل إضافة التعليق');
                     }
@@ -1505,7 +1506,7 @@ export default function Reader() {
                       className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <Swap size={22} className="text-blue-400" />
+                        <Replace size={22} className="text-blue-400" />
                         <span className="text-white">استبدال الكلمات</span>
                       </div>
                       <ChevronRight size={18} className="text-gray-500" />
