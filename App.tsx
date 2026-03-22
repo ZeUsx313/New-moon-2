@@ -16,7 +16,8 @@ import {
   TrendingUp,
   ChevronLeft,
   ChevronRight,
-  Star
+  Star,
+  Clock
 } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation } from 'swiper/modules';
@@ -93,6 +94,69 @@ const POPULAR_MANGA = [
     title: "Only for Love",
     image: "https://wsrv.nl/?url=https%3A%2F%2Fstorage.azoramoon.com%2Fpublic%2Fupload%2F2026%2F03%2F20%2F8eddb9a9-f9ee-4730-9364-d2b9aa5b2593.webp&w=400&q=85&output=webp",
     rating: 9.44
+  }
+];
+
+const LATEST_UPDATES = [
+  {
+    id: 1,
+    title: "Martial God Asura",
+    image: "https://wsrv.nl/?url=https%3A%2F%2Fstorage.azoramoon.com%2Fpublic%2Fupload%2F2026%2F03%2F05%2F9adb9016-ff81-4ee1-bfd3-bbd07fadcec5.webp&w=150&q=85&output=webp",
+    type: "مانهوا",
+    chapters: [
+      { number: "الفصل 405", time: "منذ 3 ساعات" },
+      { number: "الفصل 404", time: "منذ 4 ساعات" }
+    ]
+  },
+  {
+    id: 2,
+    title: "The Substitute Bride Is Doted on by the Cold-Blooded Emperor",
+    image: "https://wsrv.nl/?url=https%3A%2F%2Fstorage.azoramoon.com%2Fpublic%2Fupload%2F2026%2F02%2F21%2F3d193696-84b3-46b8-91d4-a80e698ed920.webp&w=150&q=85&output=webp",
+    type: "مانهوا",
+    chapters: [
+      { number: "الفصل 195", time: "منذ 5 ساعات" },
+      { number: "الفصل 194", time: "منذ 6 ساعات" }
+    ]
+  },
+  {
+    id: 3,
+    title: "Once an Assassin, Now a Royal Nanny",
+    image: "https://wsrv.nl/?url=https%3A%2F%2Fstorage.azoramoon.com%2Fpublic%2Fupload%2F2026%2F03%2F20%2F12c4fba7-71bf-4242-94fc-a8a7ba640189.webp&w=150&q=85&output=webp",
+    type: "مانهوا",
+    chapters: [
+      { number: "الفصل 32", time: "منذ 7 ساعات" },
+      { number: "الفصل 31", time: "منذ 8 ساعات" }
+    ]
+  },
+  {
+    id: 4,
+    title: "Vengeance Begins with Marriage",
+    image: "https://wsrv.nl/?url=https%3A%2F%2Fstorage.azoramoon.com%2Fpublic%2Fupload%2F2026%2F03%2F19%2F71666fa0-54f3-4b4b-aea5-a5ca55e52fe7.webp&w=150&q=85&output=webp",
+    type: "مانهوا",
+    chapters: [
+      { number: "الفصل 12", time: "منذ 9 ساعات" },
+      { number: "الفصل 11", time: "منذ 10 ساعات" }
+    ]
+  },
+  {
+    id: 5,
+    title: "Only for Love",
+    image: "https://wsrv.nl/?url=https%3A%2F%2Fstorage.azoramoon.com%2Fpublic%2Fupload%2F2026%2F03%2F20%2F8eddb9a9-f9ee-4730-9364-d2b9aa5b2593.webp&w=150&q=85&output=webp",
+    type: "مانهوا",
+    chapters: [
+      { number: "الفصل 5", time: "منذ 11 ساعة" },
+      { number: "الفصل 4", time: "منذ 12 ساعة" }
+    ]
+  },
+  {
+    id: 6,
+    title: "Sleepless Death",
+    image: "https://wsrv.nl/?url=https%3A%2F%2Fstorage.azoramoon.com%2Fpublic%2Fupload%2F2026%2F03%2F05%2F9adb9016-ff81-4ee1-bfd3-bbd07fadcec5.webp&w=150&q=85&output=webp",
+    type: "مانهوا",
+    chapters: [
+      { number: "الفصل 80", time: "منذ 14 ساعة" },
+      { number: "الفصل 79", time: "منذ 15 ساعة" }
+    ]
   }
 ];
 
@@ -281,36 +345,82 @@ export default function App() {
                 768: { slidesPerView: 4 },
                 1024: { slidesPerView: 6 },
               }}
-              className="popular-swiper"
+              className="popular-swiper py-8"
             >
               {POPULAR_MANGA.map((manga) => (
-                <SwiperSlide key={manga.id}>
-                  <motion.div 
-                    whileHover={{ y: -8 }}
-                    className="flex flex-col gap-3 group"
-                  >
-                    <div className="relative aspect-[2/3] rounded-xl overflow-hidden manga-card-shadow">
+                <SwiperSlide key={manga.id} className="pb-6 px-1">
+                  <div className="relative w-full aspect-[2/3] group perspective-[1000px] cursor-pointer">
+                    {/* الكارد مع تأثير الـ 3D عند التمرير */}
+                    <div className="w-full h-full relative transition-all duration-500 ease-out transform-style-3d group-hover:[transform:rotateX(15deg)_translateY(-8px)] origin-bottom shadow-md group-hover:shadow-2xl rounded-xl overflow-hidden">
                       <img 
                         src={manga.image} 
                         alt={manga.title} 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
                       
-                      <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white">
-                          <Star size={10} className="fill-orange-400 text-orange-400" />
+                      {/* الطبقة الداكنة التي تصعد من الأسفل عند التمرير */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-4 translate-y-4 group-hover:translate-y-0">
+                        <h3 className="text-white font-bold text-sm line-clamp-2 mb-3 text-center drop-shadow-md">
+                          {manga.title}
+                        </h3>
+                        <div className="flex justify-center items-center gap-1 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs text-white mx-auto w-fit">
+                          <Star size={12} className="fill-orange-400 text-orange-400" />
                           {manga.rating}
                         </div>
                       </div>
                     </div>
-                    <h3 className="text-sm font-bold line-clamp-2 text-center group-hover:text-primary transition-colors h-10">
-                      {manga.title}
-                    </h3>
-                  </motion.div>
+                  </div>
                 </SwiperSlide>
               ))}
             </Swiper>
+          </div>
+        </section>
+
+        {/* Latest Updates Section */}
+        <section className="px-4 md:px-8 mt-6 mb-12">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center gap-2 mb-6">
+              <Clock size={24} className="text-primary" />
+              <h2 className="text-xl font-bold">آخر التحديثات</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {LATEST_UPDATES.map((update) => (
+                <div key={update.id} className="glass p-3 rounded-xl flex gap-4 hover:bg-white/5 transition-colors group cursor-pointer">
+                  {/* Cover Image */}
+                  <div className="relative w-24 h-32 rounded-lg overflow-hidden shrink-0 shadow-md">
+                    <img 
+                      src={update.image} 
+                      alt={update.title} 
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                    <div className="absolute top-1 right-1 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] text-white font-bold">
+                      {update.type}
+                    </div>
+                  </div>
+                  
+                  {/* Details */}
+                  <div className="flex flex-col flex-1 py-1">
+                    <h3 className="font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors mb-3">
+                      {update.title}
+                    </h3>
+                    
+                    <div className="flex flex-col gap-2 mt-auto">
+                      {update.chapters.map((chapter, index) => (
+                        <a 
+                          key={index} 
+                          href="#" 
+                          className="flex justify-between items-center bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded transition-colors"
+                        >
+                          <span className="text-xs font-bold text-foreground/90">{chapter.number}</span>
+                          <span className="text-[10px] text-muted">{chapter.time}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </main>
