@@ -26,7 +26,8 @@ import {
   RefreshCw,
   Shield,
   UserCheck,
-  FileText
+  FileText,
+  UserPlus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
