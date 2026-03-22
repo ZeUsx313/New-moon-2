@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronLeft,
@@ -34,14 +32,17 @@ import {
   RotateCcw,
   Download,
   Upload,
+  Swap,
 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import { useAuth } from '../context/AuthContext';
 import { novelService, ChapterFull } from '../services/novel';
 import { commentService } from '../services/comment';
 import { userService } from '../services/user';
-import { useAuth } from '../context/AuthContext'; // افترض وجوده
-import { toast } from 'react-hot-toast'; // أو أي مكتبة تنبيهات
+import { CommentSection } from '../components/CommentSection';
+import toast from 'react-hot-toast';
 
-// --- Helper: Custom Slider (مثل الموجود في الأصلي) ---
+// --- Custom Slider (محسّن) ---
 const CustomSlider = ({ value, onValueChange, min, max, step = 1, activeColor = '#4a7cc7' }: {
   value: number;
   onValueChange: (val: number) => void;
@@ -79,15 +80,17 @@ const CustomSlider = ({ value, onValueChange, min, max, step = 1, activeColor = 
         className="absolute top-1/2 -translate-y-1/2 h-1 rounded-full"
         style={{ width: `${percentage}%`, backgroundColor: activeColor }}
       />
-      <div
-        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-md border border-gray-600"
+      <motion.div
+        className="absolute top-1/2 w-4 h-4 rounded-full bg-white shadow-md border border-gray-600"
         style={{ left: `${percentage}%`, transform: 'translate(-50%, -50%)' }}
+        whileHover={{ scale: 1.2 }}
+        transition={{ type: 'spring', stiffness: 500 }}
       />
     </div>
   );
 };
 
-// --- خيارات الخطوط (مطابقة للأصلي) ---
+// --- خيارات الخطوط ---
 const FONT_OPTIONS = [
   { id: 'Cairo', name: 'القاهرة', family: "'Cairo', sans-serif", url: 'https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap' },
   { id: 'Amiri', name: 'أميري', family: "'Amiri', serif", url: 'https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap' },
@@ -97,7 +100,7 @@ const FONT_OPTIONS = [
   { id: 'Times', name: 'تايمز', family: "'Times New Roman', serif", url: '' },
 ];
 
-// --- خيارات الألوان المتقدمة ---
+// --- خيارات الألوان ---
 const ADVANCED_COLORS = [
   { color: '#ffffff', name: 'white' },
   { color: '#f97316', name: 'orange' },
@@ -120,7 +123,7 @@ const QUOTE_STYLES = [
   { id: 'single', label: '‘ ’', preview: '‘نص’' },
 ];
 
-// --- دالة تنسيق الوقت النسبي (للفصول الجديدة) ---
+// --- تنسيق الوقت النسبي ---
 const formatRelativeTime = (date: Date | string): string => {
   const d = new Date(date);
   const now = new Date();
@@ -135,10 +138,33 @@ const formatRelativeTime = (date: Date | string): string => {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 };
 
+// --- مكون تحميل زجاجي ---
+const LoadingScreen = ({ novelCover }: { novelCover?: string }) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
+      {novelCover && (
+        <img
+          src={novelCover}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-30 blur-sm"
+        />
+      )}
+      <div className="relative z-10 flex flex-col items-center gap-4">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+          className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full"
+        />
+        <p className="text-white/80 text-sm font-medium">جاري تحميل الفصل...</p>
+      </div>
+    </div>
+  );
+};
+
 export default function Reader() {
   const { novelId, chapterId } = useParams<{ novelId: string; chapterId: string }>();
   const navigate = useNavigate();
-  const { userInfo, isAuthenticated } = useAuth(); // افتراضي
+  const { userInfo } = useAuth();
   const isAdmin = userInfo?.role === 'admin';
 
   // --- State ---
@@ -166,7 +192,7 @@ export default function Reader() {
   const [hideQuotes, setHideQuotes] = useState(false);
   const [selectedQuoteStyle, setSelectedQuoteStyle] = useState('all');
 
-  // --- تنسيق الخط العريض (Markdown) ---
+  // --- تنسيق الخط العريض ---
   const [enableMarkdown, setEnableMarkdown] = useState(false);
   const [markdownColor, setMarkdownColor] = useState('#ffffff');
   const [markdownSize, setMarkdownSize] = useState(100);
@@ -185,7 +211,7 @@ export default function Reader() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
-  // --- الأدوات (Admin only) ---
+  // --- الأدوات (Admin) ---
   const [cleanerWords, setCleanerWords] = useState<string[]>([]);
   const [newCleanerWord, setNewCleanerWord] = useState('');
   const [cleanerEditingId, setCleanerEditingId] = useState<number | null>(null);
@@ -214,9 +240,8 @@ export default function Reader() {
   const [drawerMode, setDrawerMode] = useState<'none' | 'chapters' | 'replacements' | 'cleaner' | 'copyright'>('none');
   const [showComments, setShowComments] = useState(false);
   const [isAscending, setIsAscending] = useState(true);
-  const [iframeKey, setIframeKey] = useState(0); // لإعادة تحميل iframe عند تغيير الإعدادات
+  const [iframeKey, setIframeKey] = useState(0);
 
-  // --- مراجع ---
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // --- تحميل إعدادات القارئ من localStorage ---
@@ -247,9 +272,7 @@ export default function Reader() {
           if (parsed.selectedMarkdownStyle) setSelectedMarkdownStyle(parsed.selectedMarkdownStyle);
           if (parsed.textBrightness) setTextBrightness(parsed.textBrightness);
         }
-      } catch (e) {
-        console.error('Failed to load settings', e);
-      }
+      } catch (e) {}
     };
     loadSettings();
   }, []);
@@ -271,13 +294,12 @@ export default function Reader() {
         if (saved) {
           setFolders(JSON.parse(saved));
         } else {
-          // ترحيل الإعدادات القديمة إن وجدت
-          const oldReplacements = localStorage.getItem('@reader_replacements');
-          if (oldReplacements) {
+          const old = localStorage.getItem('@reader_replacements');
+          if (old) {
             const migrated = [{
               id: 'default_migrated',
               name: 'عام (قديم)',
-              replacements: JSON.parse(oldReplacements),
+              replacements: JSON.parse(old),
             }];
             setFolders(migrated);
             localStorage.setItem('@reader_folders_v2', JSON.stringify(migrated));
@@ -323,7 +345,7 @@ export default function Reader() {
           } catch (e) {}
         }
       } catch (err) {
-        console.error('Failed to fetch novel', err);
+        console.error(err);
         toast.error('فشل تحميل الرواية');
       } finally {
         setLoadingNovel(false);
@@ -340,7 +362,7 @@ export default function Reader() {
         const list = await novelService.getChaptersList(novelId, 1, 1000, 'asc');
         setChaptersList(list);
       } catch (err) {
-        console.error('Failed to fetch chapters list', err);
+        console.error(err);
       } finally {
         setLoadingChapters(false);
       }
@@ -356,19 +378,16 @@ export default function Reader() {
       try {
         const data = await novelService.getChapter(novelId, chapterId);
         setChapter(data);
-        // زيادة عدد المشاهدات في الخلفية
         await novelService.incrementView(novelId, parseInt(chapterId));
-        // تحديث التقدم
         await novelService.updateReadingStatus({
           novelId,
           lastChapterId: parseInt(chapterId),
           lastChapterTitle: data.title,
         });
-        // جلب عدد التعليقات
         const commentsRes = await commentService.getComments(novelId, parseInt(chapterId), 1, 1);
         setCommentCount(commentsRes.totalComments);
       } catch (err) {
-        console.error('Failed to fetch chapter', err);
+        console.error(err);
         toast.error('فشل تحميل الفصل');
       } finally {
         setLoadingChapter(false);
@@ -377,7 +396,7 @@ export default function Reader() {
     fetchChapter();
   }, [novelId, chapterId]);
 
-  // --- جلب كلمات التنظيف (admin only) ---
+  // --- جلب كلمات التنظيف (admin) ---
   useEffect(() => {
     if (isAdmin) {
       const fetchCleaner = async () => {
@@ -406,14 +425,14 @@ export default function Reader() {
     }
   }, [isAdmin]);
 
-  // --- معالجة الاستبدالات النشطة ---
+  // --- استبدالات نشطة ---
   const activeReplacements = useMemo(() => {
     if (!currentFolderId) return [];
     const folder = folders.find(f => f.id === currentFolderId);
     return folder ? folder.replacements : [];
   }, [folders, currentFolderId]);
 
-  // --- تطبيق الاستبدالات على النص ---
+  // --- معالجة النص النهائي ---
   const getProcessedContent = useMemo(() => {
     if (!chapter || !chapter.content) return '';
     let content = chapter.content;
@@ -427,7 +446,7 @@ export default function Reader() {
     return content;
   }, [chapter, activeReplacements]);
 
-  // --- دالة إنشاء HTML (نفس الأصلي) ---
+  // --- إنشاء HTML ---
   const generateHTML = useCallback(() => {
     if (!chapter) return '';
 
@@ -474,7 +493,7 @@ export default function Reader() {
 
     let content = getProcessedContent;
 
-    // تطبيق التنظيف (blocklist) إذا كان المسؤول
+    // تطبيق التنظيف (admin)
     if (isAdmin && cleanerWords.length) {
       cleanerWords.forEach(word => {
         if (!word) return;
@@ -488,7 +507,7 @@ export default function Reader() {
       });
     }
 
-    // تطبيق الفاصل (separator) - فقط تحت أول سطر يحتوي على كلمة "الفصل" أو "Chapter"
+    // تطبيق الفاصل
     if (enableSeparator) {
       const lines = content.split('\n');
       for (let i = 0; i < lines.length; i++) {
@@ -500,14 +519,14 @@ export default function Reader() {
       content = lines.join('\n');
     }
 
-    // تنسيق النص الأساسي (تقسيم إلى فقرات)
+    // تنسيق النص
     const formattedContent = content
       .split('\n')
       .filter(line => line.trim() !== '')
       .map(line => {
         let processedLine = line;
 
-        // تنسيق الخط العريض (Markdown)
+        // Markdown
         if (enableMarkdown) {
           const markClass = hideMarkdownMarks ? 'mark-hidden' : 'mark-visible';
           let openQuote = '', closeQuote = '';
@@ -523,7 +542,7 @@ export default function Reader() {
           });
         }
 
-        // تنسيق الحوار
+        // Dialogue
         if (enableDialogue) {
           const quoteClass = hideQuotes ? 'quote-mark hidden' : 'quote-mark';
           let quoteRegex;
@@ -548,7 +567,6 @@ export default function Reader() {
       })
       .join('');
 
-    // استيراد الخطوط
     const fontImports = FONT_OPTIONS.map(f => f.url ? `@import url('${f.url}');` : '').join('\n');
 
     const authorName = authorProfile?.name || novel?.author || 'Zeus';
@@ -694,9 +712,9 @@ export default function Reader() {
   // --- إعادة تحميل iframe عند تغيير الإعدادات ---
   useEffect(() => {
     setIframeKey(prev => prev + 1);
-  }, [generateHTML]); // في كل مرة تتغير generateHTML
+  }, [generateHTML]);
 
-  // --- دوال التحكم في الإعدادات ---
+  // --- دوال التحكم ---
   const changeFontSize = (delta: number) => {
     const newSize = fontSize + delta;
     if (newSize >= 14 && newSize <= 32) {
@@ -834,16 +852,13 @@ export default function Reader() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error();
-      if (cleanerEditingId !== null) {
-        setCleanerEditingId(null);
-      }
+      if (cleanerEditingId !== null) setCleanerEditingId(null);
       setNewCleanerWord('');
-      // إعادة تحميل القائمة
       const fresh = await fetch('/api/admin/cleaner');
       const data = await fresh.json();
       setCleanerWords(data);
       toast.success('تم الحذف من جميع الفصول بنجاح');
-      setIframeKey(prev => prev + 1); // إعادة تحميل المحتوى
+      setIframeKey(prev => prev + 1);
     } catch (e) {
       toast.error('فشل تنفيذ الحذف');
     } finally {
@@ -918,7 +933,7 @@ export default function Reader() {
     navigate(`/novel/${novelId}/reader/${nextNum}`);
   };
 
-  // --- دوال الإغلاق والدرج ---
+  // --- دوال الإغلاق ---
   const closeDrawers = () => {
     setDrawerMode('none');
     setEditingId(null);
@@ -946,8 +961,10 @@ export default function Reader() {
     <button
       key={chapter._id}
       onClick={() => navigateChapter(chapter.number)}
-      className={`w-full text-right py-3 px-4 border-b border-gray-800 transition-colors ${
-        chapter.number == chapterId ? 'bg-blue-500/20 text-blue-400' : 'text-gray-300 hover:bg-gray-800'
+      className={`w-full text-right py-3 px-4 border-b border-white/10 transition-all duration-200 ${
+        chapter.number == chapterId
+          ? 'bg-blue-500/20 text-blue-400 border-r-2 border-blue-400'
+          : 'text-gray-300 hover:bg-white/5'
       }`}
     >
       <div className="font-medium">{chapter.title || `فصل ${chapter.number}`}</div>
@@ -955,13 +972,9 @@ export default function Reader() {
     </button>
   );
 
-  // --- حالة التحميل ---
+  // --- تحميل واجهة ---
   if (loadingNovel || loadingChapter) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
-        <div className="text-white">جاري التحميل...</div>
-      </div>
-    );
+    return <LoadingScreen novelCover={novel?.cover} />;
   }
 
   return (
@@ -970,61 +983,79 @@ export default function Reader() {
         <title>قمر الروايات - {chapter?.title || `فصل ${chapterId}`}</title>
       </Helmet>
       <div className="relative h-screen w-full overflow-hidden bg-gray-900">
-        {/* شريط علوي (يظهر عند الضغط) */}
+        {/* Top Bar - Glassmorphic */}
         <motion.div
           initial={{ y: -100, opacity: 0 }}
           animate={{ y: showMenu ? 0 : -100, opacity: showMenu ? 1 : 0 }}
-          transition={{ duration: 0.25 }}
-          className="fixed top-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-md border-b border-gray-800"
+          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          className="fixed top-0 left-0 right-0 z-20 bg-black/60 backdrop-blur-xl border-b border-white/10"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
           <div className="flex items-center justify-between px-4 py-3">
-            <button onClick={() => navigate(-1)} className="p-2 rounded-full bg-white/10">
+            <button
+              onClick={() => navigate(`/novel/${novelId}`)}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            >
               <ChevronLeft size={24} className="text-white" />
             </button>
             <div className="text-center">
               <div className="text-white font-medium truncate max-w-[200px]">{chapter?.title}</div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-white/60">
                 الفصل {chapterId} من {totalChapters}
               </div>
             </div>
-            <button onClick={() => setShowSettings(true)} className="p-2 rounded-full bg-white/10">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            >
               <Settings size={24} className="text-white" />
             </button>
           </div>
         </motion.div>
 
-        {/* شريط سفلي (يظهر عند الضغط) */}
+        {/* Bottom Bar - Glassmorphic */}
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: showMenu ? 0 : 100, opacity: showMenu ? 1 : 0 }}
-          transition={{ duration: 0.25 }}
-          className="fixed bottom-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-md border-t border-gray-800"
+          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          className="fixed bottom-0 left-0 right-0 z-20 bg-black/60 backdrop-blur-xl border-t border-white/10"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="flex items-center justify-between px-4 py-3 gap-4">
-            <button onClick={openLeftDrawer} className="flex flex-col items-center gap-1">
+            <button
+              onClick={openLeftDrawer}
+              className="flex flex-col items-center gap-1 p-2 rounded-full hover:bg-white/10 transition-colors"
+            >
               <List size={22} className="text-white" />
-              <span className="text-xs text-gray-400">الفصول</span>
+              <span className="text-xs text-white/60">الفصول</span>
             </button>
             <div className="flex gap-4">
-              <button onClick={() => navigateNextPrev(-1)} className="flex flex-col items-center gap-1">
+              <button
+                onClick={() => navigateNextPrev(-1)}
+                className="flex flex-col items-center gap-1 p-2 rounded-full hover:bg-white/10 transition-colors"
+              >
                 <ChevronRight size={22} className="text-white" />
-                <span className="text-xs text-gray-400">السابق</span>
+                <span className="text-xs text-white/60">السابق</span>
               </button>
-              <button onClick={() => navigateNextPrev(1)} className="flex flex-col items-center gap-1">
+              <button
+                onClick={() => navigateNextPrev(1)}
+                className="flex flex-col items-center gap-1 p-2 rounded-full hover:bg-white/10 transition-colors"
+              >
                 <ChevronLeft size={22} className="text-white" />
-                <span className="text-xs text-gray-400">التالي</span>
+                <span className="text-xs text-white/60">التالي</span>
               </button>
             </div>
-            <button onClick={() => setShowComments(true)} className="flex flex-col items-center gap-1">
+            <button
+              onClick={() => setShowComments(true)}
+              className="flex flex-col items-center gap-1 p-2 rounded-full hover:bg-white/10 transition-colors"
+            >
               <MessageCircle size={22} className="text-white" />
-              <span className="text-xs text-gray-400">{commentCount}</span>
+              <span className="text-xs text-white/60">{commentCount}</span>
             </button>
           </div>
         </motion.div>
 
-        {/* محتوى الفصل (iframe) */}
+        {/* Main content iframe */}
         <iframe
           key={iframeKey}
           ref={iframeRef}
@@ -1034,7 +1065,7 @@ export default function Reader() {
           sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
         />
 
-        {/* درج الفصول (يسار – من أسفل) */}
+        {/* Chapters Drawer - Glassmorphic from bottom */}
         <AnimatePresence>
           {drawerMode === 'chapters' && (
             <motion.div
@@ -1042,13 +1073,15 @@ export default function Reader() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-30 bg-[#161616] rounded-t-2xl shadow-xl border-t border-gray-800"
+              className="fixed bottom-0 left-0 right-0 z-30 bg-black/80 backdrop-blur-xl rounded-t-2xl border-t border-white/10"
               style={{ maxHeight: '70vh' }}
             >
-              <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                <button onClick={closeDrawers}><X size={24} className="text-gray-400" /></button>
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <button onClick={closeDrawers} className="p-1 hover:bg-white/10 rounded-full">
+                  <X size={24} className="text-white" />
+                </button>
                 <h3 className="text-white font-bold">الفصول ({sortedChapters.length})</h3>
-                <button onClick={toggleSort} className="p-1">
+                <button onClick={toggleSort} className="p-1 hover:bg-white/10 rounded-full">
                   <ArrowUpDown size={20} className="text-blue-400" />
                 </button>
               </div>
@@ -1063,7 +1096,7 @@ export default function Reader() {
           )}
         </AnimatePresence>
 
-        {/* درج الاستبدالات / التنظيف / الحقوق (يمين) */}
+        {/* Right Drawer (replacements/cleaner/copyright) */}
         <AnimatePresence>
           {drawerMode !== 'none' && drawerMode !== 'chapters' && (
             <motion.div
@@ -1071,26 +1104,28 @@ export default function Reader() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 bottom-0 z-30 w-full max-w-md bg-[#161616] shadow-xl border-l border-gray-800 overflow-y-auto"
+              className="fixed top-0 right-0 bottom-0 z-30 w-full max-w-md bg-black/90 backdrop-blur-xl shadow-xl border-l border-white/10 overflow-y-auto"
               style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
               {drawerMode === 'replacements' && (
                 <>
                   {replacementViewMode === 'folders' ? (
                     <>
-                      <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                        <button onClick={closeDrawers}><X size={24} className="text-gray-400" /></button>
+                      <div className="flex items-center justify-between p-4 border-b border-white/10">
+                        <button onClick={closeDrawers} className="p-1 hover:bg-white/10 rounded-full">
+                          <X size={24} className="text-white" />
+                        </button>
                         <h3 className="text-white font-bold">مجلدات الاستبدال</h3>
-                        <button onClick={() => setShowFolderModal(true)}>
+                        <button onClick={() => setShowFolderModal(true)} className="p-1 hover:bg-white/10 rounded-full">
                           <FolderPlus size={20} className="text-blue-400" />
                         </button>
                       </div>
-                      <div className="divide-y divide-gray-800">
+                      <div className="divide-y divide-white/10">
                         {folders.map(folder => (
-                          <div key={folder.id} className="flex items-center justify-between p-4 hover:bg-gray-800/50">
+                          <div key={folder.id} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
                             <button onClick={() => openFolder(folder.id)} className="flex-1 text-right">
                               <div className="text-white font-medium">{folder.name}</div>
-                              <div className="text-xs text-gray-500">{folder.replacements.length} كلمة</div>
+                              <div className="text-xs text-gray-400">{folder.replacements.length} كلمة</div>
                             </button>
                             <button onClick={() => deleteFolder(folder.id)} className="p-2">
                               <Trash2 size={18} className="text-red-400" />
@@ -1104,18 +1139,22 @@ export default function Reader() {
                     </>
                   ) : (
                     <>
-                      <div className="flex items-center justify-between p-4 border-b border-gray-800">
+                      <div className="flex items-center justify-between p-4 border-b border-white/10">
                         <div className="flex items-center gap-3">
-                          <button onClick={backToFolders}><ArrowLeft size={24} className="text-white" /></button>
+                          <button onClick={backToFolders} className="p-1 hover:bg-white/10 rounded-full">
+                            <ArrowLeft size={24} className="text-white" />
+                          </button>
                           <h3 className="text-white font-bold">
                             {folders.find(f => f.id === currentFolderId)?.name || 'كلمات'}
                           </h3>
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={toggleSortOrder} className="p-1">
+                          <button onClick={toggleSortOrder} className="p-1 hover:bg-white/10 rounded-full">
                             <ArrowUpDown size={18} className="text-blue-400" />
                           </button>
-                          <button onClick={closeDrawers}><X size={24} className="text-gray-400" /></button>
+                          <button onClick={closeDrawers} className="p-1 hover:bg-white/10 rounded-full">
+                            <X size={24} className="text-white" />
+                          </button>
                         </div>
                       </div>
                       <div className="p-4 space-y-3">
@@ -1125,19 +1164,19 @@ export default function Reader() {
                             placeholder="الكلمة الأصلية"
                             value={newOriginal}
                             onChange={e => setNewOriginal(e.target.value)}
-                            className="flex-1 bg-gray-800 text-white rounded-lg px-3 py-2"
+                            className="flex-1 bg-white/10 text-white rounded-lg px-3 py-2 border border-white/20 focus:border-blue-400 outline-none"
                           />
                           <input
                             type="text"
                             placeholder="الكلمة البديلة"
                             value={newReplacement}
                             onChange={e => setNewReplacement(e.target.value)}
-                            className="flex-1 bg-gray-800 text-white rounded-lg px-3 py-2"
+                            className="flex-1 bg-white/10 text-white rounded-lg px-3 py-2 border border-white/20 focus:border-blue-400 outline-none"
                           />
                         </div>
                         <button
                           onClick={handleAddReplacement}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
                         >
                           {editingId !== null ? <Save size={18} /> : <PlusCircle size={18} />}
                           {editingId !== null ? 'تحديث' : 'إضافة'}
@@ -1147,12 +1186,12 @@ export default function Reader() {
                           placeholder="بحث..."
                           value={replaceSearch}
                           onChange={e => setReplaceSearch(e.target.value)}
-                          className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 mt-2"
+                          className="w-full bg-white/10 text-white rounded-lg px-3 py-2 border border-white/20 focus:border-blue-400 outline-none"
                         />
                       </div>
-                      <div className="divide-y divide-gray-800">
+                      <div className="divide-y divide-white/10">
                         {filteredSortedReplacements.map(item => (
-                          <div key={item.idx} className="flex items-center justify-between p-4 hover:bg-gray-800/50">
+                          <div key={item.idx} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
                             <div className="flex-1 text-right">
                               <div className="text-gray-400 text-sm line-through">{item.original}</div>
                               <div className="text-white font-medium mt-1">→ {item.replacement}</div>
@@ -1177,8 +1216,10 @@ export default function Reader() {
               )}
               {drawerMode === 'cleaner' && isAdmin && (
                 <>
-                  <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                    <button onClick={closeDrawers}><X size={24} className="text-gray-400" /></button>
+                  <div className="flex items-center justify-between p-4 border-b border-white/10">
+                    <button onClick={closeDrawers} className="p-1 hover:bg-white/10 rounded-full">
+                      <X size={24} className="text-white" />
+                    </button>
                     <h3 className="text-white font-bold text-red-400">الحذف الشامل</h3>
                     <div className="w-6" />
                   </div>
@@ -1188,20 +1229,20 @@ export default function Reader() {
                       placeholder="النص المراد حذفه (يمكن أن يكون فقرة كاملة)"
                       value={newCleanerWord}
                       onChange={e => setNewCleanerWord(e.target.value)}
-                      className="w-full bg-gray-800 text-white rounded-lg p-3"
+                      className="w-full bg-white/10 text-white rounded-lg p-3 border border-white/20 focus:border-red-400 outline-none"
                     />
                     <button
                       onClick={handleExecuteCleaner}
                       disabled={cleaningLoading}
-                      className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"
+                      className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                     >
                       {cleaningLoading ? 'جاري الحذف...' : <Trash2 size={18} />}
                       {cleaningLoading ? 'جارٍ الحذف...' : 'تنفيذ الحذف'}
                     </button>
                   </div>
-                  <div className="divide-y divide-gray-800">
+                  <div className="divide-y divide-white/10">
                     {cleanerWords.map((word, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-4 hover:bg-gray-800/50">
+                      <div key={idx} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
                         <div className="flex-1 text-right text-gray-300 text-sm break-all">{word}</div>
                         <div className="flex gap-2">
                           <button onClick={() => handleEditCleaner(word, idx)} className="p-1">
@@ -1221,23 +1262,25 @@ export default function Reader() {
               )}
               {drawerMode === 'copyright' && isAdmin && (
                 <>
-                  <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                    <button onClick={closeDrawers}><X size={24} className="text-gray-400" /></button>
+                  <div className="flex items-center justify-between p-4 border-b border-white/10">
+                    <button onClick={closeDrawers} className="p-1 hover:bg-white/10 rounded-full">
+                      <X size={24} className="text-white" />
+                    </button>
                     <h3 className="text-white font-bold text-blue-400">حقوق التطبيق</h3>
                     <div className="w-6" />
                   </div>
                   <div className="p-4 space-y-4">
                     <div>
-                      <label className="block text-gray-400 text-sm mb-1">تكرار الظهور</label>
+                      <label className="block text-white/70 text-sm mb-1">تكرار الظهور</label>
                       <div className="flex gap-2">
                         {['always', 'random', 'every_x'].map(freq => (
                           <button
                             key={freq}
                             onClick={() => setCopyrightFrequency(freq)}
-                            className={`px-3 py-1 rounded-full text-xs ${
+                            className={`px-3 py-1 rounded-full text-xs transition-colors ${
                               copyrightFrequency === freq
                                 ? 'bg-blue-600 text-white'
-                                : 'bg-gray-800 text-gray-400'
+                                : 'bg-white/10 text-gray-300 hover:bg-white/20'
                             }`}
                           >
                             {freq === 'always' ? 'دائماً' : freq === 'random' ? 'عشوائي' : 'كل X فصل'}
@@ -1251,16 +1294,16 @@ export default function Reader() {
                             type="number"
                             value={copyrightEveryX}
                             onChange={e => setCopyrightEveryX(e.target.value)}
-                            className="w-16 bg-gray-800 text-white rounded px-2 py-1 text-center"
+                            className="w-16 bg-white/10 text-white rounded px-2 py-1 text-center border border-white/20"
                           />
                           <span className="text-gray-400 text-sm">فصل</span>
                         </div>
                       )}
                     </div>
                     <div>
-                      <label className="block text-gray-400 text-sm mb-1">اللون (Hex)</label>
+                      <label className="block text-white/70 text-sm mb-1">اللون (Hex)</label>
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full border border-gray-600" style={{ backgroundColor: copyrightStyle.color }} />
+                        <div className="w-8 h-8 rounded-full border border-white/30" style={{ backgroundColor: copyrightStyle.color }} />
                         <input
                           type="text"
                           value={hexColorInput}
@@ -1270,7 +1313,7 @@ export default function Reader() {
                               setCopyrightStyle(prev => ({ ...prev, color: e.target.value }));
                             }
                           }}
-                          className="flex-1 bg-gray-800 text-white rounded px-3 py-2"
+                          className="flex-1 bg-white/10 text-white rounded px-3 py-2 border border-white/20 focus:border-blue-400 outline-none"
                         />
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
@@ -1281,14 +1324,14 @@ export default function Reader() {
                               setCopyrightStyle(prev => ({ ...prev, color: c.color }));
                               setHexColorInput(c.color);
                             }}
-                            className="w-6 h-6 rounded-full border border-gray-600"
+                            className="w-6 h-6 rounded-full border border-white/30"
                             style={{ backgroundColor: c.color }}
                           />
                         ))}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-gray-400 text-sm mb-1">حجم الخط ({copyrightStyle.fontSize}px)</label>
+                      <label className="block text-white/70 text-sm mb-1">حجم الخط ({copyrightStyle.fontSize}px)</label>
                       <CustomSlider
                         min={10}
                         max={30}
@@ -1298,7 +1341,7 @@ export default function Reader() {
                       />
                     </div>
                     <div>
-                      <label className="block text-gray-400 text-sm mb-1">الشفافية ({Math.round(copyrightStyle.opacity * 100)}%)</label>
+                      <label className="block text-white/70 text-sm mb-1">الشفافية ({Math.round(copyrightStyle.opacity * 100)}%)</label>
                       <CustomSlider
                         min={0.1}
                         max={1}
@@ -1308,14 +1351,14 @@ export default function Reader() {
                       />
                     </div>
                     <div>
-                      <label className="block text-gray-400 text-sm mb-1">المحاذاة</label>
+                      <label className="block text-white/70 text-sm mb-1">المحاذاة</label>
                       <div className="flex gap-2">
                         {['right', 'center', 'left'].map(align => (
                           <button
                             key={align}
                             onClick={() => setCopyrightStyle(prev => ({ ...prev, alignment: align }))}
-                            className={`p-2 rounded ${
-                              copyrightStyle.alignment === align ? 'bg-blue-600' : 'bg-gray-800'
+                            className={`p-2 rounded transition-colors ${
+                              copyrightStyle.alignment === align ? 'bg-blue-600' : 'bg-white/10 hover:bg-white/20'
                             }`}
                           >
                             {align === 'right' && <AlignRight size={18} className="text-white" />}
@@ -1326,56 +1369,56 @@ export default function Reader() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400 text-sm">خط عريض</span>
+                      <span className="text-white/70 text-sm">خط عريض</span>
                       <input
                         type="checkbox"
                         checked={copyrightStyle.isBold}
                         onChange={e => setCopyrightStyle(prev => ({ ...prev, isBold: e.target.checked }))}
-                        className="w-5 h-5"
+                        className="w-5 h-5 accent-blue-500"
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400 text-sm">تفعيل الفاصل تحت العنوان</span>
+                      <span className="text-white/70 text-sm">تفعيل الفاصل تحت العنوان</span>
                       <input
                         type="checkbox"
                         checked={enableSeparator}
                         onChange={e => setEnableSeparator(e.target.checked)}
-                        className="w-5 h-5"
+                        className="w-5 h-5 accent-blue-500"
                       />
                     </div>
                     {enableSeparator && (
                       <div>
-                        <label className="block text-gray-400 text-sm mb-1">نص الفاصل</label>
+                        <label className="block text-white/70 text-sm mb-1">نص الفاصل</label>
                         <input
                           type="text"
                           value={separatorText}
                           onChange={e => setSeparatorText(e.target.value)}
-                          className="w-full bg-gray-800 text-white rounded px-3 py-2 text-center"
+                          className="w-full bg-white/10 text-white rounded px-3 py-2 border border-white/20 focus:border-blue-400 outline-none text-center"
                         />
                       </div>
                     )}
                     <div>
-                      <label className="block text-gray-400 text-sm mb-1">نص البداية</label>
+                      <label className="block text-white/70 text-sm mb-1">نص البداية</label>
                       <textarea
                         rows={3}
                         value={copyrightStartText}
                         onChange={e => setCopyrightStartText(e.target.value)}
-                        className="w-full bg-gray-800 text-white rounded p-3"
+                        className="w-full bg-white/10 text-white rounded p-3 border border-white/20 focus:border-blue-400 outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-gray-400 text-sm mb-1">نص النهاية</label>
+                      <label className="block text-white/70 text-sm mb-1">نص النهاية</label>
                       <textarea
                         rows={3}
                         value={copyrightEndText}
                         onChange={e => setCopyrightEndText(e.target.value)}
-                        className="w-full bg-gray-800 text-white rounded p-3"
+                        className="w-full bg-white/10 text-white rounded p-3 border border-white/20 focus:border-blue-400 outline-none"
                       />
                     </div>
                     <button
                       onClick={handleSaveCopyrights}
                       disabled={copyrightLoading}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                     >
                       {copyrightLoading ? 'جاري الحفظ...' : <Save size={18} />}
                       حفظ الحقوق
@@ -1387,7 +1430,7 @@ export default function Reader() {
           )}
         </AnimatePresence>
 
-        {/* نافذة التعليقات */}
+        {/* Comments Modal */}
         <AnimatePresence>
           {showComments && (
             <motion.div
@@ -1395,16 +1438,17 @@ export default function Reader() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-40 bg-[#0a0a0a] rounded-t-2xl shadow-xl"
+              className="fixed bottom-0 left-0 right-0 z-40 bg-black/90 backdrop-blur-xl rounded-t-2xl shadow-xl"
               style={{ maxHeight: '80vh' }}
             >
-              <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                <button onClick={() => setShowComments(false)}><X size={24} className="text-gray-400" /></button>
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <button onClick={() => setShowComments(false)} className="p-1 hover:bg-white/10 rounded-full">
+                  <X size={24} className="text-white" />
+                </button>
                 <h3 className="text-white font-bold">التعليقات</h3>
                 <div className="w-6" />
               </div>
               <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(80vh - 60px)' }}>
-                {/* هنا يمكن تضمين مكون التعليقات (CommentSection) */}
                 <CommentSection
                   novelId={novelId!}
                   comments={[]}
@@ -1413,7 +1457,8 @@ export default function Reader() {
                     try {
                       await commentService.addComment(novelId!, content, undefined, parseInt(chapterId));
                       toast.success('تم إضافة التعليق');
-                      // إعادة تحميل التعليقات
+                      const res = await commentService.getComments(novelId!, parseInt(chapterId), 1, 20);
+                      setComments(res.comments);
                     } catch (err) {
                       toast.error('فشل إضافة التعليق');
                     }
@@ -1424,7 +1469,7 @@ export default function Reader() {
           )}
         </AnimatePresence>
 
-        {/* نافذة الإعدادات الرئيسية */}
+        {/* Settings Modal */}
         <AnimatePresence>
           {showSettings && (
             <motion.div
@@ -1432,11 +1477,13 @@ export default function Reader() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-[#0a0a0a] rounded-t-2xl shadow-xl"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-xl rounded-t-2xl shadow-xl"
               style={{ maxHeight: '85vh' }}
             >
-              <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                <button onClick={() => setShowSettings(false)}><X size={24} className="text-gray-400" /></button>
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <button onClick={() => setShowSettings(false)} className="p-1 hover:bg-white/10 rounded-full">
+                  <X size={24} className="text-white" />
+                </button>
                 <h3 className="text-white font-bold">الإعدادات</h3>
                 <div className="w-6" />
               </div>
@@ -1445,7 +1492,7 @@ export default function Reader() {
                   <div className="grid grid-cols-1 gap-4">
                     <button
                       onClick={() => setSettingsView('appearance')}
-                      className="flex items-center justify-between p-4 bg-gray-900 rounded-xl hover:bg-gray-800"
+                      className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <Palette size={22} className="text-blue-400" />
@@ -1455,10 +1502,10 @@ export default function Reader() {
                     </button>
                     <button
                       onClick={() => { setShowSettings(false); openRightDrawer('replacements'); }}
-                      className="flex items-center justify-between p-4 bg-gray-900 rounded-xl hover:bg-gray-800"
+                      className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <SwapHorizontal size={22} className="text-blue-400" />
+                        <Swap size={22} className="text-blue-400" />
                         <span className="text-white">استبدال الكلمات</span>
                       </div>
                       <ChevronRight size={18} className="text-gray-500" />
@@ -1467,7 +1514,7 @@ export default function Reader() {
                       <>
                         <button
                           onClick={() => { setShowSettings(false); openRightDrawer('cleaner'); }}
-                          className="flex items-center justify-between p-4 bg-gray-900 rounded-xl hover:bg-gray-800"
+                          className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
                         >
                           <div className="flex items-center gap-3">
                             <Trash2 size={22} className="text-red-400" />
@@ -1477,10 +1524,10 @@ export default function Reader() {
                         </button>
                         <button
                           onClick={() => { setShowSettings(false); openRightDrawer('copyright'); }}
-                          className="flex items-center justify-between p-4 bg-gray-900 rounded-xl hover:bg-gray-800"
+                          className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
                         >
                           <div className="flex items-center gap-3">
-                            <Copyright size={22} className="text-blue-400" />
+                            <Save size={22} className="text-blue-400" />
                             <span className="text-white">حقوق التطبيق</span>
                           </div>
                           <ChevronRight size={18} className="text-gray-500" />
@@ -1491,24 +1538,24 @@ export default function Reader() {
                 ) : (
                   <div>
                     <div className="flex items-center gap-2 mb-6">
-                      <button onClick={() => setSettingsView('main')} className="p-1">
+                      <button onClick={() => setSettingsView('main')} className="p-1 hover:bg-white/10 rounded-full">
                         <ArrowLeft size={24} className="text-white" />
                       </button>
                       <h4 className="text-white font-bold text-lg">مظهر القراءة</h4>
                     </div>
                     <div className="space-y-6">
-                      {/* نوع الخط */}
+                      {/* Font */}
                       <div>
-                        <label className="block text-gray-400 text-sm mb-2">نوع الخط</label>
+                        <label className="block text-white/70 text-sm mb-2">نوع الخط</label>
                         <div className="flex flex-wrap gap-2">
                           {FONT_OPTIONS.map(font => (
                             <button
                               key={font.id}
                               onClick={() => handleFontChange(font)}
-                              className={`px-4 py-2 rounded-full text-sm ${
+                              className={`px-4 py-2 rounded-full text-sm transition-colors ${
                                 fontFamily.id === font.id
                                   ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-800 text-gray-300'
+                                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
                               }`}
                             >
                               {font.name}
@@ -1516,28 +1563,28 @@ export default function Reader() {
                           ))}
                         </div>
                       </div>
-                      {/* حجم الخط */}
+                      {/* Font Size */}
                       <div>
-                        <label className="block text-gray-400 text-sm mb-2">حجم الخط</label>
+                        <label className="block text-white/70 text-sm mb-2">حجم الخط</label>
                         <div className="flex items-center gap-4">
                           <button
                             onClick={() => changeFontSize(-2)}
-                            className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center"
+                            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center"
                           >
                             <MinusCircle size={20} className="text-white" />
                           </button>
                           <span className="text-white text-lg">{fontSize}</span>
                           <button
                             onClick={() => changeFontSize(2)}
-                            className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center"
+                            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center"
                           >
                             <PlusCircle size={20} className="text-white" />
                           </button>
                         </div>
                       </div>
-                      {/* السمات */}
+                      {/* Themes */}
                       <div>
-                        <label className="block text-gray-400 text-sm mb-2">السمة</label>
+                        <label className="block text-white/70 text-sm mb-2">السمة</label>
                         <div className="flex gap-4">
                           {[
                             { color: '#fff', name: 'فاتح' },
@@ -1547,7 +1594,7 @@ export default function Reader() {
                             <button
                               key={theme.color}
                               onClick={() => changeTheme(theme.color)}
-                              className={`w-12 h-12 rounded-full border-2 ${
+                              className={`w-12 h-12 rounded-full border-2 transition-colors ${
                                 bgColor === theme.color ? 'border-blue-500' : 'border-transparent'
                               }`}
                               style={{ backgroundColor: theme.color }}
@@ -1555,9 +1602,9 @@ export default function Reader() {
                           ))}
                         </div>
                       </div>
-                      {/* سطوع النص */}
+                      {/* Brightness */}
                       <div>
-                        <label className="block text-gray-400 text-sm mb-2">سطوع النص</label>
+                        <label className="block text-white/70 text-sm mb-2">سطوع النص</label>
                         <CustomSlider
                           min={0.3}
                           max={1.5}
@@ -1566,8 +1613,8 @@ export default function Reader() {
                           onValueChange={handleBrightnessChange}
                         />
                       </div>
-                      {/* تنسيق الحوار */}
-                      <div className="border-t border-gray-800 pt-4">
+                      {/* Dialogue Formatting */}
+                      <div className="border-t border-white/10 pt-4">
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-white font-medium">تنسيق الحوار</span>
                           <input
@@ -1577,13 +1624,13 @@ export default function Reader() {
                               setEnableDialogue(e.target.checked);
                               saveSettings({ enableDialogue: e.target.checked });
                             }}
-                            className="w-5 h-5"
+                            className="w-5 h-5 accent-green-500"
                           />
                         </div>
                         {enableDialogue && (
                           <div className="space-y-3">
                             <div>
-                              <label className="block text-gray-400 text-sm mb-1">نمط الأقواس</label>
+                              <label className="block text-white/70 text-sm mb-1">نمط الأقواس</label>
                               <div className="flex flex-wrap gap-2">
                                 {QUOTE_STYLES.map(style => (
                                   <button
@@ -1592,10 +1639,10 @@ export default function Reader() {
                                       setSelectedQuoteStyle(style.id);
                                       saveSettings({ selectedQuoteStyle: style.id });
                                     }}
-                                    className={`px-3 py-1 rounded-full text-sm ${
+                                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
                                       selectedQuoteStyle === style.id
                                         ? 'bg-green-600 text-white'
-                                        : 'bg-gray-800 text-gray-300'
+                                        : 'bg-white/10 text-gray-300 hover:bg-white/20'
                                     }`}
                                   >
                                     {style.preview}
@@ -1604,7 +1651,7 @@ export default function Reader() {
                               </div>
                             </div>
                             <div>
-                              <label className="block text-gray-400 text-sm mb-1">لون الحوار</label>
+                              <label className="block text-white/70 text-sm mb-1">لون الحوار</label>
                               <div className="flex flex-wrap gap-2">
                                 {ADVANCED_COLORS.map(c => (
                                   <button
@@ -1613,14 +1660,14 @@ export default function Reader() {
                                       setDialogueColor(c.color);
                                       saveSettings({ dialogueColor: c.color });
                                     }}
-                                    className="w-6 h-6 rounded-full border border-gray-600"
+                                    className="w-6 h-6 rounded-full border border-white/30"
                                     style={{ backgroundColor: c.color }}
                                   />
                                 ))}
                               </div>
                             </div>
                             <div>
-                              <label className="block text-gray-400 text-sm mb-1">حجم الحوار ({dialogueSize}%)</label>
+                              <label className="block text-white/70 text-sm mb-1">حجم الحوار ({dialogueSize}%)</label>
                               <CustomSlider
                                 min={80}
                                 max={150}
@@ -1633,7 +1680,7 @@ export default function Reader() {
                               />
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-gray-400 text-sm">إخفاء علامات الأقواس</span>
+                              <span className="text-white/70 text-sm">إخفاء علامات الأقواس</span>
                               <input
                                 type="checkbox"
                                 checked={hideQuotes}
@@ -1641,13 +1688,14 @@ export default function Reader() {
                                   setHideQuotes(e.target.checked);
                                   saveSettings({ hideQuotes: e.target.checked });
                                 }}
+                                className="w-5 h-5 accent-green-500"
                               />
                             </div>
                           </div>
                         )}
                       </div>
-                      {/* تنسيق الخط العريض */}
-                      <div className="border-t border-gray-800 pt-4">
+                      {/* Bold Formatting */}
+                      <div className="border-t border-white/10 pt-4">
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-white font-medium">الخط العريض (Bold)</span>
                           <input
@@ -1657,13 +1705,13 @@ export default function Reader() {
                               setEnableMarkdown(e.target.checked);
                               saveSettings({ enableMarkdown: e.target.checked });
                             }}
-                            className="w-5 h-5"
+                            className="w-5 h-5 accent-white"
                           />
                         </div>
                         {enableMarkdown && (
                           <div className="space-y-3">
                             <div>
-                              <label className="block text-gray-400 text-sm mb-1">نمط الأقواس</label>
+                              <label className="block text-white/70 text-sm mb-1">نمط الأقواس</label>
                               <div className="flex flex-wrap gap-2">
                                 {QUOTE_STYLES.map(style => (
                                   <button
@@ -1672,10 +1720,10 @@ export default function Reader() {
                                       setSelectedMarkdownStyle(style.id);
                                       saveSettings({ selectedMarkdownStyle: style.id });
                                     }}
-                                    className={`px-3 py-1 rounded-full text-sm ${
+                                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
                                       selectedMarkdownStyle === style.id
                                         ? 'bg-white text-black'
-                                        : 'bg-gray-800 text-gray-300'
+                                        : 'bg-white/10 text-gray-300 hover:bg-white/20'
                                     }`}
                                   >
                                     {style.preview}
@@ -1684,7 +1732,7 @@ export default function Reader() {
                               </div>
                             </div>
                             <div>
-                              <label className="block text-gray-400 text-sm mb-1">لون النص العريض</label>
+                              <label className="block text-white/70 text-sm mb-1">لون النص العريض</label>
                               <div className="flex flex-wrap gap-2">
                                 {ADVANCED_COLORS.map(c => (
                                   <button
@@ -1693,14 +1741,14 @@ export default function Reader() {
                                       setMarkdownColor(c.color);
                                       saveSettings({ markdownColor: c.color });
                                     }}
-                                    className="w-6 h-6 rounded-full border border-gray-600"
+                                    className="w-6 h-6 rounded-full border border-white/30"
                                     style={{ backgroundColor: c.color }}
                                   />
                                 ))}
                               </div>
                             </div>
                             <div>
-                              <label className="block text-gray-400 text-sm mb-1">حجم النص العريض ({markdownSize}%)</label>
+                              <label className="block text-white/70 text-sm mb-1">حجم النص العريض ({markdownSize}%)</label>
                               <CustomSlider
                                 min={80}
                                 max={150}
@@ -1713,7 +1761,7 @@ export default function Reader() {
                               />
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-gray-400 text-sm">إخفاء علامات التنسيق (مثل **)</span>
+                              <span className="text-white/70 text-sm">إخفاء علامات التنسيق (مثل **)</span>
                               <input
                                 type="checkbox"
                                 checked={hideMarkdownMarks}
@@ -1721,6 +1769,7 @@ export default function Reader() {
                                   setHideMarkdownMarks(e.target.checked);
                                   saveSettings({ hideMarkdownMarks: e.target.checked });
                                 }}
+                                className="w-5 h-5 accent-white"
                               />
                             </div>
                           </div>
@@ -1734,7 +1783,7 @@ export default function Reader() {
           )}
         </AnimatePresence>
 
-        {/* نافذة إنشاء مجلد جديد */}
+        {/* New Folder Modal */}
         <AnimatePresence>
           {showFolderModal && (
             <motion.div
@@ -1772,7 +1821,7 @@ export default function Reader() {
           )}
         </AnimatePresence>
 
-        {/* خلفية للدرج */}
+        {/* Backdrop for drawers */}
         {drawerMode !== 'none' && (
           <div className="fixed inset-0 bg-black/50 z-25" onClick={closeDrawers} />
         )}
