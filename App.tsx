@@ -1,10 +1,17 @@
 import React from 'react';
-import NovelDetails from './src/screens/NovelDetails';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './src/screens/Home';
+import NovelPage from './src/screens/NovelPage';
 
 export default function App() {
   return (
-    <div dir="rtl">
-      <NovelDetails />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/novel/:slug" element={<NovelPage />} />
+        {/* يمكن إضافة مسار للفصل الفردي إذا رغبت */}
+        {/* <Route path="/novel/:slug/chapter-:chapter" element={<ChapterPage />} /> */}
+      </Routes>
+    </Router>
   );
 }
