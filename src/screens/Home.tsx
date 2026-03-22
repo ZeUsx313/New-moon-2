@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation } from 'swiper/modules';
-import { motion } from 'motion/react';
-import { TrendingUp, PlusCircle, Clock, Flame, Star, ChevronLeft, ChevronRight, Pin } from 'lucide-react';
+import { motion, useAnimation, useInView, AnimatePresence } from 'motion/react';
+import { TrendingUp, PlusCircle, Clock, Flame, Star, ChevronLeft, ChevronRight, BookOpen, Sparkles } from 'lucide-react';
 import Header from '../components/Header';
 import { novelService, Novel } from '../services/novel';
 
@@ -23,11 +23,11 @@ const NovelCardSkeleton = () => (
 );
 
 // Novel Card Component (reusable)
-const NovelCard = ({ novel }: { novel: Novel }) => (
+const NovelCard = ({ novel, index }: { novel: Novel; index: number }) => (
   <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4 }}
+    initial={{ opacity: 0, y: 30 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.4, delay: index * 0.05 }}
     viewport={{ once: true }}
     className="group cursor-pointer"
   >
@@ -64,7 +64,7 @@ const NovelCard = ({ novel }: { novel: Novel }) => (
   </motion.div>
 );
 
-// Helper: format relative time (منذ X ...)
+// Helper: format relative time
 const formatRelativeTime = (date: Date | string): string => {
   const now = new Date();
   const d = new Date(date);
@@ -79,7 +79,6 @@ const formatRelativeTime = (date: Date | string): string => {
   if (diffHour < 1) return `منذ ${diffMin} دقيقة`;
   if (diffDay < 1) return `منذ ${diffHour} ساعة`;
   if (diffMonth < 1) return `منذ ${diffDay} يوم`;
-  // أكثر من شهر: عرض التاريخ الكامل YYYY/M/D
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 };
 
@@ -92,7 +91,7 @@ const isNewChapter = (date: Date | string): boolean => {
   return diffHours < 24;
 };
 
-// Helper: get status pill style (as in NovelPage)
+// Helper: get status pill style
 const getStatusStyle = (status: string) => {
   if (status === 'مستمرة') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
   if (status === 'مكتملة') return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
@@ -105,23 +104,31 @@ export default function Home() {
   const [trendingNovels, setTrendingNovels] = useState<Novel[]>([]);
   const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
   const [latestUpdates, setLatestUpdates] = useState<Novel[]>([]);
+  const [latestPage, setLatestPage] = useState(1);
+  const [hasMoreUpdates, setHasMoreUpdates] = useState(true);
+  const [loadingUpdates, setLoadingUpdates] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const controls = useAnimation();
 
+  // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         const [hero, trending, recent, updates] = await Promise.all([
-          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 5 }), // Top 5 for hero slider
-          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 12 }), // Most Read section
-          novelService.getNovels({ filter: 'latest_added', limit: 12 }),                // Recently Added
-          novelService.getNovels({ filter: 'latest_updates', limit: 8 }),               // Latest Updates
+          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 5 }),
+          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 12 }),
+          novelService.getNovels({ filter: 'latest_added', limit: 12 }),
+          novelService.getNovels({ filter: 'latest_updates', page: 1, limit: 25 }),
         ]);
         setHeroNovels(hero.novels);
         setTrendingNovels(trending.novels);
         setRecentNovels(recent.novels);
         setLatestUpdates(updates.novels);
+        setHasMoreUpdates(updates.totalPages > 1);
+        setLatestPage(1);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -131,6 +138,40 @@ export default function Home() {
     fetchData();
   }, []);
 
+  // Load more updates on scroll
+  const loadMoreUpdates = useCallback(async () => {
+    if (loadingUpdates || !hasMoreUpdates) return;
+    setLoadingUpdates(true);
+    try {
+      const nextPage = latestPage + 1;
+      const res = await novelService.getNovels({ filter: 'latest_updates', page: nextPage, limit: 25 });
+      setLatestUpdates(prev => [...prev, ...res.novels]);
+      setLatestPage(nextPage);
+      setHasMoreUpdates(nextPage < res.totalPages);
+      // Trigger animation for new items
+      controls.start('visible');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingUpdates(false);
+    }
+  }, [latestPage, hasMoreUpdates, loadingUpdates, controls]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreUpdates && !loadingUpdates) {
+          loadMoreUpdates();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasMoreUpdates, loadingUpdates, loadMoreUpdates]);
+
+  // Dark mode effect
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -159,7 +200,7 @@ export default function Home() {
       <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
       <main className="pb-16">
-        {/* Hero Slider - dynamic from API */}
+        {/* Hero Slider with enhanced animations */}
         <section className="h-[430px] w-full overflow-hidden">
           <Swiper
             modules={[Autoplay, Pagination, Navigation]}
@@ -167,6 +208,9 @@ export default function Home() {
             pagination={{ clickable: true }}
             loop
             className="h-full w-full"
+            onSlideChange={() => {
+              // Optional: trigger animation reset if needed
+            }}
           >
             {loading
               ? Array.from({ length: 3 }).map((_, i) => (
@@ -186,18 +230,22 @@ export default function Home() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                         <div className="absolute bottom-12 left-0 right-0 px-6 text-center z-10">
                           <motion.div
-                            initial={{ opacity: 0, y: 20 }}
+                            key={novel._id} // important to re-trigger animation on slide change
+                            initial={{ opacity: 0, y: 40 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6 }}
+                            transition={{ duration: 0.6, type: 'spring', stiffness: 100, damping: 15 }}
                             className="flex flex-col items-center gap-3"
                           >
-                            <span className="px-3 py-1 rounded-full bg-gradient-to-r from-cyan-400 to-teal-400 text-black text-xs font-bold flex items-center gap-1">
-                              🔥 رائج
-                            </span>
+                            {/* Remove "رائج" badge */}
                             <h2 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg max-w-3xl">
                               {novel.title}
                             </h2>
-                            <div className="flex flex-wrap justify-center gap-2">
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.5, delay: 0.2 }}
+                              className="flex flex-wrap justify-center gap-2"
+                            >
                               {novel.tags?.slice(0, 3).map((tag) => (
                                 <span
                                   key={tag}
@@ -206,7 +254,7 @@ export default function Home() {
                                   {tag}
                                 </span>
                               ))}
-                            </div>
+                            </motion.div>
                           </motion.div>
                         </div>
                       </div>
@@ -241,9 +289,9 @@ export default function Home() {
                       <NovelCardSkeleton />
                     </SwiperSlide>
                   ))
-                : trendingNovels.map((novel) => (
+                : trendingNovels.map((novel, idx) => (
                     <SwiperSlide key={novel._id}>
-                      <NovelCard novel={novel} />
+                      <NovelCard novel={novel} index={idx} />
                     </SwiperSlide>
                   ))}
             </Swiper>
@@ -275,102 +323,106 @@ export default function Home() {
                       <NovelCardSkeleton />
                     </SwiperSlide>
                   ))
-                : recentNovels.map((novel) => (
+                : recentNovels.map((novel, idx) => (
                     <SwiperSlide key={novel._id}>
-                      <NovelCard novel={novel} />
+                      <NovelCard novel={novel} index={idx} />
                     </SwiperSlide>
                   ))}
             </Swiper>
           </div>
         </section>
 
-        {/* Section: Latest Updates (آخر التحديثات) */}
+        {/* Section: Latest Updates with Infinite Scroll */}
         <section className="px-4 md:px-8 mt-16">
           <div className="max-w-7xl mx-auto">
-            <h2 className="text-2xl md:text-[26px] font-bold mb-8">آخر التحديثات</h2>
+            <div className="flex items-center gap-2 mb-8">
+              <Sparkles size={28} className="text-purple-400" />
+              <h2 className="text-2xl md:text-[26px] font-bold">آخر التحديثات</h2>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-              {loading
-                ? Array.from({ length: 4 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="animate-pulse bg-gray-800/30 rounded-xl flex h-[300px]"
+              <AnimatePresence mode="wait">
+                {latestUpdates.map((novel, idx) => (
+                  <motion.div
+                    key={novel._id}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: Math.min(idx * 0.03, 0.6) }}
+                    className="bg-[#0c0c0c] rounded-xl border border-white/5 overflow-hidden flex h-[300px] hover:border-white/10 transition-all duration-300"
+                  >
+                    <Link
+                      to={`/novel/${novel._id}`}
+                      className="w-[42%] relative shrink-0 h-full block overflow-hidden group"
                     >
-                      <div className="w-[42%] bg-gray-800 rounded-r-xl" />
-                      <div className="flex-1 p-4 space-y-4">
-                        <div className="h-5 bg-gray-800 rounded w-3/4" />
-                        <div className="h-4 bg-gray-800 rounded w-1/2" />
-                        <div className="space-y-2">
-                          <div className="h-10 bg-gray-800 rounded" />
-                          <div className="h-10 bg-gray-800 rounded" />
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                : latestUpdates.map((novel) => (
-                    <div
-                      key={novel._id}
-                      className="bg-[#0c0c0c] rounded-xl border border-white/5 overflow-hidden flex h-[300px] hover:border-white/10 transition-all duration-300"
-                    >
-                      <Link
-                        to={`/novel/${novel._id}`}
-                        className="w-[42%] relative shrink-0 h-full block overflow-hidden group"
-                      >
-                        <img
-                          src={novel.cover}
-                          alt={novel.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-l from-transparent to-[#0c0c0c]/80" />
+                      <img
+                        src={novel.cover}
+                        alt={novel.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-l from-transparent to-[#0c0c0c]/80" />
+                    </Link>
+
+                    <div className="flex-1 p-4 flex flex-col">
+                      <Link to={`/novel/${novel._id}`} className="block">
+                        <h3 className="text-white font-bold text-[17px] leading-snug line-clamp-2 mb-2 hover:text-[#ff3b8d] transition-colors">
+                          {novel.title}
+                        </h3>
                       </Link>
+                      <div className="flex justify-start items-center mb-4">
+                        <span className={`px-3 py-1 rounded-md text-xs font-medium border ${getStatusStyle(novel.status)}`}>
+                          {novel.status}
+                        </span>
+                      </div>
 
-                      <div className="flex-1 p-4 flex flex-col">
-                        <Link to={`/novel/${novel._id}`} className="block">
-                          <h3 className="text-white font-bold text-[17px] leading-snug line-clamp-2 mb-2 hover:text-[#ff3b8d] transition-colors">
-                            {novel.title}
-                          </h3>
-                        </Link>
-                        <div className="flex justify-start items-center mb-4">
-                          <span className={`px-3 py-1 rounded-md text-xs font-medium border ${getStatusStyle(novel.status)}`}>
-                            {novel.status}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col gap-2 flex-1 overflow-hidden">
-                          {(novel.chapters || []).slice(0, 5).map((chapter) => {
-                            const isNew = isNewChapter(chapter.createdAt);
-                            return (
-                              <div
-                                key={chapter._id}
-                                className="flex justify-between items-center bg-[#151515] hover:bg-[#1a1a1a] transition-colors rounded-lg px-3 py-2.5 border border-transparent hover:border-white/5 cursor-pointer"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[13px] font-bold text-gray-200">
-                                    الفصل {chapter.number}
-                                  </span>
-                                  {isNew && (
-                                    <span className="flex items-center gap-1 bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                                      <Flame size={10} className="fill-red-400" />
-                                      جديد
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-[11px] font-bold text-gray-500">
-                                  {formatRelativeTime(chapter.createdAt)}
+                      <div className="flex flex-col gap-2 flex-1 overflow-hidden">
+                        {(novel.chapters || []).slice(0, 5).map((chapter, chapIdx) => {
+                          const isNew = isNewChapter(chapter.createdAt);
+                          return (
+                            <div
+                              key={chapter._id || chapIdx}
+                              className="flex justify-between items-center bg-[#151515] hover:bg-[#1a1a1a] transition-colors rounded-lg px-3 py-2.5 border border-transparent hover:border-white/5 cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-bold text-gray-200">
+                                  الفصل {chapter.number}
                                 </span>
+                                {isNew && (
+                                  <span className="flex items-center gap-1 bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                                    <Flame size={10} className="fill-red-400" />
+                                    جديد
+                                  </span>
+                                )}
                               </div>
-                            );
-                          })}
-                          {(!novel.chapters || novel.chapters.length === 0) && (
-                            <div className="text-center text-gray-500 text-sm py-4">
-                              لا توجد فصول بعد
+                              <span className="text-[11px] font-bold text-gray-500">
+                                {formatRelativeTime(chapter.createdAt)}
+                              </span>
                             </div>
-                          )}
-                        </div>
+                          );
+                        })}
+                        {(!novel.chapters || novel.chapters.length === 0) && (
+                          <div className="text-center text-gray-500 text-sm py-4">
+                            لا توجد فصول بعد
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
+
+            {/* Loading indicator and sentinel */}
+            {loadingUpdates && (
+              <div className="flex justify-center items-center py-8">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            <div ref={loadMoreRef} className="h-4" />
+            {!hasMoreUpdates && latestUpdates.length > 0 && (
+              <div className="text-center text-gray-500 text-sm py-8">
+                لا توجد تحديثات أخرى
+              </div>
+            )}
           </div>
         </section>
       </main>
