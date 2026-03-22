@@ -7,7 +7,6 @@ import { TrendingUp, PlusCircle, Clock, Flame, Star, ChevronLeft, ChevronRight, 
 import Header from '../components/Header';
 import { novelService, Novel } from '../services/novel';
 
-// Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
@@ -65,16 +64,37 @@ const NovelCard = ({ novel }: { novel: Novel }) => (
   </motion.div>
 );
 
-// Main Component
+// Helper: format date as YYYY/M/D
+const formatDate = (date: Date | string) => {
+  const d = new Date(date);
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+};
+
+// Helper: check if date is today (same day)
+const isToday = (date: Date | string) => {
+  const d = new Date(date);
+  const today = new Date();
+  return d.getFullYear() === today.getFullYear() &&
+         d.getMonth() === today.getMonth() &&
+         d.getDate() === today.getDate();
+};
+
+// Helper: get status pill style (as in NovelPage)
+const getStatusStyle = (status: string) => {
+  if (status === 'مستمرة') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+  if (status === 'مكتملة') return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+  return 'bg-red-500/20 text-red-300 border-red-500/30';
+};
+
 export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [topViewedNovels, setTopViewedNovels] = useState<Novel[]>([]);
   const [trendingNovels, setTrendingNovels] = useState<Novel[]>([]);
-  const [recentNovels, setRecentNovels] = useState<Novel[]>([]);
   const [latestUpdates, setLatestUpdates] = useState<Novel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Hero Slider Data (still static, but can be replaced by API)
+  // Hero Slider Data (static)
   const heroSlides = [
     {
       id: 1,
@@ -109,13 +129,13 @@ export default function Home() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [trending, recent, updates] = await Promise.all([
-          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 12 }),
-          novelService.getNovels({ filter: 'latest_added', limit: 12 }),
+        const [topViewed, trending, updates] = await Promise.all([
+          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 5 }), // Top 5 most viewed
+          novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 12 }), // For "Most Read" section
           novelService.getNovels({ filter: 'latest_updates', limit: 8 }),
         ]);
+        setTopViewedNovels(topViewed.novels);
         setTrendingNovels(trending.novels);
-        setRecentNovels(recent.novels);
         setLatestUpdates(updates.novels);
       } catch (err: any) {
         setError(err.message);
@@ -205,12 +225,12 @@ export default function Home() {
           </Swiper>
         </section>
 
-        {/* Section: Recently Added (المضافة حديثاً) */}
+        {/* Section: Top 5 Most Viewed */}
         <section className="px-4 md:px-8 mt-12">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-2 mb-6">
-              <PlusCircle size={24} className="text-green-500" />
-              <h2 className="text-xl font-bold">أضيف حديثاً</h2>
+              <TrendingUp size={24} className="text-orange-500" />
+              <h2 className="text-xl font-bold">الأكثر مشاهدة</h2>
             </div>
             <Swiper
               modules={[Navigation]}
@@ -220,17 +240,17 @@ export default function Home() {
               breakpoints={{
                 640: { slidesPerView: 3 },
                 768: { slidesPerView: 4 },
-                1024: { slidesPerView: 6 },
+                1024: { slidesPerView: 5 },
               }}
               className="py-4"
             >
               {loading
-                ? Array.from({ length: 6 }).map((_, i) => (
+                ? Array.from({ length: 5 }).map((_, i) => (
                     <SwiperSlide key={i}>
                       <NovelCardSkeleton />
                     </SwiperSlide>
                   ))
-                : recentNovels.map((novel) => (
+                : topViewedNovels.map((novel) => (
                     <SwiperSlide key={novel._id}>
                       <NovelCard novel={novel} />
                     </SwiperSlide>
@@ -239,7 +259,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Section: Most Read (الأكثر قراءة) */}
+        {/* Section: Most Read */}
         <section className="px-4 md:px-8 mt-16">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-2 mb-6">
@@ -273,7 +293,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Section: Latest Updates (آخر التحديثات) */}
+        {/* Section: Latest Updates */}
         <section className="px-4 md:px-8 mt-16">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-8">
@@ -323,14 +343,6 @@ export default function Home() {
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />
                         <div className="absolute inset-0 bg-gradient-to-l from-transparent to-[#0c0c0c]/80" />
-                        <div className="absolute top-0 right-0 bg-[#ff3b8d] text-white text-[12px] px-3 py-1.5 font-bold rounded-bl-xl shadow-md">
-                          رواية
-                        </div>
-                        {novel.status === 'مستمرة' && (
-                          <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[11px] px-2 py-1.5 rounded-md flex items-center gap-1.5 shadow-lg border border-white/10">
-                            مستمر <Pin size={12} className="rotate-45" />
-                          </div>
-                        )}
                       </Link>
 
                       <div className="flex-1 p-4 flex flex-col">
@@ -339,36 +351,38 @@ export default function Home() {
                             {novel.title}
                           </h3>
                         </Link>
-                        <div className="flex justify-between items-center mb-4">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2.5 h-2.5 rounded-full bg-[#00e676] shadow-[0_0_8px_rgba(0,230,118,0.5)]" />
-                            <span className="text-gray-300 text-[13px] font-medium">
-                              {novel.status}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 text-[13px] font-bold text-white">
-                            <Star size={14} className="fill-[#ff9900] text-[#ff9900]" />
-                            {novel.rating}
-                          </div>
+                        <div className="flex justify-start items-center mb-4">
+                          <span className={`px-3 py-1 rounded-md text-xs font-medium border ${getStatusStyle(novel.status)}`}>
+                            {novel.status}
+                          </span>
                         </div>
 
                         <div className="flex flex-col gap-2 flex-1 overflow-hidden">
-                          {novel.chapters?.slice(0, 5).map((chapter) => (
-                            <div
-                              key={chapter._id}
-                              className="flex justify-between items-center bg-[#151515] hover:bg-[#1a1a1a] transition-colors rounded-lg px-3 py-2.5 border border-transparent hover:border-white/5 cursor-pointer"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-bold text-gray-200">
-                                  الفصل {chapter.number}
+                          {novel.chapters?.slice(0, 5).map((chapter) => {
+                            const chapterDate = new Date(chapter.createdAt);
+                            const isNew = isToday(chapterDate);
+                            return (
+                              <div
+                                key={chapter._id}
+                                className="flex justify-between items-center bg-[#151515] hover:bg-[#1a1a1a] transition-colors rounded-lg px-3 py-2.5 border border-transparent hover:border-white/5 cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[13px] font-bold text-gray-200">
+                                    الفصل {chapter.number}
+                                  </span>
+                                  {isNew && (
+                                    <span className="flex items-center gap-1 bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                                      <Flame size={10} className="fill-red-400" />
+                                      جديد
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[11px] font-bold text-gray-500">
+                                  {formatDate(chapterDate)}
                                 </span>
-                                {/* Lock icon can be added conditionally */}
                               </div>
-                              <span className="text-[11px] font-bold text-gray-500">
-                                {new Date(chapter.createdAt).toLocaleDateString('ar-EG')}
-                              </span>
-                            </div>
-                          ))}
+                            );
+                          })}
                           {(!novel.chapters || novel.chapters.length === 0) && (
                             <div className="text-center text-gray-500 text-sm py-4">
                               لا توجد فصول بعد
