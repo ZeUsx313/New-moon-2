@@ -1,4 +1,5 @@
 import { api } from './api';
+import { deobfuscate } from '../utils/deobfuscate';
 
 export interface Novel {
   _id: string;
@@ -77,13 +78,26 @@ export const novelService = {
 
     const res = await fetch(`${api.baseUrl}/api/novels?${query.toString()}`);
     if (!res.ok) throw new Error('فشل جلب الروايات');
-    return res.json();
+    const data: NovelListResponse = await res.json();
+    
+    // 🔥 DEOBFUSCATE NOVEL COVERS
+    data.novels = data.novels.map(n => ({
+      ...n,
+      cover: deobfuscate(n.cover)
+    }));
+    
+    return data;
   },
 
   async getNovelById(id: string): Promise<Novel> {
     const res = await fetch(`${api.baseUrl}/api/novels/${id}`);
     if (!res.ok) throw new Error('فشل جلب تفاصيل الرواية');
-    return res.json();
+    const data: Novel = await res.json();
+    
+    // 🔥 DEOBFUSCATE NOVEL COVER
+    data.cover = deobfuscate(data.cover);
+    
+    return data;
   },
 
   async incrementView(novelId: string, chapterNumber: number): Promise<void> {
@@ -107,7 +121,12 @@ export const novelService = {
   async getChapter(novelId: string, chapterId: string): Promise<ChapterFull> {
     const res = await fetch(`${api.baseUrl}/api/novels/${novelId}/chapters/${chapterId}`);
     if (!res.ok) throw new Error('فشل جلب محتوى الفصل');
-    return res.json();
+    const data: ChapterFull = await res.json();
+    
+    // 🔥 DEOBFUSCATE CHAPTER CONTENT
+    data.content = deobfuscate(data.content);
+    
+    return data;
   },
 
   async reactToNovel(novelId: string, type: 'like' | 'love' | 'funny' | 'sad' | 'angry'): Promise<{
@@ -162,7 +181,13 @@ export const novelService = {
       headers: api.getAuthHeader(),
     });
     if (!res.ok) throw new Error('فشل جلب المكتبة');
-    return res.json();
+    const data: any[] = await res.json();
+    
+    // 🔥 DEOBFUSCATE COVERS
+    return data.map(item => ({
+      ...item,
+      cover: deobfuscate(item.cover)
+    }));
   },
 
   async getNovelStatus(novelId: string): Promise<any> {
@@ -170,6 +195,13 @@ export const novelService = {
       headers: api.getAuthHeader(),
     });
     if (!res.ok) throw new Error('فشل جلب حالة الرواية');
-    return res.json();
+    const data = await res.json();
+    
+    // 🔥 DEOBFUSCATE COVER
+    if (data && data.cover) {
+      data.cover = deobfuscate(data.cover);
+    }
+    
+    return data;
   },
 };
