@@ -219,6 +219,19 @@ export const generateHTML = (params: GenerateHTMLParams): string => {
     </div>
   `;
 
+  // 🔥 GENIUS PROTECTION: Obfuscate the final HTML content area
+  const ZEUS_SECRET = "Z3uS_N0v3l_2026_S3cr3t_K3y";
+  const obfuscate = (text: string) => {
+    const encoded = encodeURIComponent(text);
+    let result = "";
+    for (let i = 0; i < encoded.length; i++) {
+      result += String.fromCharCode(encoded.charCodeAt(i) ^ ZEUS_SECRET.charCodeAt(i % ZEUS_SECRET.length));
+    }
+    return btoa(result);
+  };
+
+  const obfuscatedFinalContent = obfuscate(formattedContent);
+
   const brightnessStyle = `filter: brightness(${settings.textBrightness});`;
 
   return `
@@ -229,7 +242,15 @@ export const generateHTML = (params: GenerateHTMLParams): string => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
       <style>
         ${fontImports}
-        * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; box-sizing: border-box; }
+        * { 
+          -webkit-tap-highlight-color: transparent; 
+          -webkit-touch-callout: none; 
+          box-sizing: border-box; 
+          user-select: none !important;
+          -webkit-user-select: none !important;
+          -moz-user-select: none !important;
+          -ms-user-select: none !important;
+        }
         body, html {
           margin: 0; padding: 0; background-color: ${settings.bgColor}; color: ${settings.textColor};
           font-family: ${settings.fontFamily.family}; line-height: 1.8;
@@ -265,7 +286,6 @@ export const generateHTML = (params: GenerateHTMLParams): string => {
         .mark-visible { opacity: 1; }
         .mark-hidden { opacity: 0; font-size: 0; }
 
-        body { user-select: none; -webkit-user-select: none; }
         .author-section-wrapper { margin-top: 50px; margin-bottom: 20px; border-top: 1px solid #222; padding-top: 20px; }
         .section-title { color: ${settings.bgColor === '#fff' ? '#000' : '#fff'}; font-size: 18px; font-weight: bold; margin-bottom: 12px; text-align: right; }
         .author-card { border-radius: 16px; overflow: hidden; margin-top: 10px; border: 1px solid #222; position: relative; height: 140px; width: 100%; cursor: pointer; }
@@ -279,29 +299,60 @@ export const generateHTML = (params: GenerateHTMLParams): string => {
         .comments-btn { width: 100%; background-color: ${settings.bgColor === '#fff' ? '#f0f0f0' : '#1a1a1a'}; border: 1px solid ${settings.bgColor === '#fff' ? '#ddd' : '#333'}; color: ${settings.bgColor === '#fff' ? '#333' : '#fff'}; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
       </style>
     </head>
-    <body>
+    <body oncontextmenu="return false;">
       <div class="container" id="clickable-area">
         <div class="title">${chapter.title}</div>
         ${dividerHTML}
         ${startHTML}
-        <div class="content-area">${formattedContent}</div>
+        <div class="content-area" id="main-content-area">
+          <div style="text-align: center; padding: 20px; opacity: 0.5;">جاري التحميل الآمن...</div>
+        </div>
         ${endHTML}
         ${publisherBanner}
         ${commentsButton}
       </div>
       <script>
-        function sendMessage(msg) {
-          if (window.parent) { window.parent.postMessage(msg, '*'); }
-        }
-        document.addEventListener('click', function(e) {
-          try {
-            if (e.target.closest('#commentsBtn')) { e.stopPropagation(); sendMessage('openComments'); return; }
-            if (e.target.closest('#authorCard')) { e.stopPropagation(); sendMessage('openProfile'); return; }
-            var selection = window.getSelection();
-            if (selection && selection.toString().length > 0) return;
-            sendMessage('toggleMenu');
-          } catch(err) {}
-        });
+        (function() {
+          const _S = "${ZEUS_SECRET}";
+          const _D = "${obfuscatedFinalContent}";
+          
+          function decrypt(encoded) {
+            try {
+              const text = atob(encoded);
+              let result = "";
+              for (let i = 0; i < text.length; i++) {
+                result += String.fromCharCode(text.charCodeAt(i) ^ _S.charCodeAt(i % _S.length));
+              }
+              return decodeURIComponent(result);
+            } catch (e) { return "خطأ في تحميل المحتوى الآمن."; }
+          }
+
+          // Inject content safely
+          document.getElementById('main-content-area').innerHTML = decrypt(_D);
+
+          // Anti-copy protection
+          document.addEventListener('copy', (e) => e.preventDefault());
+          document.addEventListener('cut', (e) => e.preventDefault());
+          document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && (e.key === 'c' || e.key === 'u' || e.key === 's' || e.key === 'p')) {
+              e.preventDefault();
+              return false;
+            }
+          });
+
+          function sendMessage(msg) {
+            if (window.parent) { window.parent.postMessage(msg, '*'); }
+          }
+          document.addEventListener('click', function(e) {
+            try {
+              if (e.target.closest('#commentsBtn')) { e.stopPropagation(); sendMessage('openComments'); return; }
+              if (e.target.closest('#authorCard')) { e.stopPropagation(); sendMessage('openProfile'); return; }
+              var selection = window.getSelection();
+              if (selection && selection.toString().length > 0) return;
+              sendMessage('toggleMenu');
+            } catch(err) {}
+          });
+        })();
       </script>
     </body>
     </html>
