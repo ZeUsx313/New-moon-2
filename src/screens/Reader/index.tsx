@@ -18,6 +18,7 @@ import { CopyrightDrawer } from './components/CopyrightDrawer';
 import { SettingsModal } from './components/SettingsModal';
 import { CommentsModal } from './components/CommentsModal';
 import { ChapterContent } from './components/ChapterContent';
+import { commentService } from '../../services/comment';
 import toast from 'react-hot-toast';
 
 export default function Reader() {
@@ -28,6 +29,31 @@ export default function Reader() {
 
   const { novel, chapter, chaptersList, totalChapters, commentCount, authorProfile, loading, loadingChapters } =
     useChapterData(novelId!, chapterId!);
+
+  // 🔥 GENIUS PROTECTION: Deobfuscate content from backend
+  const deobfuscateContent = useCallback((encoded: string) => {
+    if (!encoded) return "";
+    const ZEUS_SECRET = "Z3uS_N0v3l_2026_S3cr3t_K3y";
+    try {
+      const text = atob(encoded);
+      let result = "";
+      for (let i = 0; i < text.length; i++) {
+        result += String.fromCharCode(text.charCodeAt(i) ^ ZEUS_SECRET.charCodeAt(i % ZEUS_SECRET.length));
+      }
+      return decodeURIComponent(result);
+    } catch (e) {
+      console.error("Deobfuscation failed", e);
+      return encoded; // Fallback to raw if it's not obfuscated
+    }
+  }, []);
+
+  const deobfuscatedChapter = useMemo(() => {
+    if (!chapter) return null;
+    return {
+      ...chapter,
+      content: deobfuscateContent(chapter.content)
+    };
+  }, [chapter, deobfuscateContent]);
 
   const { settings, changeFontSize, changeTheme, handleFontChange, handleBrightnessChange, dialogue, markdown } =
     useReaderSettings();
@@ -54,9 +80,9 @@ export default function Reader() {
   }, []);
 
   const html = useMemo(() => {
-    if (!chapter) return '';
+    if (!deobfuscatedChapter) return '';
     return generateHTML({
-      chapter,
+      chapter: deobfuscatedChapter,
       settings,
       activeReplacements: replacements.activeReplacements,
       authorProfile,
@@ -72,7 +98,7 @@ export default function Reader() {
       copyrightFrequency: copyright.frequency,
       copyrightEveryX: parseInt(copyright.everyX) || 5,
     });
-  }, [chapter, settings, replacements.activeReplacements, authorProfile, novel, commentCount, isAdmin, cleaner.cleanerWords, copyright]);
+  }, [deobfuscatedChapter, settings, replacements.activeReplacements, authorProfile, novel, commentCount, isAdmin, cleaner.cleanerWords, copyright]);
 
   useEffect(() => {
     refreshContent();
