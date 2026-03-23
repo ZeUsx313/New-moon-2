@@ -1,4 +1,5 @@
 import { api } from './api';
+import { deobfuscate } from '../utils/deobfuscate';
 
 export interface User {
   _id: string;
@@ -29,7 +30,15 @@ export const authService = {
       const error = await res.json();
       throw new Error(error.message || 'فشل التسجيل');
     }
-    return res.json();
+    const data: LoginResponse = await res.json();
+    
+    // 🔥 DEOBFUSCATE USER DATA
+    if (data.user) {
+      data.user.picture = deobfuscate(data.user.picture || '');
+      data.user.banner = deobfuscate(data.user.banner || '');
+    }
+    
+    return data;
   },
 
   async login(email: string, password: string): Promise<LoginResponse> {
@@ -42,7 +51,15 @@ export const authService = {
       const error = await res.json();
       throw new Error(error.message || 'فشل تسجيل الدخول');
     }
-    return res.json();
+    const data: LoginResponse = await res.json();
+    
+    // 🔥 DEOBFUSCATE USER DATA
+    if (data.user) {
+      data.user.picture = deobfuscate(data.user.picture || '');
+      data.user.banner = deobfuscate(data.user.banner || '');
+    }
+    
+    return data;
   },
 
   async getCurrentUser(): Promise<User> {
@@ -54,7 +71,15 @@ export const authService = {
     });
     if (!res.ok) throw new Error('فشل جلب المستخدم');
     const data = await res.json();
-    return data.user;
+    const user = data.user;
+    
+    // 🔥 DEOBFUSCATE USER DATA
+    if (user) {
+      user.picture = deobfuscate(user.picture || '');
+      user.banner = deobfuscate(user.banner || '');
+    }
+    
+    return user;
   },
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
