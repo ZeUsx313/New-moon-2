@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home as HomeIcon, Library, User, Search, Sun, Moon, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+import { useAuth } from '../context/AuthContext';
 
 // استيراد الصورة من مجلد assets
 import logoImg from '../assets/AF32FFD4-DC2A-4D6A-9C05-F0A2E7288DC9.png';
@@ -13,13 +15,23 @@ interface HeaderProps {
 
 export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated, openAuthModal } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
     { path: '/', label: 'الرئيسية', icon: <HomeIcon size={18} /> },
     { path: '/library', label: 'المكتبة', icon: <Library size={18} /> },
-    { path: '/my-page', label: 'صفحتي', icon: <User size={18} /> },
+    { path: '/my-page', label: 'صفحتي', icon: <User size={18} />, protected: true },
   ];
+
+  const handleNavClick = (e: React.MouseEvent, item: any) => {
+    if (item.protected && !isAuthenticated) {
+      e.preventDefault();
+      openAuthModal();
+      setIsMenuOpen(false);
+    }
+  };
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -44,6 +56,7 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={(e) => handleNavClick(e, item)}
                 className="relative flex items-center gap-2 h-full text-gray-300 hover:text-white transition-colors group"
               >
                 <span className="text-current group-hover:text-white transition-colors">{item.icon}</span>
@@ -109,7 +122,7 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
                 <Link
                   key={item.path}
                   to={item.path}
-                  onClick={() => setIsMenuOpen(false)}
+                  onClick={(e) => handleNavClick(e, item)}
                   className="flex items-center gap-4 py-5 text-xl font-bold text-white hover:text-white/80 transition-colors"
                 >
                   <span className="text-white">{item.icon}</span>
