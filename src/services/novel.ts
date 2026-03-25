@@ -57,26 +57,9 @@ export interface NovelListResponse {
   totalNovels: number;
 }
 
-// 🔥 HELPER FOR IMAGE PROXY: Prevents double-proxying and handles broken URLs
+// 🔥 HELPER FOR IMAGE PROXY: Removed as requested to use raw URLs
 const getProxiedUrl = (url: string) => {
-  if (!url) return '';
-  
-  // If it already contains the proxy path, return it as is
-  if (url.includes('/api/image-proxy?url=')) {
-    if (url.startsWith('undefined/')) {
-      return url.replace('undefined/', `${api.baseUrl}/`);
-    }
-    return url;
-  }
-  
-  let cleanUrl = url;
-  if (url.startsWith('undefined/')) {
-    cleanUrl = url.replace('undefined/', `${api.baseUrl}/`);
-    if (cleanUrl.includes('/api/image-proxy?url=')) return cleanUrl;
-  }
-
-  // Only proxy external URLs or those that aren't already proxied
-  return `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(cleanUrl)}`;
+  return url || '';
 };
 
 export const novelService = {
@@ -104,7 +87,7 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب الروايات');
     const data: NovelListResponse = await res.json();
     
-    // 🔥 USE IMAGE PROXY FOR COVERS
+    // 🔥 NO PROXY FOR COVERS
     data.novels = data.novels.map(n => ({
       ...n,
       cover: getProxiedUrl(n.cover)
@@ -118,7 +101,7 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب تفاصيل الرواية');
     const data: Novel = await res.json();
     
-    // 🔥 USE IMAGE PROXY FOR COVER
+    // 🔥 NO PROXY FOR COVER
     data.cover = getProxiedUrl(data.cover);
     if (data.banner) {
       data.banner = getProxiedUrl(data.banner);
@@ -151,7 +134,7 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب محتوى الفصل');
     const data: ChapterFull = await res.json();
     
-    // 🔥 DEOBFUSCATE CHAPTER CONTENT
+    // 🔥 DEOBFUSCATE CHAPTER CONTENT (KEEP THIS)
     data.content = deobfuscate(data.content);
     
     return data;
@@ -236,7 +219,7 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب المكتبة');
     const data: any[] = await res.json();
     
-    // 🔥 USE IMAGE PROXY FOR COVERS
+    // 🔥 NO PROXY FOR COVERS
     return data.map(item => ({
       ...item,
       cover: getProxiedUrl(item.cover)
@@ -250,7 +233,7 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب حالة الرواية');
     const data = await res.json();
     
-    // 🔥 USE IMAGE PROXY FOR COVER
+    // 🔥 NO PROXY FOR COVER
     if (data) {
       data.cover = getProxiedUrl(data.cover);
     }
