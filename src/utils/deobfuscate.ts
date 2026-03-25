@@ -7,10 +7,13 @@ const ZEUS_SECRET = "Z3uS_N0v3l_2026_S3cr3t_K3y";
 export function deobfuscate(encoded: string): string {
     if (!encoded) return "";
     try {
-        // Check if it's actually base64 (simple check)
-        if (!/^[A-Za-z0-9+/=]+$/.test(encoded)) return encoded;
+        // 🔥 Robust Base64 Check: Trim and remove all whitespace
+        const cleanEncoded = encoded.trim().replace(/\s/g, '');
+        
+        // Check if it's actually base64 (allow standard and URL-safe base64)
+        if (!/^[A-Za-z0-9+/=_.-]+$/.test(cleanEncoded)) return encoded;
 
-        const text = atob(encoded);
+        const text = atob(cleanEncoded);
         let result = "";
         
         // REVERSE THE STRONG PROTECTION:
