@@ -3,7 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import AuthRequirementModal from './src/components/Modal/AuthRequirementModal';
 import Home from './src/screens/Home';
 import NovelPage from './src/screens/NovelPage';
 import Library from './src/screens/Library';
@@ -21,23 +22,32 @@ const queryClient = new QueryClient({
   },
 });
 
+function AppContent() {
+  const { isAuthModalOpen, closeAuthModal } = useAuth();
+
+  return (
+    <Router>
+      <Toaster position="top-center" reverseOrder={false} />
+      <AuthRequirementModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/novel/:slug" element={<NovelPage />} />
+        <Route path="/novel/:novelId/reader/:chapterId" element={<Reader />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/my-page" element={<MyPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+      </Routes>
+    </Router>
+  );
+}
+
 export default function App() {
   return (
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Router>
-            <Toaster position="top-center" reverseOrder={false} />
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/novel/:slug" element={<NovelPage />} />
-              <Route path="/novel/:novelId/reader/:chapterId" element={<Reader />} />
-              <Route path="/library" element={<Library />} />
-              <Route path="/my-page" element={<MyPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-            </Routes>
-          </Router>
+          <AppContent />
         </AuthProvider>
       </QueryClientProvider>
     </HelmetProvider>
