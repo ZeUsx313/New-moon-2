@@ -108,15 +108,16 @@ export const novelService = {
   },
 
   async incrementView(novelId: string, chapterNumber: number): Promise<void> {
-    const res = await fetch(`${api.baseUrl}/api/novels/${novelId}/view`, {
-      method: 'POST',
-      headers: {
-        ...api.headers,
-        ...api.getAuthHeader(),
-      },
-      body: JSON.stringify({ chapterNumber }),
-    });
-    if (!res.ok) throw new Error('فشل زيادة المشاهدة');
+    try {
+      // 🔥 NO AUTH REQUIRED FOR VIEWS - EVERYONE COUNTS
+      await fetch(`${api.baseUrl}/api/novels/${novelId}/view`, {
+        method: 'POST',
+        headers: api.headers,
+        body: JSON.stringify({ chapterNumber }),
+      });
+    } catch (error) {
+      console.error('Failed to increment view:', error);
+    }
   },
 
   async getChaptersList(id: string, page: number = 1, limit: number = 25, sort: 'asc' | 'desc' = 'asc'): Promise<ChapterMeta[]> {
@@ -165,16 +166,41 @@ export const novelService = {
     lastChapterId?: number;
     lastChapterTitle?: string;
   }): Promise<any> {
-    const res = await fetch(`${api.baseUrl}/api/novel/update`, {
-      method: 'POST',
-      headers: {
-        ...api.headers,
-        ...api.getAuthHeader(),
-      },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('فشل تحديث حالة القراءة');
-    return res.json();
+    // 🔥 GUEST PROGRESS: Always save to localStorage
+    if (data.lastChapterId) {
+      const stored = localStorage.getItem(`read_chapters_${data.novelId}`);
+      const readChapters = stored ? JSON.parse(stored) : [];
+      if (!readChapters.includes(data.lastChapterId)) {
+        readChapters.push(data.lastChapterId);
+        localStorage.setItem(`read_chapters_${data.novelId}`, JSON.stringify(readChapters));
+      }
+      
+      // Save last read chapter for "Continue Reading"
+      localStorage.setItem(`last_read_${data.novelId}`, JSON.stringify({
+        id: data.lastChapterId,
+        title: data.lastChapterTitle,
+        time: new Date().toISOString()
+      }));
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) return { success: true }; // Silent success for guests
+
+    try {
+      const res = await fetch(`${api.baseUrl}/api/novel/update`, {
+        method: 'POST',
+        headers: {
+          ...api.headers,
+          ...api.getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('فشل تحديث حالة القراءة');
+      return res.json();
+    } catch (error) {
+      console.error('Failed to update reading status:', error);
+      return { success: false };
+    }
   },
 
   async getUserLibrary(userId?: string, type?: 'favorites' | 'history', page: number = 1, limit: number = 20): Promise<any[]> {
