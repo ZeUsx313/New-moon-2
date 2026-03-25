@@ -57,6 +57,31 @@ export interface NovelListResponse {
   totalNovels: number;
 }
 
+// 🔥 HELPER FOR IMAGE PROXY: Prevents double-proxying and handles broken URLs
+const getProxiedUrl = (url: string) => {
+  if (!url) return '';
+  
+  // If it already contains the proxy path, return it as is
+  if (url.includes('/api/image-proxy?url=')) {
+    // Fix "undefined" if it exists at the start of the URL
+    if (url.startsWith('undefined/')) {
+      return url.replace('undefined/', `${api.baseUrl}/`);
+    }
+    return url;
+  }
+  
+  // If it starts with "undefined/", fix it before proxying
+  let cleanUrl = url;
+  if (url.startsWith('undefined/')) {
+    cleanUrl = url.replace('undefined/', `${api.baseUrl}/`);
+    // If it's already a proxy after fixing, return it
+    if (cleanUrl.includes('/api/image-proxy?url=')) return cleanUrl;
+  }
+
+  // Only proxy external URLs or those that aren't already proxied
+  return `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(cleanUrl)}`;
+};
+
 export const novelService = {
   async getNovels(params: {
     filter?: string;
@@ -85,7 +110,7 @@ export const novelService = {
     // 🔥 USE IMAGE PROXY FOR COVERS
     data.novels = data.novels.map(n => ({
       ...n,
-      cover: n.cover ? `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(n.cover)}` : ''
+      cover: getProxiedUrl(n.cover)
     }));
     
     return data;
@@ -97,11 +122,9 @@ export const novelService = {
     const data: Novel = await res.json();
     
     // 🔥 USE IMAGE PROXY FOR COVER
-    if (data.cover) {
-      data.cover = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.cover)}`;
-    }
+    data.cover = getProxiedUrl(data.cover);
     if (data.banner) {
-      data.banner = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.banner)}`;
+      data.banner = getProxiedUrl(data.banner);
     }
     
     return data;
@@ -219,7 +242,7 @@ export const novelService = {
     // 🔥 USE IMAGE PROXY FOR COVERS
     return data.map(item => ({
       ...item,
-      cover: item.cover ? `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(item.cover)}` : ''
+      cover: getProxiedUrl(item.cover)
     }));
   },
 
@@ -231,8 +254,8 @@ export const novelService = {
     const data = await res.json();
     
     // 🔥 USE IMAGE PROXY FOR COVER
-    if (data && data.cover) {
-      data.cover = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.cover)}`;
+    if (data) {
+      data.cover = getProxiedUrl(data.cover);
     }
     
     return data;
