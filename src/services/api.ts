@@ -1,4 +1,12 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://c-production-fba1.up.railway.app';
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl !== 'undefined' && envUrl !== '') {
+    return envUrl;
+  }
+  return 'https://c-production-fba1.up.railway.app';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const api = {
   baseUrl: API_BASE_URL,
