@@ -7,6 +7,7 @@ export interface Novel {
   titleEn?: string;
   author: string;
   authorEmail?: string;
+  authorId?: string; // 🔥 NEW FIELD
   cover: string;
   description: string;
   category: string;
@@ -80,10 +81,10 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب الروايات');
     const data: NovelListResponse = await res.json();
     
-    // 🔥 DEOBFUSCATE NOVEL COVERS
+    // 🔥 USE IMAGE PROXY FOR COVERS
     data.novels = data.novels.map(n => ({
       ...n,
-      cover: deobfuscate(n.cover)
+      cover: n.cover ? `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(n.cover)}` : ''
     }));
     
     return data;
@@ -94,8 +95,10 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب تفاصيل الرواية');
     const data: Novel = await res.json();
     
-    // 🔥 DEOBFUSCATE NOVEL COVER
-    data.cover = deobfuscate(data.cover);
+    // 🔥 USE IMAGE PROXY FOR COVER
+    if (data.cover) {
+      data.cover = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.cover)}`;
+    }
     
     return data;
   },
@@ -183,10 +186,10 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب المكتبة');
     const data: any[] = await res.json();
     
-    // 🔥 DEOBFUSCATE COVERS
+    // 🔥 USE IMAGE PROXY FOR COVERS
     return data.map(item => ({
       ...item,
-      cover: deobfuscate(item.cover)
+      cover: item.cover ? `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(item.cover)}` : ''
     }));
   },
 
@@ -197,9 +200,9 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب حالة الرواية');
     const data = await res.json();
     
-    // 🔥 DEOBFUSCATE COVER
+    // 🔥 USE IMAGE PROXY FOR COVER
     if (data && data.cover) {
-      data.cover = deobfuscate(data.cover);
+      data.cover = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.cover)}`;
     }
     
     return data;
