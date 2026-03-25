@@ -223,9 +223,9 @@ export default function NovelPage() {
     fetchNovel();
   }, [slug]);
 
-  // Fetch chapters
+  // Fetch chapters - ONLY WHEN TAB IS ACTIVE
   useEffect(() => {
-    if (!slug) return;
+    if (!slug || activeTab !== 'chapters') return;
     const fetchChapters = async () => {
       setLoadingChapters(true);
       try {
@@ -238,11 +238,11 @@ export default function NovelPage() {
       }
     };
     fetchChapters();
-  }, [slug, chaptersPage, sortOrder]);
+  }, [slug, chaptersPage, sortOrder, activeTab]);
 
-  // Fetch comments and reactions
+  // Fetch comments and reactions - ONLY WHEN TAB IS ACTIVE
   useEffect(() => {
-    if (!slug) return;
+    if (!slug || activeTab !== 'comments') return;
     const fetchComments = async () => {
       setLoadingComments(true);
       try {
@@ -265,7 +265,7 @@ export default function NovelPage() {
       }
     };
     fetchComments();
-  }, [slug]);
+  }, [slug, activeTab]);
 
   const handleReaction = async (type: 'like' | 'love' | 'funny' | 'sad' | 'angry') => {
     if (!slug) return;
