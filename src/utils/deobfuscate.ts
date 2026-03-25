@@ -12,8 +12,26 @@ export function deobfuscate(encoded: string): string {
 
         const text = atob(encoded);
         let result = "";
+        
+        // REVERSE THE STRONG PROTECTION:
+        // 1. Rotation
+        // 2. Dynamic Offset
+        // 3. XOR
+        
         for (let i = 0; i < text.length; i++) {
-            result += String.fromCharCode(text.charCodeAt(i) ^ ZEUS_SECRET.charCodeAt(i % ZEUS_SECRET.length));
+            let charCode = text.charCodeAt(i);
+            
+            // Reverse Rotation (3 positions)
+            charCode = (charCode - 3 + 256) % 256;
+            
+            // Reverse Dynamic Offset
+            const offset = (i * 7) % 13;
+            charCode = (charCode - offset + 256) % 256;
+            
+            // Reverse XOR
+            charCode = charCode ^ ZEUS_SECRET.charCodeAt(i % ZEUS_SECRET.length);
+            
+            result += String.fromCharCode(charCode);
         }
         
         // Try to decode as URI component (for content)
