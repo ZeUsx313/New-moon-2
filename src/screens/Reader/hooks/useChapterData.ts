@@ -15,48 +15,7 @@ export const useChapterData = (novelId: string, chapterId: string) => {
   const [loadingChapter, setLoadingChapter] = useState(true);
   const [loadingChapters, setLoadingChapters] = useState(false);
 
-  useEffect(() => {
-    if (!novelId) return;
-    const fetchNovel = async () => {
-      try {
-        const data = await novelService.getNovelById(novelId);
-        setNovel(data);
-        setTotalChapters(data.chaptersCount);
-        if (data.authorId || data.authorEmail) {
-          try {
-            const profile = await userService.getPublicProfile(
-                data.authorId ? undefined : data.authorEmail, 
-                data.authorId
-            );
-            setAuthorProfile(profile.user);
-          } catch (e) {}
-        }
-      } catch (err) {
-        console.error(err);
-        toast.error('فشل تحميل الرواية');
-      } finally {
-        setLoadingNovel(false);
-      }
-    };
-    fetchNovel();
-  }, [novelId]);
-
-  useEffect(() => {
-    if (!novelId) return;
-    const fetchChapters = async () => {
-      setLoadingChapters(true);
-      try {
-        const list = await novelService.getChaptersList(novelId, 1, 1000, 'asc');
-        setChaptersList(list);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingChapters(false);
-      }
-    };
-    fetchChapters();
-  }, [novelId]);
-
+  // Fetch Chapter Content - HIGHEST PRIORITY
   useEffect(() => {
     if (!novelId || !chapterId) return;
     const fetchChapter = async () => {
@@ -64,14 +23,18 @@ export const useChapterData = (novelId: string, chapterId: string) => {
       try {
         const data = await novelService.getChapter(novelId, chapterId);
         setChapter(data);
-        await novelService.incrementView(novelId, parseInt(chapterId));
-        await novelService.updateReadingStatus({
+        
+        // Background tasks
+        novelService.incrementView(novelId, parseInt(chapterId));
+        novelService.updateReadingStatus({
           novelId,
           lastChapterId: parseInt(chapterId),
           lastChapterTitle: data.title,
         });
-        const commentsRes = await commentService.getComments(novelId, parseInt(chapterId), 1, 1);
-        setCommentCount(commentsRes.totalComments);
+        
+        commentService.getComments(novelId, parseInt(chapterId), 1, 1).then(res => {
+          setCommentCount(res.totalComments);
+        });
       } catch (err) {
         console.error(err);
         toast.error('فشل تحميل الفصل');
@@ -82,6 +45,49 @@ export const useChapterData = (novelId: string, chapterId: string) => {
     fetchChapter();
   }, [novelId, chapterId]);
 
+  // Fetch Novel Details - Background
+  useEffect(() => {
+    if (!novelId) return;
+    const fetchNovel = async () => {
+      try {
+        const data = await novelService.getNovelById(novelId);
+        setNovel(data);
+        setTotalChapters(data.chaptersCount);
+        if (data.authorId || data.authorEmail) {
+          userService.getPublicProfile(
+            data.authorId ? undefined : data.authorEmail, 
+            data.authorId
+          ).then(profile => {
+            setAuthorProfile(profile.user);
+          }).catch(() => {});
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingNovel(false);
+      }
+    };
+    fetchNovel();
+  }, [novelId]);
+
+  // Fetch Chapters List - Background
+  useEffect(() => {
+    if (!novelId) return;
+    const fetchChapters = async () => {
+      setLoadingChapters(true);
+      try {
+        // Fetch a smaller list or use the optimized endpoint
+        const list = await novelService.getChaptersList(novelId, 1, 100, 'asc');
+        setChaptersList(list);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingChapters(false);
+      }
+    };
+    fetchChapters();
+  }, [novelId]);
+
   return {
     novel,
     chapter,
@@ -89,7 +95,7 @@ export const useChapterData = (novelId: string, chapterId: string) => {
     totalChapters,
     commentCount,
     authorProfile,
-    loading: loadingNovel || loadingChapter,
+    loading: loadingChapter, // 🔥 ONLY WAIT FOR CHAPTER CONTENT
     loadingChapters,
   };
 };
