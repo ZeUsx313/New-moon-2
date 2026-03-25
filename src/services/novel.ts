@@ -63,18 +63,15 @@ const getProxiedUrl = (url: string) => {
   
   // If it already contains the proxy path, return it as is
   if (url.includes('/api/image-proxy?url=')) {
-    // Fix "undefined" if it exists at the start of the URL
     if (url.startsWith('undefined/')) {
       return url.replace('undefined/', `${api.baseUrl}/`);
     }
     return url;
   }
   
-  // If it starts with "undefined/", fix it before proxying
   let cleanUrl = url;
   if (url.startsWith('undefined/')) {
     cleanUrl = url.replace('undefined/', `${api.baseUrl}/`);
-    // If it's already a proxy after fixing, return it
     if (cleanUrl.includes('/api/image-proxy?url=')) return cleanUrl;
   }
 
