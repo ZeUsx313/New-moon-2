@@ -39,7 +39,9 @@ const NovelCard = ({ novel, index }: { novel: Novel; index: number }) => (
           <img
             src={novel.cover}
             alt={novel.title}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            onContextMenu={(e) => e.preventDefault()}
+            draggable={false}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 select-none"
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
@@ -228,7 +230,9 @@ export default function Home() {
                           <img
                             src={novel.cover}
                             alt={novel.title}
-                            className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                            onContextMenu={(e) => e.preventDefault()}
+                            draggable={false}
+                            className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105 select-none"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                           <div className="absolute bottom-12 left-0 right-0 px-6 text-center z-10">
@@ -360,7 +364,9 @@ export default function Home() {
                         <img
                           src={novel.cover}
                           alt={novel.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          onContextMenu={(e) => e.preventDefault()}
+                          draggable={false}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 select-none"
                         />
                         <div className="absolute inset-0 bg-gradient-to-l from-transparent to-[#0c0c0c]/80" />
                       </Link>
