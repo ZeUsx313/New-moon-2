@@ -28,7 +28,19 @@ export const userService = {
     if (userId) query.append('userId', userId);
     const res = await fetch(`${api.baseUrl}/api/user/public-profile?${query.toString()}`);
     if (!res.ok) throw new Error('فشل جلب الملف الشخصي');
-    return res.json();
+    const data = await res.json();
+    
+    // 🔥 USE IMAGE PROXY FOR USER IMAGES
+    if (data.user) {
+      if (data.user.picture) {
+        data.user.picture = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.picture)}`;
+      }
+      if (data.user.banner) {
+        data.user.banner = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.banner)}`;
+      }
+    }
+    
+    return data;
   },
 
   async getUserStats(userId?: string, page: number = 1, limit: number = 20): Promise<UserStats> {
