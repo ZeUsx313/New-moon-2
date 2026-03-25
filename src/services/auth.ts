@@ -32,16 +32,7 @@ export const authService = {
     }
     const data: LoginResponse = await res.json();
     
-    // 🔥 USE IMAGE PROXY FOR USER DATA
-    if (data.user) {
-      if (data.user.picture) {
-        data.user.picture = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.picture)}`;
-      }
-      if (data.user.banner) {
-        data.user.banner = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.banner)}`;
-      }
-    }
-    
+    // 🔥 NO PROXY FOR USER DATA
     return data;
   },
 
@@ -57,16 +48,7 @@ export const authService = {
     }
     const data: LoginResponse = await res.json();
     
-    // 🔥 USE IMAGE PROXY FOR USER DATA
-    if (data.user) {
-      if (data.user.picture) {
-        data.user.picture = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.picture)}`;
-      }
-      if (data.user.banner) {
-        data.user.banner = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.banner)}`;
-      }
-    }
-    
+    // 🔥 NO PROXY FOR USER DATA
     return data;
   },
 
@@ -81,16 +63,7 @@ export const authService = {
     const data = await res.json();
     const user = data.user;
     
-    // 🔥 USE IMAGE PROXY FOR USER DATA
-    if (user) {
-      if (user.picture) {
-        user.picture = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(user.picture)}`;
-      }
-      if (user.banner) {
-        user.banner = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(user.banner)}`;
-      }
-    }
-    
+    // 🔥 NO PROXY FOR USER DATA
     return user;
   },
 
