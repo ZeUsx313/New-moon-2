@@ -82,6 +82,12 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب الروايات');
     const data: NovelListResponse = await res.json();
     
+    // 🔥 USE IMAGE PROXY FOR COVERS
+    data.novels = data.novels.map(n => ({
+      ...n,
+      cover: n.cover ? `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(n.cover)}` : ''
+    }));
+    
     return data;
   },
 
@@ -89,6 +95,14 @@ export const novelService = {
     const res = await fetch(`${api.baseUrl}/api/novels/${id}`);
     if (!res.ok) throw new Error('فشل جلب تفاصيل الرواية');
     const data: Novel = await res.json();
+    
+    // 🔥 USE IMAGE PROXY FOR COVER
+    if (data.cover) {
+      data.cover = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.cover)}`;
+    }
+    if (data.banner) {
+      data.banner = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.banner)}`;
+    }
     
     return data;
   },
@@ -202,7 +216,11 @@ export const novelService = {
     if (!res.ok) throw new Error('فشل جلب المكتبة');
     const data: any[] = await res.json();
     
-    return data;
+    // 🔥 USE IMAGE PROXY FOR COVERS
+    return data.map(item => ({
+      ...item,
+      cover: item.cover ? `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(item.cover)}` : ''
+    }));
   },
 
   async getNovelStatus(novelId: string): Promise<any> {
@@ -211,6 +229,11 @@ export const novelService = {
     });
     if (!res.ok) throw new Error('فشل جلب حالة الرواية');
     const data = await res.json();
+    
+    // 🔥 USE IMAGE PROXY FOR COVER
+    if (data && data.cover) {
+      data.cover = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.cover)}`;
+    }
     
     return data;
   },
