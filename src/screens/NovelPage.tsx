@@ -408,7 +408,9 @@ export default function NovelPage() {
             alt="Background"
             width={1920}
             height={1080}
-            className="object-cover object-top opacity-40 dark:opacity-100"
+            onContextMenu={(e) => e.preventDefault()}
+            draggable={false}
+            className="object-cover object-top opacity-40 dark:opacity-100 select-none"
             src={novel.cover}
           />
           <div className="hidden dark:block" style={{ background: 'linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9), rgba(0,0,0,0.9), rgb(0,0,0))', position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}></div>
@@ -431,7 +433,9 @@ export default function NovelPage() {
                 loading="eager"
                 width={400}
                 height={320}
-                className="w-full rounded-lg object-cover object-bottom sm:max-h-[400px] h-auto"
+                onContextMenu={(e) => e.preventDefault()}
+                draggable={false}
+                className="w-full rounded-lg object-cover object-bottom sm:max-h-[400px] h-auto select-none"
                 src={novel.cover}
               />
               <div className="hidden sm:block">
@@ -635,7 +639,9 @@ export default function NovelPage() {
                                   <img
                                     alt={`الفصل ${chapter.number}`}
                                     loading="lazy"
-                                    className="object-cover rounded-md absolute inset-0 w-full h-full"
+                                    onContextMenu={(e) => e.preventDefault()}
+                                    draggable={false}
+                                    className="object-cover rounded-md absolute inset-0 w-full h-full select-none"
                                     src={novel.cover}
                                   />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
