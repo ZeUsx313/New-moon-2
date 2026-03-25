@@ -30,6 +30,16 @@ export const userService = {
     if (!res.ok) throw new Error('فشل جلب الملف الشخصي');
     const data = await res.json();
     
+    // 🔥 USE IMAGE PROXY FOR USER IMAGES
+    if (data.user) {
+      if (data.user.picture) {
+        data.user.picture = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.picture)}`;
+      }
+      if (data.user.banner) {
+        data.user.banner = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.banner)}`;
+      }
+    }
+    
     return data;
   },
 
@@ -44,6 +54,16 @@ export const userService = {
     });
     if (!res.ok) throw new Error('فشل جلب إحصائيات المستخدم');
     const data: UserStats = await res.json();
+    
+    // 🔥 USE IMAGE PROXY FOR USER IMAGES
+    if (data.user) {
+      if (data.user.picture) {
+        data.user.picture = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.picture)}`;
+      }
+      if (data.user.banner) {
+        data.user.banner = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.user.banner)}`;
+      }
+    }
     
     return data;
   },
