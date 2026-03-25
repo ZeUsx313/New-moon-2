@@ -9,6 +9,7 @@ export interface Novel {
   authorEmail?: string;
   authorId?: string; // 🔥 NEW FIELD
   cover: string;
+  banner?: string;
   description: string;
   category: string;
   tags: string[];
@@ -98,6 +99,9 @@ export const novelService = {
     // 🔥 USE IMAGE PROXY FOR COVER
     if (data.cover) {
       data.cover = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.cover)}`;
+    }
+    if (data.banner) {
+      data.banner = `${api.baseUrl}/api/image-proxy?url=${encodeURIComponent(data.banner)}`;
     }
     
     return data;
