@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
+import { useAuth } from '../context/AuthContext';
 import { commentService, Comment } from '../services/comment';
 import { Skeleton } from './Skeleton';
 
@@ -17,8 +18,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   onAddComment,
 }) => {
   const [newComment, setNewComment] = useState('');
+  const { isAuthenticated, openAuthModal } = useAuth();
 
   const handleSubmit = async () => {
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
     if (!newComment.trim()) return;
     await onAddComment(newComment);
     setNewComment('');
