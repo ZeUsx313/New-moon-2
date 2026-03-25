@@ -22,9 +22,12 @@ export const useChapterData = (novelId: string, chapterId: string) => {
         const data = await novelService.getNovelById(novelId);
         setNovel(data);
         setTotalChapters(data.chaptersCount);
-        if (data.authorEmail) {
+        if (data.authorId || data.authorEmail) {
           try {
-            const profile = await userService.getPublicProfile(undefined, data.authorEmail);
+            const profile = await userService.getPublicProfile(
+                data.authorId ? undefined : data.authorEmail, 
+                data.authorId
+            );
             setAuthorProfile(profile.user);
           } catch (e) {}
         }
