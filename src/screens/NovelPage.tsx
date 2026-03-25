@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
+import { useAuth } from '../context/AuthContext';
 import {
   Star,
   ChevronLeft,
@@ -152,6 +153,7 @@ const EnhancedPageSelectorModal = ({
 export default function NovelPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated, openAuthModal } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [novel, setNovel] = useState<Novel | null>(null);
   const [chapters, setChapters] = useState<ChapterMeta[]>([]);
@@ -269,6 +271,10 @@ export default function NovelPage() {
 
   const handleReaction = async (type: 'like' | 'love' | 'funny' | 'sad' | 'angry') => {
     if (!slug) return;
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
     try {
       const result = await novelService.reactToNovel(slug, type);
       setReactionStats({
@@ -286,6 +292,10 @@ export default function NovelPage() {
 
   const handleAddToFavorites = async () => {
     if (!slug || !novel) return;
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
     try {
       const newStatus = !isFavorite;
       // Optimistic update
