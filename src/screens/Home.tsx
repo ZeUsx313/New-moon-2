@@ -202,21 +202,21 @@ export default function Home() {
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/" />
+        <meta property="og:url" content="https://moonnovel.vercel.app/" />
         <meta property="og:title" content="قمر الروايات - الرئيسية | منصة قراءة الروايات العربية" />
         <meta property="og:description" content="اكتشف مئات الروايات الحصرية والمترجمة على قمر الروايات. تجربة قراءة لا مثيل لها مع تحديثات يومية." />
         <meta property="og:image" content="/icon.png" />
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content="https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/" />
+        <meta property="twitter:url" content="https://moonnovel.vercel.app/" />
         <meta property="twitter:title" content="قمر الروايات - الرئيسية | منصة قراءة الروايات العربية" />
         <meta property="twitter:description" content="اكتشف آلاف الروايات الحصرية والمترجمة على قمر الروايات. تجربة قراءة لا مثيل لها مع تحديثات يومية." />
         <meta property="twitter:image" content="/icon.png" />
 
         {/* AI Crawlers & SEO */}
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/" />
+        <link rel="canonical" href="https://moonnovel.vercel.app/" />
       </Helmet>
       <div
         className="min-h-screen bg-background text-foreground transition-colors duration-500"
