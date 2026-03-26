@@ -403,7 +403,7 @@ export default function NovelPage() {
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="book" />
-        <meta property="og:url" content={`https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/novel/${slug}`} />
+        <meta property="og:url" content={`https://moonnovel.vercel.app/novel/${slug}`} />
         <meta property="og:title" content={`رواية ${novel.title} - قمر الروايات`} />
         <meta property="og:description" content={novel.description?.slice(0, 160)} />
         <meta property="og:image" content={novel.cover} />
@@ -412,14 +412,14 @@ export default function NovelPage() {
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content={`https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/novel/${slug}`} />
+        <meta property="twitter:url" content={`https://moonnovel.vercel.app/novel/${slug}`} />
         <meta property="twitter:title" content={`رواية ${novel.title} - قمر الروايات`} />
         <meta property="twitter:description" content={novel.description?.slice(0, 160)} />
         <meta property="twitter:image" content={novel.cover} />
 
         {/* AI Crawlers & SEO */}
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href={`https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/novel/${slug}`} />
+        <link rel="canonical" href={`https://moonnovel.vercel.app/novel/${slug}`} />
 
         {/* Structured Data (JSON-LD) */}
         <script type="application/ld+json">
