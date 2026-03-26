@@ -142,7 +142,7 @@ export default function Reader() {
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/novel/${novelId}/reader/${chapterId}`} />
+        <meta property="og:url" content={`https://moonnovel.vercel.app/novel/${novelId}/reader/${chapterId}`} />
         <meta property="og:title" content={`${chapter?.title || `الفصل ${chapterId}`} - ${novel?.title} | قمر الروايات`} />
         <meta property="og:description" content={`استمتع بقراءة ${chapter?.title || `الفصل ${chapterId}`} من رواية ${novel?.title}. تحديثات يومية وحصرية على قمر الروايات.`} />
         <meta property="og:image" content={novel?.cover} />
@@ -151,14 +151,14 @@ export default function Reader() {
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content={`https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/novel/${novelId}/reader/${chapterId}`} />
+        <meta property="twitter:url" content={`https://moonnovel.vercel.app/novel/${novelId}/reader/${chapterId}`} />
         <meta property="twitter:title" content={`${chapter?.title || `الفصل ${chapterId}`} - ${novel?.title} | قمر الروايات`} />
         <meta property="twitter:description" content={`استمتع بقراءة ${chapter?.title || `الفصل ${chapterId}`} من رواية ${novel?.title}. تحديثات يومية وحصرية على قمر الروايات.`} />
         <meta property="twitter:image" content={novel?.cover} />
 
         {/* AI Crawlers & SEO */}
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href={`https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/novel/${novelId}/reader/${chapterId}`} />
+        <link rel="canonical" href={`https://moonnovel.vercel.app/novel/${novelId}/reader/${chapterId}`} />
       </Helmet>
       <div className="relative h-screen w-full overflow-hidden bg-gray-900">
         {/* Top Bar */}
