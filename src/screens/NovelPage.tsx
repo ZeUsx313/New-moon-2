@@ -398,6 +398,49 @@ export default function NovelPage() {
     <>
       <Helmet>
         <title>قمر الروايات - {novel.title}</title>
+        <meta name="description" content={`اقرأ رواية ${novel.title} على قمر الروايات. ${novel.description?.slice(0, 150)}...`} />
+        <meta name="keywords" content={`${novel.title}, رواية ${novel.title}, ${novel.author}, ${novel.tags?.join(', ')}, روايات عربية, روايات مترجمة`} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="book" />
+        <meta property="og:url" content={`https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/novel/${slug}`} />
+        <meta property="og:title" content={`رواية ${novel.title} - قمر الروايات`} />
+        <meta property="og:description" content={novel.description?.slice(0, 160)} />
+        <meta property="og:image" content={novel.cover} />
+        <meta property="book:author" content={novel.author} />
+        <meta property="book:tag" content={novel.tags?.join(', ')} />
+
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content={`https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/novel/${slug}`} />
+        <meta property="twitter:title" content={`رواية ${novel.title} - قمر الروايات`} />
+        <meta property="twitter:description" content={novel.description?.slice(0, 160)} />
+        <meta property="twitter:image" content={novel.cover} />
+
+        {/* AI Crawlers & SEO */}
+        <meta name="robots" content="index, follow" />
+        <link rel="canonical" href={`https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/novel/${slug}`} />
+
+        {/* Structured Data (JSON-LD) */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Book",
+            "name": novel.title,
+            "author": {
+              "@type": "Person",
+              "name": novel.author
+            },
+            "description": novel.description,
+            "image": novel.cover,
+            "genre": novel.tags?.join(', '),
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": novel.rating,
+              "reviewCount": novel.views
+            }
+          })}
+        </script>
       </Helmet>
       <div className="relative min-h-screen bg-background text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
         <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
