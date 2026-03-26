@@ -196,23 +196,23 @@ export default function Home() {
   return (
     <>
       <Helmet>
-        <title>قمر الروايات - الرئيسية | منصة قراءة الروايات العربية </title>
-        <meta name="description" content="قمر الروايات - وجهتك الأولى لقراءة الروايات العربية المترجمة بأفضل ترجمة بيد زيوس. اكتشف مئات الروايات الحصرية، التحديثات اليومية، وتجربة قراءة فريدة ومريحة." />
+        <title>قمر الروايات - الرئيسية | منصة قراءة الروايات العربية والعالمية</title>
+        <meta name="description" content="قمر الروايات - وجهتك الأولى لقراءة الروايات العربية والعالمية المترجمة. اكتشف آلاف الروايات الحصرية، التحديثات اليومية، وتجربة قراءة فريدة ومريحة." />
         <meta name="keywords" content="روايات, روايات عربية, روايات مترجمة, قراءة اونلاين, قمر الروايات, روايات صينية, روايات كورية, روايات يابانية, مانجا, مانهوا" />
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://moonnovel.vercel.app/" />
-        <meta property="og:title" content="قمر الروايات - الرئيسية | منصة قراءة الروايات العربية" />
-        <meta property="og:description" content="اكتشف مئات الروايات الحصرية والمترجمة على قمر الروايات. تجربة قراءة لا مثيل لها مع تحديثات يومية." />
-        <meta property="og:image" content="/icon.png" />
+        <meta property="og:title" content="قمر الروايات - الرئيسية | منصة قراءة الروايات العربية والعالمية" />
+        <meta property="og:description" content="اكتشف آلاف الروايات الحصرية والمترجمة على قمر الروايات. تجربة قراءة لا مثيل لها مع تحديثات يومية." />
+        <meta property="og:image" content="https://moonnovel.vercel.app/icon.png" />
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content="https://moonnovel.vercel.app/" />
-        <meta property="twitter:title" content="قمر الروايات - الرئيسية | منصة قراءة الروايات العربية" />
+        <meta property="twitter:title" content="قمر الروايات - الرئيسية | منصة قراءة الروايات العربية والعالمية" />
         <meta property="twitter:description" content="اكتشف آلاف الروايات الحصرية والمترجمة على قمر الروايات. تجربة قراءة لا مثيل لها مع تحديثات يومية." />
-        <meta property="twitter:image" content="/icon.png" />
+        <meta property="twitter:image" content="https://moonnovel.vercel.app/icon.png" />
 
         {/* AI Crawlers & SEO */}
         <meta name="robots" content="index, follow" />
