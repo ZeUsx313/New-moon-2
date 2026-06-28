@@ -48,7 +48,7 @@ export default function Login() {
 
   const handleGoogleLogin = () => {
     const redirectUri = `${window.location.origin}/auth/google/callback`;
-    window.location.href = `https://c-production-fba1.up.railway.app/auth/google?redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.href = `https://c-production-e6c3.up.railway.app/auth/google?redirect_uri=${encodeURIComponent(redirectUri)}`;
   };
 
   return (
