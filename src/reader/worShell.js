@@ -285,6 +285,11 @@ function bridgeScript() {
   var REPORT_TYPES = '__WOR_REPORT_TYPES__';
   var CH = null;
   var CHAPTERS = [];
+  // 🔥 lazy chapters: الإجمالي الحقيقي من الأب + نتائج بحث الخادم
+  // (0 = غير معروف = التطبيق يرسل القائمة كاملة كما هو — توافق تام رجعياً)
+  var CHAPTERS_TOTAL = 0;
+  var serverSearchResults = null; // { q, results, total }
+  var lastServerSearchQ = null;
   // (words state lives in the words sheet section below)
   var CHAPTERS_PAGE = 100;
   var chaptersPageCount = 1;
@@ -759,17 +764,41 @@ function bridgeScript() {
   }
 
   // ============================ chapters sheet ============================
+  function requestServerSearch(q) {
+    q = (q || '').trim();
+    if (!q || CHAPTERS_TOTAL <= 0 || CHAPTERS.length >= CHAPTERS_TOTAL) return;
+    if (q === lastServerSearchQ) return;
+    lastServerSearchQ = q;
+    send({ t: 'chaptersSearch', q: q });
+  }
+  var debouncedServerSearch = debounce(requestServerSearch, 350);
+
   function renderChapters() {
     var listEl = $('#worChaptersList');
     if (!listEl) return;
     var q = (chaptersSearch || '').trim().toLowerCase();
-    var list = CHAPTERS.filter(function (c) {
-      if (!q) return true;
-      return String(c.number).indexOf(q) !== -1 || String(c.title || '').toLowerCase().indexOf(q) !== -1;
-    });
-    list.sort(function (a, b) { return chaptersSortDesc ? b.number - a.number : a.number - b.number; });
+    var searchingServer = false;
+    var list;
+    if (q && serverSearchResults && serverSearchResults.q && serverSearchResults.q.toLowerCase() === q) {
+      // نتائج البحث الشامل من الخادم (كل الفصول)
+      list = (serverSearchResults.results || []).slice();
+      list.sort(function (a, b) { return chaptersSortDesc ? b.number - a.number : a.number - b.number; });
+    } else {
+      list = CHAPTERS.filter(function (c) {
+        if (!q) return true;
+        return String(c.number).indexOf(q) !== -1 || String(c.title || '').toLowerCase().indexOf(q) !== -1;
+      });
+      list.sort(function (a, b) { return chaptersSortDesc ? b.number - a.number : a.number - b.number; });
+      // لا نتائج محلية والقائمة جزئية → اطلب البحث الشامل من الخادم
+      if (q && !list.length && CHAPTERS_TOTAL > 0 && CHAPTERS.length < CHAPTERS_TOTAL) {
+        searchingServer = true;
+        debouncedServerSearch(q);
+      }
+    }
     var total = list.length;
-    list = list.slice(0, chaptersPageCount * CHAPTERS_PAGE);
+    if (!(q && serverSearchResults && serverSearchResults.q && serverSearchResults.q.toLowerCase() === q)) {
+      list = list.slice(0, chaptersPageCount * CHAPTERS_PAGE);
+    }
     var html = list.map(function (c) {
       var isCurrent = CH && parseInt(CH.number, 10) === parseInt(c.number, 10);
       return '<button class="wor-reader-chapters-item' + (isCurrent ? ' is-current' : '') + '" type="button" data-wor-goto="' + esc(c.number) + '">'
@@ -780,10 +809,19 @@ function bridgeScript() {
         + '</span>'
         + '</button>';
     }).join('');
-    if (!list.length) html = '<div class="wor-reader-chapters-sheet__state">لا توجد نتائج مطابقة</div>';
+    if (searchingServer) html = '<div class="wor-reader-chapters-sheet__state">جاري البحث في جميع الفصول…</div>';
+    else if (!list.length) html = '<div class="wor-reader-chapters-sheet__state">لا توجد نتائج مطابقة</div>';
     listEl.innerHTML = html;
     var foot = $('.wor-reader-chapters-sheet__footer');
-    if (foot) foot.style.display = total > list.length ? '' : 'none';
+    var moreLocal = total > list.length;
+    var moreServer = CHAPTERS_TOTAL > 0 && CHAPTERS.length < CHAPTERS_TOTAL && !q;
+    if (foot) {
+      foot.style.display = (moreLocal || moreServer) ? '' : 'none';
+      var moreBtn = $('#worChaptersMore');
+      if (moreBtn) moreBtn.textContent = moreServer && !moreLocal
+        ? ('تحميل المزيد من الخادم (' + CHAPTERS.length + ' / ' + CHAPTERS_TOTAL + ')')
+        : 'المزيد';
+    }
     var cur = $('.wor-reader-chapters-item.is-current', listEl);
     if (cur && !chaptersSearch) setTimeout(function () { try { cur.scrollIntoView({ block: 'center' }); } catch (e) {} }, 60);
   }
@@ -1006,10 +1044,19 @@ function bridgeScript() {
     if (!res || !status) return;
     var q = (searchQ || '').trim().toLowerCase();
     if (!q) { res.innerHTML = ''; status.textContent = 'ابحث عن فصل بالرقم أو العنوان…'; return; }
-    var list = CHAPTERS.filter(function (c) {
+    var serverMatch = serverSearchResults && serverSearchResults.q && serverSearchResults.q === q;
+    var list = serverMatch ? (serverSearchResults.results || []).slice(0, 12) : CHAPTERS.filter(function (c) {
       return String(c.number).indexOf(q) !== -1 || String(c.title || '').toLowerCase().indexOf(q) !== -1;
     }).slice(0, 12);
-    status.textContent = list.length ? ('نتائج (' + list.length + ')') : 'لا توجد نتائج';
+    // لا نتائج محلية والقائمة جزئية → ابحث في الخادم (كل الفصول)
+    if (!serverMatch && !list.length && CHAPTERS_TOTAL > 0 && CHAPTERS.length < CHAPTERS_TOTAL) {
+      status.textContent = 'جاري البحث في جميع الفصول…';
+      debouncedServerSearch(q);
+      res.innerHTML = '';
+      return;
+    }
+    var suffix = serverMatch && (serverSearchResults.total || 0) > 12 ? ' — من الخادم' : '';
+    status.textContent = list.length ? ('نتائج (' + list.length + ')' + suffix) : 'لا توجد نتائج';
     res.innerHTML = list.map(function (c) {
       var isCurrent = CH && parseInt(CH.number, 10) === parseInt(c.number, 10);
       return '<button class="wor-reader-chapters-item' + (isCurrent ? ' is-current' : '') + '" type="button" data-wor-goto="' + esc(c.number) + '">'
@@ -1268,7 +1315,23 @@ function bridgeScript() {
     var chSort = $('[data-wor-chapters-sort]');
     chSort && chSort.addEventListener('click', function () { chaptersSortDesc = !chaptersSortDesc; renderChapters(); });
     var chMore = $('#worChaptersMore');
-    chMore && chMore.addEventListener('click', function () { chaptersPageCount += 1; renderChapters(); });
+    chMore && chMore.addEventListener('click', function () {
+      var localExhausted = CHAPTERS.length === 0 || renderChaptersLocalExhausted();
+      if (!localExhausted) { chaptersPageCount += 1; renderChapters(); return; }
+      // انتهت المحمّلة محلياً وتبقى فصول في الخادم → اسحب صفحة جديدة من الأب
+      if (CHAPTERS_TOTAL > 0 && CHAPTERS.length < CHAPTERS_TOTAL) {
+        chMore.textContent = 'جاري التحميل…';
+        send({ t: 'chaptersLoadMore' });
+      }
+    });
+    function renderChaptersLocalExhausted() {
+      var q = (chaptersSearch || '').trim().toLowerCase();
+      var filtered = CHAPTERS.filter(function (c) {
+        if (!q) return true;
+        return String(c.number).indexOf(q) !== -1 || String(c.title || '').toLowerCase().indexOf(q) !== -1;
+      });
+      return filtered.length <= chaptersPageCount * CHAPTERS_PAGE;
+    }
     // words sheet (Galaxy)
     var wordsClose = $('[data-wor-words-close]');
     wordsClose && wordsClose.addEventListener('click', closeWordsSheet);
@@ -1640,8 +1703,30 @@ function bridgeScript() {
       }
       else if (kind === 'chapters') {
         CHAPTERS = msg.list || [];
+        // الإجمالي الحقيقي من الأب (الموقع) — في التطبيق يبقى 0 = قائمة كاملة
+        CHAPTERS_TOTAL = parseInt(msg.total, 10) > 0 ? parseInt(msg.total, 10) : CHAPTERS.length;
+        if (CHAPTERS.length >= CHAPTERS_TOTAL) CHAPTERS_TOTAL = CHAPTERS.length;
+        // اعرض كل ما حمّله الأب (الصفحة الأولى أو المدموج بعد «تحميل المزيد»)
+        chaptersPageCount = Math.max(1, Math.ceil(CHAPTERS.length / CHAPTERS_PAGE));
+        serverSearchResults = null;
+        lastServerSearchQ = null;
         renderChapters();
         renderSearch();
+      }
+      else if (kind === 'chaptersSearchResults') {
+        // نتائج البحث الشامل من الخادم — تُعرض فقط إن ما زال نفس الاستعلام
+        var rq = String(msg.q || '').trim().toLowerCase();
+        if (msg.loadFailed) {
+          lastServerSearchQ = null; // يسمح بإعادة المحاولة
+          if (rq && (chaptersSearch || '').trim().toLowerCase() === rq) {
+            var st1 = $('.wor-reader-chapters-sheet__state');
+            if (st1) st1.textContent = 'تعذر البحث في الخادم — حاول مجدداً';
+          }
+        } else if (rq) {
+          serverSearchResults = { q: rq, results: msg.results || [], total: msg.total || 0 };
+          if ((chaptersSearch || '').trim().toLowerCase() === rq) renderChapters();
+          if ((searchQ || '').trim().toLowerCase() === rq) renderSearch();
+        }
       }
       else if (kind === 'words') {
         WORDS.items = {

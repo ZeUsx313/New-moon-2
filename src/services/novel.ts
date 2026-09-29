@@ -1,4 +1,5 @@
 import { http, ApiError } from '../lib/http';
+import { apiCache } from '../lib/apiCache';
 import { readNumberArray, writeJSON } from '../lib/storage';
 
 /** Guards: endpoints that MUST return arrays (server errors sometimes return objects) */
@@ -63,6 +64,26 @@ export interface NovelListResponse {
   totalNovels: number;
 }
 
+export interface ChaptersListResponse {
+  chapters: ChapterMeta[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/** Cache TTLs — chapter lists rarely change mid-session; the novel header even less. */
+export const CHAPTERS_LIST_TTL = 5 * 60 * 1000;
+export const NOVEL_BY_ID_TTL = 2 * 60 * 1000;
+
+export const novelCache = {
+  /** Drop everything cached about one novel (its header + all chapter pages). */
+  invalidateNovel(novelId: string): void {
+    apiCache.invalidate(`novel:${novelId}`);
+    apiCache.invalidatePrefix(`chlist:${novelId}:`);
+  },
+};
+
 export const novelService = {
   async getNovels(params: {
     filter?: string;
@@ -87,8 +108,18 @@ export const novelService = {
     return http.get<NovelListResponse>(`/api/novels?${query.toString()}`);
   },
 
-  async getNovelById(id: string): Promise<Novel> {
-    return http.get<Novel>(`/api/novels/${id}`);
+  /**
+   * Novel header — cached 2 min (memory + sessionStorage) with in-flight dedup.
+   * Re-entering the same novel page within TTL costs ZERO network requests.
+   * `bypass` forces a real fetch (pull-to-refresh / after editing).
+   */
+  async getNovelById(id: string, bypass = false): Promise<Novel> {
+    return apiCache.wrap(
+      `novel:${id}`,
+      NOVEL_BY_ID_TTL,
+      () => http.get<Novel>(`/api/novels/${id}`),
+      bypass,
+    );
   },
 
   async incrementView(novelId: string, chapterNumber: number): Promise<void> {
@@ -101,12 +132,55 @@ export const novelService = {
     }
   },
 
-  async getChaptersList(id: string, page: number = 1, limit: number = 25, sort: 'asc' | 'desc' = 'asc'): Promise<ChapterMeta[]> {
-    const data = await http.get<any>(`/api/novels/${id}/chapters-list?page=${page}&limit=${limit}&sort=${sort}`);
-    // The server wraps the list as { chapters: [...] } — accept both shapes
-    const list = Array.isArray(data) ? data : Array.isArray(data?.chapters) ? data.chapters : null;
-    if (!list) throw new ApiError('فشل جلب قائمة الفصول', 0, data);
-    return list;
+  /**
+   * Paginated chapters list — server-side pagination + optional server search.
+   * Returns the FULL server envelope (chapters/total/totalPages) so callers can
+   * paginate on the server's own truth (hidden chapters + search included).
+   * Cached 5 min per (novel, page, limit, sort, search) — flipping back and
+   * forth between pages or re-entering the novel never re-hits the network.
+   */
+  async getChaptersListFull(
+    id: string,
+    page: number = 1,
+    limit: number = 25,
+    sort: 'asc' | 'desc' = 'asc',
+    search: string = '',
+    bypass = false,
+  ): Promise<ChaptersListResponse> {
+    const key = `chlist:${id}:${page}:${limit}:${sort}:${search.trim().toLowerCase()}`;
+    return apiCache.wrap(key, CHAPTERS_LIST_TTL, async () => {
+      const qs = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        sort,
+      });
+      const q = search.trim();
+      if (q) qs.append('search', q);
+      const data = await http.get<any>(`/api/novels/${id}/chapters-list?${qs.toString()}`);
+      // The server wraps the list as { chapters: [...] } — accept both shapes
+      const list = Array.isArray(data) ? data : Array.isArray(data?.chapters) ? data.chapters : null;
+      if (!list) throw new ApiError('فشل جلب قائمة الفصول', 0, data);
+      return {
+        chapters: list,
+        total: Number(data?.total) || list.length,
+        page: Number(data?.page) || page,
+        limit: Number(data?.limit) || limit,
+        totalPages: Number(data?.totalPages) || Math.ceil((Number(data?.total) || list.length) / limit) || 1,
+      };
+    }, bypass);
+  },
+
+  /** Back-compat helper: plain array shape. */
+  async getChaptersList(
+    id: string,
+    page: number = 1,
+    limit: number = 25,
+    sort: 'asc' | 'desc' = 'asc',
+    search: string = '',
+    bypass = false,
+  ): Promise<ChapterMeta[]> {
+    const res = await novelService.getChaptersListFull(id, page, limit, sort, search, bypass);
+    return res.chapters;
   },
 
   async getChapter(novelId: string, chapterId: string): Promise<ChapterFull> {

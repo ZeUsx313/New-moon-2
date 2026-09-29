@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import SafeImage from '../components/SafeImage';
-import { novelService, Novel, ChapterMeta } from '../services/novel';
+import { novelService, novelCache, Novel, ChapterMeta, ChaptersListResponse } from '../services/novel';
 import { commentService, Comment } from '../services/comment';
 import { http } from '../lib/http';
 import { Skeleton, NovelPageSkeleton } from '../components/Skeleton';
@@ -30,6 +30,7 @@ import { CommentSection } from '../components/CommentSection';
 import toast from 'react-hot-toast';
 import { formatDate, getStatusStyle, siteUrl } from '../lib/site';
 import { readNumberArray, writeJSON } from '../lib/storage';
+import { useDebounce } from '../hooks/useDebounce';
 
 // Enhanced page selector modal with search and sort
 const EnhancedPageSelectorModal = ({
@@ -150,6 +151,8 @@ export default function NovelPage() {
   const [chapters, setChapters] = useState<ChapterMeta[]>([]);
   const [chaptersPage, setChaptersPage] = useState(1);
   const [totalChapters, setTotalChapters] = useState(0);
+  // Server's own pagination truth (accounts for hidden chapters + active search)
+  const [serverTotalPages, setServerTotalPages] = useState(0);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [loadingNovel, setLoadingNovel] = useState(true);
   const [loadingChapters, setLoadingChapters] = useState(false);
@@ -157,6 +160,9 @@ export default function NovelPage() {
   const [chaptersReloadKey, setChaptersReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState<'chapters' | 'description' | 'comments'>('chapters');
   const [chapterSearch, setChapterSearch] = useState('');
+  // 🔥 Server-side chapter search (debounced) — finds chapters on ANY page,
+  // not just the currently loaded 25.
+  const debouncedChapterSearch = useDebounce(chapterSearch.trim(), 350);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -166,6 +172,8 @@ export default function NovelPage() {
     readChapters: [],
   });
   const [isPageModalOpen, setIsPageModalOpen] = useState(false);
+  // الفصل الافتراضي لزر «اقرأ الفصل» — لا يتأثر بالبحث أو التنقل بين الصفحات
+  const [defaultFirstChapter, setDefaultFirstChapter] = useState<ChapterMeta | null>(null);
   const [reactionStats, setReactionStats] = useState({ like: 0, love: 0, funny: 0, sad: 0, angry: 0 });
   const [userReaction, setUserReaction] = useState<string | null>(null);
   // Local read chapters for guest users (crash-proof read, per-novel)
@@ -185,7 +193,12 @@ export default function NovelPage() {
   }, [slug]);
 
   const chaptersPerPage = 25;
-  const totalPages = Math.ceil(totalChapters / chaptersPerPage);
+  const totalPages = serverTotalPages || Math.ceil(totalChapters / chaptersPerPage);
+
+  // A new search starts from page 1 (never mixes page 4 with a fresh query)
+  useEffect(() => {
+    setChaptersPage(1);
+  }, [debouncedChapterSearch, sortOrder]);
 
   // Combine server and local read chapters
   const readChapters = useMemo(() => {
@@ -194,12 +207,12 @@ export default function NovelPage() {
   }, [userProgress.readChapters, localReadChapters]);
 
   // Fetch novel data
-  const fetchNovel = useCallback(async () => {
+  const fetchNovel = useCallback(async (bypass = false) => {
     if (!slug) return;
     setLoadingNovel(true);
     setNovelError(null);
     try {
-      const data = await novelService.getNovelById(slug);
+      const data = await novelService.getNovelById(slug, bypass);
       setNovel(data);
       setTotalChapters(data.chaptersCount);
       const token = localStorage.getItem('token');
@@ -228,15 +241,36 @@ export default function NovelPage() {
   }, [fetchNovel]);
 
   // Fetch chapters - ONLY WHEN TAB IS ACTIVE
+  // Cached per (novel, page, sort, search) for 5 min: flipping pages back and
+  // forth, or leaving and re-entering the novel, costs ZERO network requests.
+  const lastBypassedReloadRef = useRef(0);
   useEffect(() => {
     if (!slug || activeTab !== 'chapters') return;
+    const bypass = chaptersReloadKey !== lastBypassedReloadRef.current;
     let stale = false;
     const fetchChapters = async () => {
       setLoadingChapters(true);
       setChaptersError(false);
       try {
-        const list = await novelService.getChaptersList(slug, chaptersPage, chaptersPerPage, sortOrder);
-        if (!stale) setChapters(list);
+        const data: ChaptersListResponse = await novelService.getChaptersListFull(
+          slug,
+          chaptersPage,
+          chaptersPerPage,
+          sortOrder,
+          debouncedChapterSearch,
+          bypass,
+        );
+        if (!stale) {
+          setChapters(data.chapters);
+          setServerTotalPages(data.totalPages);
+          // إجمالي الخادم هو الحقيقة (يحتسب الفصول المخفية والبحث تلقائياً)
+          setTotalChapters(data.total);
+          // زر «اقرأ الفصل» يثبت على أول فصل حقيقي (بدون بحث)
+          if (!debouncedChapterSearch && data.chapters.length > 0) {
+            setDefaultFirstChapter(data.chapters[0]);
+          }
+          lastBypassedReloadRef.current = chaptersReloadKey;
+        }
       } catch (err) {
         if (!stale) {
           console.error(err);
@@ -249,7 +283,7 @@ export default function NovelPage() {
     };
     fetchChapters();
     return () => { stale = true; };
-  }, [slug, chaptersPage, sortOrder, activeTab, chaptersReloadKey]);
+  }, [slug, chaptersPage, sortOrder, activeTab, chaptersReloadKey, debouncedChapterSearch]);
 
   // Fetch comments and reactions - ONLY WHEN TAB IS ACTIVE
   useEffect(() => {
@@ -397,6 +431,7 @@ export default function NovelPage() {
     setChaptersPage(Math.min(Math.max(1, page), totalPages));
   };
 
+  // Instant local filter while typing (the debounced server search refines it)
   const filteredChapters = chapters.filter(ch =>
     ch.number.toString().includes(chapterSearch) ||
     ch.title.toLowerCase().includes(chapterSearch.toLowerCase())
@@ -435,7 +470,7 @@ export default function NovelPage() {
           <div className="flex gap-3">
             {novelError && (
               <button
-                onClick={fetchNovel}
+                onClick={() => fetchNovel(true)}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/80 transition-colors"
               >
                 <RefreshCcw size={16} />
@@ -548,11 +583,11 @@ export default function NovelPage() {
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => chapters.length > 0 && handleChapterClick(chapters[0])}
+                        onClick={() => { const c = defaultFirstChapter || chapters[0]; if (c) handleChapterClick(c); }}
                         className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-white px-4 h-full w-full rounded bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 font-bold py-3"
                       >
                         <BookOpen size={18} className="inline ml-2" />
-                        اقرأ الفصل {chapters[0]?.number || '1'}
+                        اقرأ الفصل {(defaultFirstChapter || chapters[0])?.number || '1'}
                       </motion.button>
                     </div>
                     <div>
@@ -641,11 +676,11 @@ export default function NovelPage() {
                   <div className="grid grid-cols-2 gap-[.5rem] text-[.75rem] leading-4">
                     <div>
                       <button
-                        onClick={() => chapters.length > 0 && handleChapterClick(chapters[0])}
+                        onClick={() => { const c = defaultFirstChapter || chapters[0]; if (c) handleChapterClick(c); }}
                         className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-white px-4 h-full w-full rounded bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 font-bold py-3"
                       >
                         <BookOpen size={18} className="inline ml-2" />
-                        اقرأ الفصل {chapters[0]?.number || '1'}
+                        اقرأ الفصل {(defaultFirstChapter || chapters[0])?.number || '1'}
                       </button>
                     </div>
                     <div>

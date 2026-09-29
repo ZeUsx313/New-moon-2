@@ -21,6 +21,7 @@ import { RefreshCcw, ArrowRight, CloudOff } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../services/api';
 import { novelService } from '../../../services/novel';
+import { apiCache } from '../../../lib/apiCache';
 import { commentService } from '../../../services/comment';
 import { userService } from '../../../services/user';
 import toast from 'react-hot-toast';
@@ -54,6 +55,19 @@ const STRUCTURAL_KEYS = ['selectedQuoteStyle', 'selectedMarkdownStyle', 'selecte
 const scrollKeyFor = (novelId: string, chNum: number | string) => `@reader_scroll_v1_${novelId}_${chNum}`;
 const lastPosKeyFor = (novelId: string) => `@reader_last_pos_v1_${novelId}`;
 
+// ========================= chapters list strategy =========================
+// كان القديم يجلب *كل* فصول الرواية (limit=100000) في كل زيارة للقارئ —
+// بطء واضح واستهلاك ضخم لقاعدة البيانات/Firestore. الآن:
+//   1. جلب أول صفحة فقط (100 فصل = صفحة قائمة الفصول الواحدة في الواجهة).
+//   2. كاش عميل (ذاكرة + sessionStorage) لمدة 10 دقائق — الخروج والدخول
+//      للقارئ لا يلمس الشبكة إطلاقاً.
+//   3. «تحميل المزيد» في القائمة/البحث يطلب الصفحة التالية من الأب عبر الجسر.
+//   4. البحث الشامل يذهب للخادم (يدعم كل الفصول) عبر الجسر أيضاً.
+const READER_CHAPTERS_PAGE = 100;
+const READER_CHAPTERS_TTL = 10 * 60 * 1000;
+const READER_SEARCH_RESULTS = 40;
+const worChaptersCacheKey = (novelId: string) => `worch:${novelId}`;
+
 export default function WorReader() {
     const { novelId, chapterId } = useParams<{ novelId: string; chapterId: string }>();
     const navigate = useNavigate();
@@ -68,6 +82,9 @@ export default function WorReader() {
     const [chaptersList, setChaptersList] = useState<any[]>([]);
     const chaptersListRef = useRef<any[]>([]);
     useEffect(() => { chaptersListRef.current = chaptersList; }, [chaptersList]);
+    // الإجمالي الحقيقي المعروض للمستخدم (بعد إخفاء الفصول المخفية في الخادم)
+    const chaptersTotalRef = useRef(0);
+    const chaptersLoadingMoreRef = useRef(false);
     const [realTotalChapters, setRealTotalChapters] = useState(0);
     const [commentCount, setCommentCount] = useState(0);
     const commentCountRef = useRef(0);
@@ -156,8 +173,12 @@ export default function WorReader() {
         postToWeb({ kind: 'settings', settings: s });
     }, [postToWeb]);
 
-    const sendChapters = useCallback((list?: any[]) => {
-        postToWeb({ kind: 'chapters', list: list || chaptersListRef.current });
+    const sendChapters = useCallback((list?: any[], total?: number) => {
+        postToWeb({
+            kind: 'chapters',
+            list: list || chaptersListRef.current,
+            total: total ?? chaptersTotalRef.current,
+        });
     }, [postToWeb]);
 
     const wordsItemsPayload = useCallback(() => ({
@@ -191,8 +212,14 @@ export default function WorReader() {
         const S = { ...settingsRef.current, colored: coloredRef.current };
         const number = opts.number || parseInt(chapterId || '1') || 1;
         const list = chaptersListRef.current || [];
-        const sorted = list.length > 0 ? list.map((c: any) => parseInt(c.number)).sort((a: number, b: number) => a - b) : null;
-        let hasPrev = true, hasNext = true, position = number, total = realTotalChapters;
+        // استخدم القائمة لحساب الموقع/الإجمالي فقط إذا كانت *كاملة* — القائمة
+        // الجزئية (تحميل تدريجي) كانت ستجعل شريط التقدم يتجمد عند نسبة صغيرة.
+        const serverTotal = chaptersTotalRef.current || 0;
+        const completeList = serverTotal > 0 && list.length >= serverTotal;
+        const sorted = completeList && list.length > 0
+            ? list.map((c: any) => parseInt(c.number)).sort((a: number, b: number) => a - b)
+            : null;
+        let hasPrev = true, hasNext = true, position = number, total = realTotalChapters || serverTotal;
         if (sorted) {
             const idx = sorted.indexOf(number);
             hasPrev = idx > 0;
@@ -200,8 +227,9 @@ export default function WorReader() {
             position = idx + 1;
             total = sorted.length;
         } else {
+            // الترقيم في هذا النظام تسلسلي 1..N — الموقع بالرقم أدق مع قائمة جزئية
             hasPrev = number > 1;
-            hasNext = !(realTotalChapters > 0 && number >= realTotalChapters);
+            hasNext = !(total > 0 && number >= total);
         }
         const percent = total > 0 ? Math.min(100, Math.round((position / total) * 100)) : 0;
         const html = buildWorSectionHTML({
@@ -390,15 +418,69 @@ export default function WorReader() {
         } catch { /* ignore */ }
     };
 
-    const fetchChapters = async () => {
+    // ========================= chapters list (lazy + cached) =========================
+    // أول زيارة: صفحة واحدة فقط (100 فصل) مع كاش 10 دقائق — الزيارات التالية
+    // لنفس الرواية لا تلمس الشبكة إطلاقاً. «تحميل المزيد» يجلب صفحة إضافية.
+    const applyChapters = useCallback((list: any[], total: number) => {
+        const merged = list;
+        setChaptersList(merged);
+        chaptersListRef.current = merged;
+        chaptersTotalRef.current = total || merged.length;
+        sendChapters(merged, total);
+    }, [sendChapters]);
+
+    const fetchChapters = useCallback(async (bypass = false) => {
+        if (!novelId) return;
         try {
-            const list = await novelService.getChaptersList(novelId!, 1, 100000, 'asc');
-            if (Array.isArray(list) && list.length > 0) {
-                setChaptersList(list);
-                sendChapters(list);
+            const cached = bypass ? null : apiCache.get<{ list: any[]; total: number }>(
+                worChaptersCacheKey(novelId), READER_CHAPTERS_TTL,
+            );
+            if (cached && Array.isArray(cached.list) && cached.list.length > 0) {
+                applyChapters(cached.list, cached.total);
+                return;
             }
-        } catch { /* ignore */ }
-    };
+            const res = await novelService.getChaptersListFull(novelId, 1, READER_CHAPTERS_PAGE, 'asc');
+            if (Array.isArray(res.chapters) && res.chapters.length > 0) {
+                apiCache.set(worChaptersCacheKey(novelId), { list: res.chapters, total: res.total }, READER_CHAPTERS_TTL);
+                applyChapters(res.chapters, res.total);
+            }
+        } catch { /* قائمة الفصول ليست حرجة — القارئ يعمل بدونها */ }
+    }, [novelId, applyChapters]);
+
+    // «تحميل المزيد» من القائمة — يجلب الصفحة التالية ويدمجها في الكاش
+    const loadMoreChapters = useCallback(async () => {
+        if (!novelId || chaptersLoadingMoreRef.current) return;
+        const current = chaptersListRef.current || [];
+        const total = chaptersTotalRef.current || 0;
+        if (total > 0 && current.length >= total) return; // كل شيء محمّل
+        chaptersLoadingMoreRef.current = true;
+        try {
+            const nextPage = Math.floor(current.length / READER_CHAPTERS_PAGE) + 1;
+            const res = await novelService.getChaptersListFull(novelId, nextPage, READER_CHAPTERS_PAGE, 'asc');
+            const known = new Set(current.map((c: any) => parseInt(c.number)));
+            const fresh = (res.chapters || []).filter((c: any) => !known.has(parseInt(c.number)));
+            const merged = [...current, ...fresh];
+            apiCache.set(worChaptersCacheKey(novelId), { list: merged, total: res.total }, READER_CHAPTERS_TTL);
+            applyChapters(merged, res.total);
+        } catch {
+            postToWeb({ kind: 'chaptersSearchResults', q: null, results: [], total: chaptersTotalRef.current, loadFailed: true });
+        } finally {
+            chaptersLoadingMoreRef.current = false;
+        }
+    }, [novelId, applyChapters, postToWeb]);
+
+    // البحث الشامل — الخادم يبحث في كل الفصول (وليس المُحمّل فقط)
+    const searchAllChapters = useCallback(async (q: string) => {
+        if (!novelId) return;
+        const query = String(q || '').trim();
+        if (!query) return;
+        try {
+            const res = await novelService.getChaptersListFull(novelId, 1, READER_SEARCH_RESULTS, 'asc', query);
+            postToWeb({ kind: 'chaptersSearchResults', q: query, results: res.chapters || [], total: res.total });
+        } catch {
+            postToWeb({ kind: 'chaptersSearchResults', q: query, results: [], total: 0, loadFailed: true });
+        }
+    }, [novelId, postToWeb]);
 
     const fetchAuthorData = async () => {
         const n = novelRef.current;
@@ -552,13 +634,18 @@ export default function WorReader() {
             : parseInt(chapterId || '1');
         let nextNum: number | null = null;
         const list = chaptersListRef.current || [];
-        if (list.length > 0) {
+        const serverTotal = chaptersTotalRef.current || 0;
+        const completeList = serverTotal > 0 && list.length >= serverTotal;
+        if (completeList && list.length > 0) {
             const sorted = list.map((c: any) => parseInt(c.number)).sort((a: number, b: number) => a - b);
             const idx = sorted.indexOf(lastNum);
             if (idx !== -1 && idx < sorted.length - 1) nextNum = sorted[idx + 1];
-        } else {
+        }
+        if (nextNum === null && !(completeList && list.length > 0)) {
+            // قائمة جزئية/غائبة: التسلسل بالرقم (النظام يرقّم 1..N)
             const cand = lastNum + 1;
-            if (!(realTotalChapters > 0 && cand > realTotalChapters)) nextNum = cand;
+            const bound = realTotalChapters || serverTotal;
+            if (!(bound > 0 && cand > bound)) nextNum = cand;
         }
         if (nextNum === null) {
             setEndReached(true);
@@ -627,7 +714,10 @@ export default function WorReader() {
     const navigateNextPrev = (offset: number) => {
         const S = settingsRef.current;
         const list = chaptersListRef.current || [];
-        const availableChapters = list.map((c: any) => parseInt(c.number));
+        const serverTotal = chaptersTotalRef.current || 0;
+        // القائمة تعطي تنقلاً دقيقاً (يتخطى المخفي) فقط عندما تكون كاملة
+        const completeList = serverTotal > 0 && list.length >= serverTotal;
+        const availableChapters = completeList ? list.map((c: any) => parseInt(c.number)) : [];
 
         // Continuous mode: "next" scrolls to the already-appended section or fetches it
         if (S.continuousMode && offset > 0) {
@@ -661,9 +751,11 @@ export default function WorReader() {
                 toast.error(offset > 0 ? 'أنت في آخر فصل منزل.' : 'أنت في أول فصل منزل.');
             }
         } else {
+            // تنقل تسلسلي بالرقم مع حدود حقيقية (يعمل مع القائمة الجزئية)
+            const bound = realTotalChapters || serverTotal;
             const nextNum = parseInt(chapterId || '1') + offset;
             if (offset < 0 && nextNum < 1) return;
-            if (offset > 0 && realTotalChapters > 0 && nextNum > realTotalChapters) {
+            if (offset > 0 && bound > 0 && nextNum > bound) {
                 toast.error('أنت في آخر فصل متاح.');
                 return;
             }
@@ -880,6 +972,12 @@ export default function WorReader() {
             case 'goto':
                 if (data.number) navigateChapter(parseInt(data.number));
                 break;
+            case 'chaptersLoadMore':
+                loadMoreChapters();
+                break;
+            case 'chaptersSearch':
+                searchAllChapters(data.q);
+                break;
             case 'novelPage':
                 navigate(`/novel/${novelId}`);
                 break;
@@ -933,7 +1031,7 @@ export default function WorReader() {
             default:
                 break;
         }
-    }, [flushWebQueue, sendSettings, sendChapters, sendWords, sendFav, applyReplacements, sendChapterToWeb, currentViewedChapter, novelId, applySettingsPatch, wordsAction, isAdmin, endReached, extraSections, settings]);
+    }, [flushWebQueue, sendSettings, sendChapters, sendWords, sendFav, applyReplacements, sendChapterToWeb, currentViewedChapter, novelId, applySettingsPatch, wordsAction, isAdmin, endReached, extraSections, settings, loadMoreChapters, searchAllChapters]);
 
     handleMessageRef.current = handleShellMessage;
 

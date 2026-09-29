@@ -3,8 +3,9 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
+import AuthRequirementModal from './src/components/Modal/AuthRequirementModal';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import ScrollToTop from './src/components/ScrollToTop';
 import OfflineBanner from './src/components/OfflineBanner';
@@ -42,6 +43,17 @@ function PageLoader() {
       <div className="w-10 h-10 border-[3px] border-primary/20 border-t-primary rounded-full animate-spin" />
     </div>
   );
+}
+
+/**
+ * Global auth-required modal — rendered ONCE at the app root so every
+ * openAuthModal() call (صفحتي / المفضلة / التفاعلات / التعليقات...) actually
+ * shows something. Previously the state flipped but nothing was ever mounted,
+ * which made buttons like «صفحتي» appear completely dead for guests.
+ */
+function GlobalAuthModal() {
+  const { isAuthModalOpen, closeAuthModal } = useAuth();
+  return <AuthRequirementModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />;
 }
 
 /** Footer shows on all normal pages, but not inside the immersive reader. */
@@ -84,6 +96,7 @@ export default function App() {
             <AuthProvider>
               <Router>
                 <ScrollToTop />
+                <GlobalAuthModal />
                 <Toaster
                   position="top-center"
                   reverseOrder={false}
