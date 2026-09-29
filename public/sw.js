@@ -10,7 +10,7 @@
  * - API calls (/api, /auth): NEVER cached — always live.
  */
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL_CACHE = `moon-shell-${VERSION}`;
 const ASSET_CACHE = `moon-assets-${VERSION}`;
 const STATIC_CACHE = `moon-static-${VERSION}`;

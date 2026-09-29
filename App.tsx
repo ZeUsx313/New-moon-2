@@ -10,6 +10,7 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import ScrollToTop from './src/components/ScrollToTop';
 import OfflineBanner from './src/components/OfflineBanner';
 import Footer from './src/components/Footer';
+import BottomNav from './src/components/BottomNav';
 import Home from './src/screens/Home';
 
 // Route-level code splitting: the heavy screens (reader shell, profile, pages)
@@ -17,6 +18,7 @@ import Home from './src/screens/Home';
 const NovelPage = lazy(() => import('./src/screens/NovelPage'));
 const Library = lazy(() => import('./src/screens/Library'));
 const MyPage = lazy(() => import('./src/screens/MyPage'));
+const Downloads = lazy(() => import('./src/screens/Downloads'));
 const Reader = lazy(() => import('./src/screens/Reader'));
 const Login = lazy(() => import('./src/screens/auth/Login'));
 const Signup = lazy(() => import('./src/screens/auth/Signup'));
@@ -56,13 +58,17 @@ function GlobalAuthModal() {
   return <AuthRequirementModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />;
 }
 
-/** Footer shows on all normal pages, but not inside the immersive reader. */
+/** Footer shows on all normal pages, but not inside the immersive reader.
+ *  BottomNav floats on the same pages — content reserves room for it. */
 function Layout() {
   const location = useLocation();
   const isReader = /^\/novel\/[^/]+\/reader\//.test(location.pathname);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={isReader ? undefined : { paddingBottom: 'calc(86px + env(safe-area-inset-bottom, 0px))' }}
+    >
       <OfflineBanner />
       <div className="flex-1 flex flex-col">
         <Suspense fallback={<PageLoader />}>
@@ -71,6 +77,7 @@ function Layout() {
             <Route path="/novel/:slug" element={<NovelPage />} />
             <Route path="/novel/:novelId/reader/:chapterId" element={<Reader />} />
             <Route path="/library" element={<Library />} />
+            <Route path="/downloads" element={<Downloads />} />
             <Route path="/my-page" element={<MyPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
@@ -83,6 +90,7 @@ function Layout() {
         </Suspense>
       </div>
       {!isReader && <Footer />}
+      {!isReader && <BottomNav />}
     </div>
   );
 }

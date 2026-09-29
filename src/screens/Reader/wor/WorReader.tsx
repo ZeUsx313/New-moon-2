@@ -22,6 +22,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../services/api';
 import { novelService } from '../../../services/novel';
 import { apiCache } from '../../../lib/apiCache';
+import { offlineStore, estimateBytes } from '../../../lib/offlineStore';
 import { commentService } from '../../../services/comment';
 import { userService } from '../../../services/user';
 import toast from 'react-hot-toast';
@@ -444,7 +445,24 @@ export default function WorReader() {
                 apiCache.set(worChaptersCacheKey(novelId), { list: res.chapters, total: res.total }, READER_CHAPTERS_TTL);
                 applyChapters(res.chapters, res.total);
             }
-        } catch { /* قائمة الفصول ليست حرجة — القارئ يعمل بدونها */ }
+        } catch {
+            // دون اتصال: قائمة الفصول المنزّلة تكفي تماماً للتنقل داخل النسخة المحلية
+            try {
+                const rec = await offlineStore.getNovel(novelId);
+                if (rec?.chapterNumbers?.length) {
+                    const list = [...rec.chapterNumbers]
+                        .sort((a, b) => a - b)
+                        .map((num) => ({
+                            _id: `offline-${num}`,
+                            number: num,
+                            title: rec.chapterTitles?.[num] || `فصل ${num}`,
+                            createdAt: '',
+                            views: 0,
+                        }));
+                    applyChapters(list, list.length);
+                }
+            } catch { /* قائمة الفصول ليست حرجة — القارئ يعمل بدونها */ }
+        }
     }, [novelId, applyChapters]);
 
     // «تحميل المزيد» من القائمة — يجلب الصفحة التالية ويدمجها في الكاش
@@ -534,6 +552,64 @@ export default function WorReader() {
     // Guards against a slow older chapter response overwriting a newer one
     const chapterReqRef = useRef(0);
 
+    /**
+     * جلب الفصل بأولوية النسخة المنزّلة (القراءة دون اتصال):
+     * IndexedDB أولاً — وإن لم توجد فالشبكة، مع تخزين تلقائي للفصول
+     * الجديدة عندما تكون الرواية متتبّعة في التنزيلات (تبقى نسختك حية).
+     */
+    const loadChapterOfflineFirst = useCallback(async (numStr: string): Promise<{ data: any; fromOffline: boolean }> => {
+        const num = parseInt(numStr);
+        if (Number.isFinite(num)) {
+            try {
+                const ch = await offlineStore.getChapter(novelId!, num);
+                if (ch && ch.content) {
+                    return {
+                        data: {
+                            _id: ch.serverId || `offline-${ch.number}`,
+                            number: ch.number,
+                            title: ch.title,
+                            content: ch.content,
+                            copyrightStart: ch.copyrightStart,
+                            copyrightEnd: ch.copyrightEnd,
+                            copyrightStyles: ch.copyrightStyles,
+                            totalChapters: chaptersTotalRef.current || realTotalChapters || undefined,
+                            createdAt: ch.savedAt,
+                            views: 0,
+                        },
+                        fromOffline: true,
+                    };
+                }
+            } catch { /* IndexedDB فشل — نكمل من الشبكة */ }
+        }
+        const data = await novelService.getChapter(novelId!, numStr);
+        // تخزين تلقائي: الرواية متتبّعة في التنزيلات → الفصل يُحفظ محلياً
+        if (data?.content) {
+            try {
+                const tracked = await offlineStore.getNovel(novelId!);
+                if (tracked) {
+                    const n = parseInt(numStr);
+                    if (Number.isFinite(n) && !tracked.chapterNumbers?.includes(n)) {
+                        await offlineStore.putChapter({
+                            novelId: novelId!,
+                            number: n,
+                            serverId: data._id,
+                            title: data.title || `فصل ${n}`,
+                            content: data.content,
+                            copyrightStart: data.copyrightStart,
+                            copyrightEnd: data.copyrightEnd,
+                            copyrightStyles: data.copyrightStyles,
+                            bytes: estimateBytes(data.content),
+                            savedAt: new Date().toISOString(),
+                        });
+                        await offlineStore.registerChapter(novelId!, { number: n, title: data.title, bytes: estimateBytes(data.content) });
+                    }
+                }
+            } catch { /* التخزين التلقائي اختياري — لا يعطل القراءة */ }
+        }
+        return { data, fromOffline: false };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [novelId]);
+
     const fetchChapter = useCallback(async () => {
         const reqId = ++chapterReqRef.current;
         setLoading(true);
@@ -544,7 +620,7 @@ export default function WorReader() {
         loadingNextRef.current = false;
         setCurrentViewedChapter(parseInt(chapterId || '1') || 1);
         try {
-            const chapterData = await novelService.getChapter(novelId!, chapterId!);
+            const { data: chapterData, fromOffline } = await loadChapterOfflineFirst(chapterId!);
             if (reqId !== chapterReqRef.current) return; // stale response — ignore
             if (chapterData && chapterData.content) {
                 chapterData.content = normalizeContent(chapterData.content);
@@ -554,6 +630,15 @@ export default function WorReader() {
                 sectionTitlesRef.current = { ...sectionTitlesRef.current, [parseInt(chapterId || '1') || 1]: chapterData.title || `فصل ${chapterId}` };
             }
             if (chapterData?.totalChapters) setRealTotalChapters(chapterData.totalChapters);
+
+            // تذكّر آخر فصل مقروء داخل النسخة المنزّلة (لتفتح «التنزيلات» من مكانه)
+            if (Number.isFinite(parseInt(chapterId || ''))) {
+                offlineStore.getNovel(novelId!).then((rec) => {
+                    if (rec && rec.lastReadNumber !== parseInt(chapterId!)) {
+                        offlineStore.patchNovel(novelId!, { lastReadNumber: parseInt(chapterId!) }).catch(() => { });
+                    }
+                }).catch(() => { });
+            }
 
             const savedOffset = await loadScrollPosition(chapterId || '1');
             if (reqId !== chapterReqRef.current) return;
@@ -568,15 +653,22 @@ export default function WorReader() {
                 }, 0);
             }
 
-            novelService.incrementView(novelId!, parseInt(chapterId || '1') || 1).catch(() => { });
-            updateProgressOnServer(chapterData, chapterId || '1');
-            fetchCommentCount(chapterId || '1');
+            // الأثر الجانبي الشبكي لا معنى له للنسخة المنزّلة دون اتصال
+            if (!fromOffline || navigator.onLine) {
+                novelService.incrementView(novelId!, parseInt(chapterId || '1') || 1).catch(() => { });
+                updateProgressOnServer(chapterData, chapterId || '1');
+                fetchCommentCount(chapterId || '1');
+            }
         } catch (err: any) {
             if (reqId !== chapterReqRef.current) return;
             // ApiError carries the real HTTP status — classify honestly
             const status = err?.status || 0;
+            const offlineNoCopy = !navigator.onLine;
             let message = 'فشل تحميل الفصل. تحقق من اتصالك بالإنترنت ثم أعد المحاولة.';
-            if (status === 403) message = 'هذا الفصل غير متاح حالياً (خاص أو لم يُنشر بعد).';
+            if (offlineNoCopy && status === 0) {
+                message = 'أنت دون اتصال — هذا الفصل غير منزّل. نزّله من صفحة الرواية (زر التنزيل) لتقرأه دون إنترنت.';
+            }
+            else if (status === 403) message = 'هذا الفصل غير متاح حالياً (خاص أو لم يُنشر بعد).';
             else if (status === 404) message = 'الفصل غير موجود. ربما تم حذفه أو تغيير ترقيمه.';
             else if (status >= 500) message = err?.message || 'الخادم تعثّر أثناء تحميل الفصل — غالباً مشكلة مؤقتة، أعد المحاولة بعد قليل.';
             else if (status === 0) message = err?.message || message;
@@ -585,7 +677,7 @@ export default function WorReader() {
             if (reqId === chapterReqRef.current) setLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [novelId, chapterId, applyReplacements, sendChapterToWeb, sendSettings]);
+    }, [novelId, chapterId, applyReplacements, sendChapterToWeb, sendSettings, loadChapterOfflineFirst]);
 
     // fetch novel (once per novelId)
     useEffect(() => {
@@ -656,7 +748,7 @@ export default function WorReader() {
         setLoadingNext(true);
         postToWeb({ kind: 'loadingNext', value: true });
         try {
-            const nextData = await novelService.getChapter(novelId!, String(nextNum));
+            const { data: nextData } = await loadChapterOfflineFirst(String(nextNum));
             if (!nextData || !nextData.content) {
                 setEndReached(true);
                 postToWeb({ kind: 'endReached' });

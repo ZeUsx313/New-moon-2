@@ -19,9 +19,11 @@ import {
   Flag,
   CloudOff,
   RefreshCcw,
+  Download,
 } from 'lucide-react';
 import Header from '../components/Header';
 import SafeImage from '../components/SafeImage';
+import DownloadModal from '../components/DownloadModal';
 import { novelService, novelCache, Novel, ChapterMeta, ChaptersListResponse } from '../services/novel';
 import { commentService, Comment } from '../services/comment';
 import { http } from '../lib/http';
@@ -30,6 +32,7 @@ import { CommentSection } from '../components/CommentSection';
 import toast from 'react-hot-toast';
 import { formatDate, getStatusStyle, siteUrl } from '../lib/site';
 import { readNumberArray, writeJSON } from '../lib/storage';
+import { offlineStore } from '../lib/offlineStore';
 import { useDebounce } from '../hooks/useDebounce';
 
 // Enhanced page selector modal with search and sort
@@ -183,6 +186,26 @@ export default function NovelPage() {
   const [reportTypes, setReportTypes] = useState<string[]>([]);
   const [reportDetails, setReportDetails] = useState('');
   const [reportSending, setReportSending] = useState(false);
+  // Offline download state (التنزيل للقراءة دون اتصال)
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [offlineCount, setOfflineCount] = useState(0);
+
+  // تتبّع الفصول المنزّلة لهذه الرواية (تحدّث تلقائياً بعد كل تغيير)
+  useEffect(() => {
+    if (!slug) return;
+    let alive = true;
+    const refresh = () => {
+      offlineStore.getNovel(slug).then((rec) => {
+        if (alive) setOfflineCount(rec?.chapterNumbers?.length || 0);
+      }).catch(() => { /* ignore */ });
+    };
+    refresh();
+    window.addEventListener('moon-offline-change', refresh);
+    return () => {
+      alive = false;
+      window.removeEventListener('moon-offline-change', refresh);
+    };
+  }, [slug]);
 
   // Load per-novel guest read state whenever the novel changes
   useEffect(() => {
@@ -609,6 +632,14 @@ export default function NovelPage() {
                 </div>
                 <div className="flex-center pt-2">
                   <button
+                    onClick={() => setDownloadOpen(true)}
+                    aria-label="تنزيل للقراءة دون اتصال"
+                    className="justify-center whitespace-nowrap text-sm font-medium transition-colors disabled:opacity-50 px-4 py-2 w-full rounded h-12 bg-white/10 border border-white/20 text-white hover:bg-white/20 flex items-center gap-2 mb-2"
+                  >
+                    <Download size={18} className="w-5 h-5" />
+                    {offlineCount > 0 ? `منزّل (${offlineCount} فصل) — إدارة` : 'تنزيل للقراءة دون اتصال'}
+                  </button>
+                  <button
                     onClick={() => setReportOpen(true)}
                     aria-label="الإبلاغ عن مشكلة في الرواية"
                     className="justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 px-4 py-2 w-full rounded h-12 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 flex items-center gap-2"
@@ -697,6 +728,13 @@ export default function NovelPage() {
                       </button>
                     </div>
                   </div>
+                  <button
+                    onClick={() => setDownloadOpen(true)}
+                    className="mt-2 w-full rounded h-12 bg-white/10 border border-white/20 text-white hover:bg-white/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm font-bold"
+                  >
+                    <Download size={17} />
+                    {offlineCount > 0 ? `منزّل (${offlineCount} فصل) — إدارة` : 'تنزيل للقراءة دون اتصال'}
+                  </button>
                 </div>
               </div>
 
@@ -995,6 +1033,9 @@ export default function NovelPage() {
           </>
         )}
       </AnimatePresence>
+
+      {/* تنزيل للقراءة دون اتصال */}
+      <DownloadModal isOpen={downloadOpen} onClose={() => setDownloadOpen(false)} novel={novel} />
     </>
   );
 }
