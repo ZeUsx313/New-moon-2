@@ -5,6 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { Mail, Lock, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/auth';
+import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 
 // صورة الخلفية - نفس الصورة المستخدمة في التطبيق
@@ -48,7 +49,7 @@ export default function Login() {
 
   const handleGoogleLogin = () => {
     const redirectUri = `${window.location.origin}/auth/google/callback`;
-    window.location.href = `https://c-production-e6c3.up.railway.app/auth/google?redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.href = `${api.baseUrl}/auth/google?redirect_uri=${encodeURIComponent(redirectUri)}`;
   };
 
   return (
