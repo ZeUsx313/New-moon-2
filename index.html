@@ -2,8 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>قمر الروايات</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>قمر الروايات - منصة قراءة الروايات العربية والعالمية المترجمة</title>
+  <meta name="description" content="قمر الروايات - وجهتك الأولى لقراءة الروايات العربية والعالمية المترجمة. اكتشف آلاف الروايات الحصرية، التحديثات اليومية، وتجربة قراءة فريدة ومريحة." />
+  <meta name="color-scheme" content="dark light" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,8 +14,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="قمر الروايات">
-  <link rel="apple-touch-icon" href="/adaptive-icon.png">
-  <link rel="stylesheet" href="/index.css">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <link rel="icon" type="image/png" href="/icon.png">
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/main.tsx"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -23,9 +29,5 @@
       });
     }
   </script>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="/main.tsx"></script>
 </body>
 </html>

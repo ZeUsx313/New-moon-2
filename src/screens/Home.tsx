@@ -4,10 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation } from 'swiper/modules';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, PlusCircle, Sparkles, Flame, Star } from 'lucide-react';
+import { TrendingUp, PlusCircle, Sparkles, Flame, Star, CloudOff, RefreshCcw } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import Header from '../components/Header';
+import SafeImage from '../components/SafeImage';
 import { novelService, Novel } from '../services/novel';
+import { useTheme } from '../context/ThemeContext';
+import { getStatusStyle, formatRelativeTime, isNewChapter, siteUrl } from '../lib/site';
 
 import 'swiper/css';
 import 'swiper/css/pagination';
@@ -29,19 +32,16 @@ const NovelCard = ({ novel, index }: { novel: Novel; index: number }) => (
   <motion.div
     initial={{ opacity: 0, y: 30 }}
     animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay: index * 0.05 }}
-    viewport={{ once: true }}
+    transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.5) }}
     className="group cursor-pointer"
   >
     <Link to={`/novel/${novel._id}`} className="block">
       <div className="relative overflow-hidden rounded-xl shadow-lg transform transition-all duration-500 group-hover:scale-105 group-hover:shadow-2xl">
         <div className="aspect-[2/3]">
-          <img
+          <SafeImage
             src={novel.cover}
             alt={novel.title}
-            onContextMenu={(e) => e.preventDefault()}
-            draggable={false}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 select-none"
+            className="w-full h-full transition-transform duration-700 group-hover:scale-110 select-none"
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
@@ -68,102 +68,57 @@ const NovelCard = ({ novel, index }: { novel: Novel; index: number }) => (
   </motion.div>
 );
 
-// Helper: format relative time
-const formatRelativeTime = (date: Date | string): string => {
-  const now = new Date();
-  const d = new Date(date);
-  const diffMs = now.getTime() - d.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-  const diffMonth = Math.floor(diffDay / 30);
-
-  if (diffMin < 1) return 'الآن';
-  if (diffHour < 1) return `منذ ${diffMin} دقيقة`;
-  if (diffDay < 1) return `منذ ${diffHour} ساعة`;
-  if (diffMonth < 1) return `منذ ${diffDay} يوم`;
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-};
-
-// Helper: check if chapter is within last 24 hours
-const isNewChapter = (date: Date | string): boolean => {
-  const now = new Date();
-  const d = new Date(date);
-  const diffMs = now.getTime() - d.getTime();
-  const diffHours = diffMs / (1000 * 60 * 60);
-  return diffHours < 24;
-};
-
-// Helper: get status pill style
-const getStatusStyle = (status: string) => {
-  if (status === 'مستمرة') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-  if (status === 'مكتملة') return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-  return 'bg-red-500/20 text-red-300 border-red-500/30';
-};
-
 export default function Home() {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const { isDark, toggleTheme } = useTheme();
   const [latestPage, setLatestPage] = useState(1);
   const [hasMoreUpdates, setHasMoreUpdates] = useState(true);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
+  const [updatesError, setUpdatesError] = useState(false);
   const [latestUpdates, setLatestUpdates] = useState<Novel[]>([]);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
 
-  // استخدام React Query مع staleTime طويل للتخزين المؤقت
-  const { data: heroData, isLoading: heroLoading } = useQuery({
-    queryKey: ['heroNovels'],
-    queryFn: () => novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 5 }),
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
-  });
-
+  // طلب واحد للأكثر قراءة يغذي السلايدر + القسم (تقليل ضغط الخادم)
   const { data: trendingData, isLoading: trendingLoading } = useQuery({
     queryKey: ['trendingNovels'],
     queryFn: () => novelService.getNovels({ filter: 'trending', timeRange: 'week', limit: 12 }),
-    staleTime: 30 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
 
   const { data: recentData, isLoading: recentLoading } = useQuery({
     queryKey: ['recentNovels'],
     queryFn: () => novelService.getNovels({ filter: 'latest_added', limit: 12 }),
-    staleTime: 30 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
 
   // تحميل الصفحة الأولى من آخر التحديثات
-  useEffect(() => {
-    const fetchFirstPage = async () => {
-      try {
-        const res = await novelService.getNovels({ filter: 'latest_updates', page: 1, limit: 25 });
-        setLatestUpdates(res.novels);
-        setHasMoreUpdates(res.totalPages > 1);
-        setLatestPage(1);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchFirstPage();
+  const fetchUpdatesPage = useCallback(async (pageNum: number, replace: boolean) => {
+    setLoadingUpdates(true);
+    setUpdatesError(false);
+    try {
+      const res = await novelService.getNovels({ filter: 'latest_updates', page: pageNum, limit: 25 });
+      setLatestUpdates(prev => (replace ? res.novels : [...prev, ...res.novels]));
+      setLatestPage(pageNum);
+      setHasMoreUpdates(pageNum < res.totalPages);
+    } catch (err) {
+      console.error(err);
+      setUpdatesError(true);
+    } finally {
+      setLoadingUpdates(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchUpdatesPage(1, true);
+  }, [fetchUpdatesPage]);
 
   // Load more updates on scroll
   const loadMoreUpdates = useCallback(async () => {
     if (loadingUpdates || !hasMoreUpdates) return;
-    setLoadingUpdates(true);
-    try {
-      const nextPage = latestPage + 1;
-      const res = await novelService.getNovels({ filter: 'latest_updates', page: nextPage, limit: 25 });
-      setLatestUpdates(prev => [...prev, ...res.novels]);
-      setLatestPage(nextPage);
-      setHasMoreUpdates(nextPage < res.totalPages);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingUpdates(false);
-    }
-  }, [latestPage, hasMoreUpdates, loadingUpdates]);
+    fetchUpdatesPage(latestPage + 1, false);
+  }, [latestPage, hasMoreUpdates, loadingUpdates, fetchUpdatesPage]);
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
@@ -179,19 +134,10 @@ export default function Home() {
     return () => observer.disconnect();
   }, [hasMoreUpdates, loadingUpdates, loadMoreUpdates]);
 
-  // Dark mode effect
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
-  const heroNovels = heroData?.novels || [];
+  const heroNovels = (trendingData?.novels || []).slice(0, 5);
   const trendingNovels = trendingData?.novels || [];
   const recentNovels = recentData?.novels || [];
-  const isLoading = heroLoading || trendingLoading || recentLoading;
+  const isLoading = trendingLoading || recentLoading;
 
   return (
     <>
@@ -202,28 +148,28 @@ export default function Home() {
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://moonnovel.vercel.app/" />
+        <meta property="og:url" content={siteUrl('/')} />
         <meta property="og:title" content="قمر الروايات - الرئيسية | منصة قراءة الروايات العربية والعالمية" />
         <meta property="og:description" content="اكتشف آلاف الروايات الحصرية والمترجمة على قمر الروايات. تجربة قراءة لا مثيل لها مع تحديثات يومية." />
-        <meta property="og:image" content="https://moonnovel.vercel.app/icon.png" />
+        <meta property="og:image" content={siteUrl('/icon.png')} />
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content="https://moonnovel.vercel.app/" />
+        <meta property="twitter:url" content={siteUrl('/')} />
         <meta property="twitter:title" content="قمر الروايات - الرئيسية | منصة قراءة الروايات العربية والعالمية" />
         <meta property="twitter:description" content="اكتشف آلاف الروايات الحصرية والمترجمة على قمر الروايات. تجربة قراءة لا مثيل لها مع تحديثات يومية." />
-        <meta property="twitter:image" content="https://moonnovel.vercel.app/icon.png" />
+        <meta property="twitter:image" content={siteUrl('/icon.png')} />
 
         {/* AI Crawlers & SEO */}
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://moonnovel.vercel.app/" />
+        <link rel="canonical" href={siteUrl('/')} />
       </Helmet>
       <div
         className="min-h-screen bg-background text-foreground transition-colors duration-500"
         dir="rtl"
         style={{ fontFamily: "'Cairo', sans-serif" }}
       >
-        <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
 
         <main className="pb-16">
           {/* Hero Slider with fixed animation */}
@@ -247,12 +193,11 @@ export default function Home() {
                     <SwiperSlide key={novel._id}>
                       <Link to={`/novel/${novel._id}`} className="block h-full w-full">
                         <div className="relative h-full w-full group">
-                          <img
+                          <SafeImage
                             src={novel.cover}
                             alt={novel.title}
-                            onContextMenu={(e) => e.preventDefault()}
-                            draggable={false}
-                            className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105 select-none"
+                            eager
+                            className="w-full h-full transition-transform duration-700 group-hover:scale-105 select-none"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                           <div className="absolute bottom-12 left-0 right-0 px-6 text-center z-10">
@@ -381,12 +326,10 @@ export default function Home() {
                         to={`/novel/${novel._id}`}
                         className="w-[42%] relative shrink-0 h-full block overflow-hidden group"
                       >
-                        <img
+                        <SafeImage
                           src={novel.cover}
                           alt={novel.title}
-                          onContextMenu={(e) => e.preventDefault()}
-                          draggable={false}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 select-none"
+                          className="w-full h-full transition-transform duration-500 group-hover:scale-110 select-none"
                         />
                         <div className="absolute inset-0 bg-gradient-to-l from-transparent to-[#0c0c0c]/80" />
                       </Link>
@@ -407,8 +350,9 @@ export default function Home() {
                           {(novel.chapters || []).slice(0, 5).map((chapter, chapIdx) => {
                             const isNew = isNewChapter(chapter.createdAt);
                             return (
-                              <div
+                              <Link
                                 key={chapter._id || chapIdx}
+                                to={`/novel/${novel._id}/reader/${chapter.number}`}
                                 className="flex justify-between items-center bg-[#151515] hover:bg-[#1a1a1a] transition-colors rounded-lg px-3 py-2.5 border border-transparent hover:border-white/5 cursor-pointer"
                               >
                                 <div className="flex items-center gap-2">
@@ -425,7 +369,7 @@ export default function Home() {
                                 <span className="text-[11px] font-bold text-gray-500">
                                   {formatRelativeTime(chapter.createdAt)}
                                 </span>
-                              </div>
+                              </Link>
                             );
                           })}
                           {(!novel.chapters || novel.chapters.length === 0) && (
@@ -439,6 +383,28 @@ export default function Home() {
                   ))}
                 </AnimatePresence>
               </div>
+
+              {/* Error state with retry */}
+              {updatesError && latestUpdates.length === 0 && !loadingUpdates && (
+                <div className="text-center py-14">
+                  <CloudOff className="mx-auto text-white/20 mb-3" size={44} />
+                  <p className="text-white/60 text-sm mb-4">تعذّر تحميل آخر التحديثات</p>
+                  <button
+                    onClick={() => fetchUpdatesPage(1, true)}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/80 transition-colors"
+                  >
+                    <RefreshCcw size={16} />
+                    إعادة المحاولة
+                  </button>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!updatesError && !loadingUpdates && latestUpdates.length === 0 && (
+                <div className="text-center py-14">
+                  <p className="text-white/40 text-sm">لا توجد تحديثات حتى الآن</p>
+                </div>
+              )}
 
               {/* Loading indicator and sentinel */}
               {loadingUpdates && (

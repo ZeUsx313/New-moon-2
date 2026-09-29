@@ -1,20 +1,36 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (Tailwind v4) — toggled by ThemeContext on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --color-background: #0a0a0a;
-  --color-foreground: #ffffff;
+  /* Light theme is the base; .dark overrides below */
+  --color-background: #f6f6f8;
+  --color-foreground: #121216;
+  --color-muted: #6b7280;
+  --color-muted-foreground: #6b7280;
   --color-primary: #3b82f6;
   --color-secondary: #1f2937;
-  --color-muted: #6b7280;
   --color-accent: #f59e0b;
-  
-  --font-sans: "Inter", "Noto Sans Arabic", sans-serif;
+
+  --font-sans: "Cairo", "Noto Sans Arabic", sans-serif;
+}
+
+.dark {
+  --color-background: #0a0a0a;
+  --color-foreground: #ffffff;
+  --color-muted: #9ca3af;
+  --color-muted-foreground: #9ca3af;
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
+    transition: background-color 0.3s ease;
   }
 }
 
@@ -24,6 +40,23 @@
 
 .manga-card-shadow {
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+/* Slim, styled scrollbars for long lists */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Swiper custom styles */

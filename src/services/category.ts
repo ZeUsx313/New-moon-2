@@ -1,4 +1,4 @@
-import { api } from './api';
+import { http, ApiError } from '../lib/http';
 
 export interface Category {
   id: string;
@@ -7,8 +7,8 @@ export interface Category {
 
 export const categoryService = {
   async getCategories(): Promise<Category[]> {
-    const res = await fetch(`${api.baseUrl}/api/categories`);
-    if (!res.ok) throw new Error('فشل جلب التصنيفات');
-    return res.json();
+    const data = await http.get<Category[]>('/api/categories');
+    if (!Array.isArray(data)) throw new ApiError('فشل جلب التصنيفات', 0, data);
+    return data;
   },
 };

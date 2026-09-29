@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ import { novelService, Novel } from '../services/novel';
 import { categoryService, Category } from '../services/category';
 import { useDebounce } from '../hooks/useDebounce';
 import Header from '../components/Header';
+import { useTheme } from '../context/ThemeContext';
 
 // صورة الخلفية
 import backgroundImage from '../assets/adaptive-icon.png';
@@ -169,8 +170,11 @@ const FilterModal = ({
 
 export default function Library() {
   const navigate = useNavigate();
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const { isDark, toggleTheme } = useTheme();
+  const [searchParams] = useSearchParams();
+  const urlQuery = searchParams.get('q') || '';
+  // Search arrives from the header (?q=…) or is typed here directly
+  const [searchQuery, setSearchQuery] = useState(urlQuery);
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -191,8 +195,8 @@ export default function Library() {
   // تصفية التصنيفات: استبعاد أي تصنيف يحتوي على أحرف إنجليزية
   const categories = rawCategories.filter((cat: any) => !containsEnglish(cat.name));
 
-  // جلب الروايات
-  const { data, isLoading, isFetching } = useQuery({
+  // جلب الروايات (server-side search + pagination)
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['novels', page, selectedCategory, selectedStatus, selectedSort, debouncedSearch],
     queryFn: () =>
       novelService.getNovels({
@@ -201,11 +205,17 @@ export default function Library() {
         category: selectedCategory,
         status: selectedStatus !== 'all' ? selectedStatus : undefined,
         sort: selectedSort,
-        search: debouncedSearch,
+        search: debouncedSearch || undefined,
       }),
-    keepPreviousData: true,
+    // v5: keep the previous page visible while the next one loads (no flash)
+    placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Follow ?q= changes coming from the header search
+  useEffect(() => {
+    setSearchQuery(urlQuery);
+  }, [urlQuery]);
 
   const novels = data?.novels || [];
   const totalPages = data?.totalPages || 1;
@@ -231,20 +241,6 @@ export default function Library() {
     const sort = SORT_OPTIONS.find(s => s.id === selectedSort);
     return sort?.name || 'الترتيب';
   };
-
-  // عدد الأعمدة responsive
-  const [columns, setColumns] = useState(4);
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width < 640) setColumns(2);
-      else if (width < 1024) setColumns(3);
-      else setColumns(4);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -297,22 +293,13 @@ export default function Library() {
     );
   };
 
-  // تأثير الوضع المظلم
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
   return (
     <>
       <Helmet>
         <title>قمر الروايات - المكتبة</title>
       </Helmet>
       <div className="min-h-screen bg-background text-foreground transition-colors duration-500" dir="rtl">
-        <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
         <div className="relative overflow-hidden bg-black">
           {/* خلفية زجاجية */}
           <div className="absolute inset-0 z-0">
@@ -335,10 +322,11 @@ export default function Library() {
             <div className="relative mb-5">
               <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 w-5 h-5" />
               <input
-                type="text"
+                type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ابحث داخل المكتبة..."
+                placeholder="ابحث بالاسم أو المؤلف داخل المكتبة..."
+                aria-label="بحث في المكتبة"
                 className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl py-3 pr-12 pl-12 text-white placeholder:text-white/40 focus:outline-none focus:border-primary transition-colors"
               />
               {searchQuery && (
@@ -381,19 +369,30 @@ export default function Library() {
               <div className="flex justify-center items-center py-20">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
+            ) : isError ? (
+              <div className="text-center py-20">
+                <LibraryIcon size={48} className="mx-auto text-white/20" />
+                <p className="text-white/60 mt-3 mb-4">تعذّر تحميل المكتبة — تحقق من اتصالك بالإنترنت</p>
+                <button
+                  onClick={() => refetch()}
+                  className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/80 transition-colors"
+                >
+                  إعادة المحاولة
+                </button>
+              </div>
             ) : novels.length === 0 ? (
               <div className="text-center py-20">
                 <LibraryIcon size={48} className="mx-auto text-white/20" />
                 <p className="text-white/40 mt-2">لا توجد روايات تطابق بحثك</p>
               </div>
             ) : (
-              <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {novels.map((novel, idx) => (
                   <motion.div
                     key={novel._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: idx * 0.03 }}
+                    transition={{ duration: 0.3, delay: Math.min(idx * 0.03, 0.5) }}
                   >
                     <NovelCard novel={novel} onClick={() => navigate(`/novel/${novel._id}`)} />
                   </motion.div>

@@ -5,29 +5,21 @@ import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../context/AuthContext';
 import { userService, UserProfile, UserStats } from '../services/user';
 import { novelService } from '../services/novel';
-import { 
-  User, 
-  Heart, 
-  BookOpen, 
-  Eye, 
-  Calendar, 
-  Settings, 
-  LogOut, 
-  Edit3, 
-  Camera, 
+import {
+  User,
+  Heart,
+  BookOpen,
+  Eye,
+  Calendar,
+  LogOut,
+  Edit3,
   ChevronRight,
-  Bookmark,
   Clock,
-  TrendingUp,
-  Award,
-  Star,
-  Grid,
-  List,
-  RefreshCw,
   Shield,
   UserCheck,
   FileText,
-  UserPlus
+  UserPlus,
+  TabletSmartphone,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -197,6 +189,10 @@ export default function MyPage() {
   const isProfileContributor = profileUser?.role === 'contributor' || isProfileAdmin;
   const isSelf = true; // هذه الصفحة للمستخدم الحالي
 
+  const notifyAdminPanel = () => {
+    toast('لوحة تحكم المترجمين متوفرة حالياً في تطبيق الهاتف فقط', { icon: '📱', duration: 4000 });
+  };
+
   // جلب البيانات
   const fetchProfileData = useCallback(async () => {
     if (!isAuthenticated) {
@@ -286,16 +282,19 @@ export default function MyPage() {
       }
     } catch (err) {
       console.error(err);
+      toast.error('تعذّر تحميل المزيد من العناصر');
     } finally {
       setLoadingMore(false);
     }
   }, [worksPage, favoritesPage, historyPage, loadingMore]);
 
-  // مراقبة التمرير لتحميل المزيد
+  // مراقبة التمرير لتحميل المزيد — يعاد الإرفاق حين يتغير الـ container
+  // (الحاوية لا توجد إلا بعد حل حالة المصادقة، لذا نعتمد على isAuthenticated)
   useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !isAuthenticated) return;
     const handleScroll = () => {
-      if (!scrollContainerRef.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      const { scrollTop, scrollHeight, clientHeight } = container;
       const isBottom = scrollHeight - scrollTop - clientHeight < 200;
       if (isBottom && !loadingMore) {
         if (activeTab === 'works' && hasMoreWorks) loadMore('works');
@@ -303,12 +302,9 @@ export default function MyPage() {
         else if (activeTab === 'history' && hasMoreHistory) loadMore('history');
       }
     };
-    const container = scrollContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, [activeTab, hasMoreWorks, hasMoreFavorites, hasMoreHistory, loadingMore, loadMore]);
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [isAuthenticated, activeTab, hasMoreWorks, hasMoreFavorites, hasMoreHistory, loadingMore, loadMore]);
 
   const handleUpdateProfile = async () => {
     try {
@@ -667,8 +663,9 @@ export default function MyPage() {
               <div className="h-40 md:h-48 rounded-2xl overflow-hidden">
                 <img
                   src={profileUser?.banner || backgroundImage}
-                  alt="Banner"
+                  alt="غلاف الملف الشخصي"
                   className="w-full h-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).src = backgroundImage; }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
               </div>
@@ -683,8 +680,9 @@ export default function MyPage() {
                 >
                   <img
                     src={profileUser?.picture || backgroundImage}
-                    alt={profileUser?.name}
+                    alt={profileUser?.name || 'الصورة الشخصية'}
                     className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).src = backgroundImage; }}
                   />
                 </motion.div>
                 <motion.h2
@@ -708,10 +706,10 @@ export default function MyPage() {
                 <div className="flex gap-3 mt-4">
                   {isProfileContributor && (
                     <button
-                      onClick={() => navigate('/admin')}
+                      onClick={notifyAdminPanel}
                       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-all duration-300"
                     >
-                      <Grid size={16} />
+                      <TabletSmartphone size={16} />
                       <span className="text-sm">لوحة التحكم</span>
                     </button>
                   )}

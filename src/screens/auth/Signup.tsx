@@ -60,8 +60,7 @@ export default function Signup() {
       toast.success('تم إنشاء الحساب بنجاح');
       navigate('/');
     } catch (error: any) {
-      const message = error.response?.data?.message || 'فشل إنشاء الحساب';
-      toast.error(message);
+      toast.error(error?.message || 'فشل إنشاء الحساب');
     } finally {
       setLoading(false);
     }

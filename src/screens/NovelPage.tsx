@@ -2,7 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
+import DOMPurify from 'dompurify';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   Star,
   ChevronLeft,
@@ -11,35 +13,23 @@ import {
   Eye,
   BookOpen,
   ArrowUpDown,
-  Calendar,
-  MessageCircle,
   Search,
   ThumbsUp,
-  ThumbsDown,
   X,
-  Check,
-  Grid,
+  Flag,
+  CloudOff,
+  RefreshCcw,
 } from 'lucide-react';
 import Header from '../components/Header';
-import { novelService, Novel, ChapterMeta, ChapterFull } from '../services/novel';
+import SafeImage from '../components/SafeImage';
+import { novelService, Novel, ChapterMeta } from '../services/novel';
 import { commentService, Comment } from '../services/comment';
+import { http } from '../lib/http';
 import { Skeleton, NovelPageSkeleton } from '../components/Skeleton';
 import { CommentSection } from '../components/CommentSection';
-import { PageSelectorModal } from '../components/PageSelectorModal';
 import toast from 'react-hot-toast';
-
-// Helper: format date as YYYY/M/D
-const formatDate = (date: Date | string) => {
-  const d = new Date(date);
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-};
-
-// Get status pill style (updated colors)
-const getStatusStyle = (status: string) => {
-  if (status === 'مستمرة') return 'bg-blue-500/20 text-blue-300 border-blue-500/30';   // أزرق غامق شفاف
-  if (status === 'مكتملة') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'; // أخضر غامق شفاف
-  return 'bg-red-500/20 text-red-300 border-red-500/30'; // متوقفة
-};
+import { formatDate, getStatusStyle, siteUrl } from '../lib/site';
+import { readNumberArray, writeJSON } from '../lib/storage';
 
 // Enhanced page selector modal with search and sort
 const EnhancedPageSelectorModal = ({
@@ -154,18 +144,19 @@ export default function NovelPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, openAuthModal } = useAuth();
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const { isDark, toggleTheme } = useTheme();
   const [novel, setNovel] = useState<Novel | null>(null);
+  const [novelError, setNovelError] = useState<string | null>(null);
   const [chapters, setChapters] = useState<ChapterMeta[]>([]);
   const [chaptersPage, setChaptersPage] = useState(1);
   const [totalChapters, setTotalChapters] = useState(0);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [loadingNovel, setLoadingNovel] = useState(true);
   const [loadingChapters, setLoadingChapters] = useState(false);
+  const [chaptersError, setChaptersError] = useState(false);
+  const [chaptersReloadKey, setChaptersReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState<'chapters' | 'description' | 'comments'>('chapters');
   const [chapterSearch, setChapterSearch] = useState('');
-  const [selectedChapter, setSelectedChapter] = useState<ChapterFull | null>(null);
-  const [showReader, setShowReader] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -177,11 +168,21 @@ export default function NovelPage() {
   const [isPageModalOpen, setIsPageModalOpen] = useState(false);
   const [reactionStats, setReactionStats] = useState({ like: 0, love: 0, funny: 0, sad: 0, angry: 0 });
   const [userReaction, setUserReaction] = useState<string | null>(null);
-  // Local read chapters for guest users
-  const [localReadChapters, setLocalReadChapters] = useState<number[]>(() => {
-    const stored = localStorage.getItem(`read_chapters_${slug}`);
-    return stored ? JSON.parse(stored) : [];
-  });
+  // Local read chapters for guest users (crash-proof read, per-novel)
+  const [localReadChapters, setLocalReadChapters] = useState<number[]>([]);
+  // Report modal state
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportTypes, setReportTypes] = useState<string[]>([]);
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSending, setReportSending] = useState(false);
+
+  // Load per-novel guest read state whenever the novel changes
+  useEffect(() => {
+    if (!slug) return;
+    setLocalReadChapters(readNumberArray(`read_chapters_${slug}`));
+    // reset scroll for every new novel (not just first mount)
+    window.scrollTo(0, 0);
+  }, [slug]);
 
   const chaptersPerPage = 25;
   const totalPages = Math.ceil(totalChapters / chaptersPerPage);
@@ -192,63 +193,73 @@ export default function NovelPage() {
     return Array.from(combined);
   }, [userProgress.readChapters, localReadChapters]);
 
-  // Scroll to top on mount
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
   // Fetch novel data
-  useEffect(() => {
+  const fetchNovel = useCallback(async () => {
     if (!slug) return;
-    const fetchNovel = async () => {
-      try {
-        setLoadingNovel(true);
-        const data = await novelService.getNovelById(slug);
-        setNovel(data);
-        setTotalChapters(data.chaptersCount);
-        const token = localStorage.getItem('token');
-        if (token) {
+    setLoadingNovel(true);
+    setNovelError(null);
+    try {
+      const data = await novelService.getNovelById(slug);
+      setNovel(data);
+      setTotalChapters(data.chaptersCount);
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
           const status = await novelService.getNovelStatus(slug);
-          setIsFavorite(status.isFavorite);
+          setIsFavorite(!!status.isFavorite);
           setUserProgress({
-            progress: status.progress,
-            lastChapterId: status.lastChapterId,
+            progress: status.progress || 0,
+            lastChapterId: status.lastChapterId || 0,
             readChapters: status.readChapters || [],
           });
-        }
-      } catch (err: any) {
-        console.error(err);
-      } finally {
-        setLoadingNovel(false);
+        } catch { /* status is optional */ }
       }
-    };
-    fetchNovel();
+    } catch (err: any) {
+      console.error(err);
+      setNovelError(err?.message || 'فشل تحميل الرواية');
+      setNovel(null);
+    } finally {
+      setLoadingNovel(false);
+    }
   }, [slug]);
+
+  useEffect(() => {
+    fetchNovel();
+  }, [fetchNovel]);
 
   // Fetch chapters - ONLY WHEN TAB IS ACTIVE
   useEffect(() => {
     if (!slug || activeTab !== 'chapters') return;
+    let stale = false;
     const fetchChapters = async () => {
       setLoadingChapters(true);
+      setChaptersError(false);
       try {
         const list = await novelService.getChaptersList(slug, chaptersPage, chaptersPerPage, sortOrder);
-        setChapters(list);
+        if (!stale) setChapters(list);
       } catch (err) {
-        console.error(err);
+        if (!stale) {
+          console.error(err);
+          setChaptersError(true);
+          setChapters([]);
+        }
       } finally {
-        setLoadingChapters(false);
+        if (!stale) setLoadingChapters(false);
       }
     };
     fetchChapters();
-  }, [slug, chaptersPage, sortOrder, activeTab]);
+    return () => { stale = true; };
+  }, [slug, chaptersPage, sortOrder, activeTab, chaptersReloadKey]);
 
   // Fetch comments and reactions - ONLY WHEN TAB IS ACTIVE
   useEffect(() => {
     if (!slug || activeTab !== 'comments') return;
+    let stale = false;
     const fetchComments = async () => {
       setLoadingComments(true);
       try {
         const res = await commentService.getComments(slug, undefined, 1, 20);
+        if (stale) return;
         setComments(res.comments);
         if (res.stats) {
           setReactionStats({
@@ -261,12 +272,13 @@ export default function NovelPage() {
           setUserReaction(res.stats.userReaction);
         }
       } catch (err) {
-        console.error(err);
+        if (!stale) console.error(err);
       } finally {
-        setLoadingComments(false);
+        if (!stale) setLoadingComments(false);
       }
     };
     fetchComments();
+    return () => { stale = true; };
   }, [slug, activeTab]);
 
   const handleReaction = async (type: 'like' | 'love' | 'funny' | 'sad' | 'angry') => {
@@ -285,8 +297,8 @@ export default function NovelPage() {
         angry: result.angry,
       });
       setUserReaction(result.userReaction);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      toast.error(err?.message || 'فشل تسجيل التفاعل');
     }
   };
 
@@ -296,51 +308,83 @@ export default function NovelPage() {
       openAuthModal();
       return;
     }
-    try {
-      const newStatus = !isFavorite;
-      // Optimistic update
-      setIsFavorite(newStatus);
-      setNovel((prev) => prev ? { ...prev, favorites: (prev.favorites || 0) + (newStatus ? 1 : -1) } : prev);
-      await novelService.updateReadingStatus({
-        novelId: slug,
-        title: novel.title,
-        cover: novel.cover,
-        author: novel.author,
-        isFavorite: newStatus,
-      });
+    // Snapshot the pre-click values so a rollback restores exactly them
+    const prevStatus = isFavorite;
+    const prevCount = novel.favorites || 0;
+    const newStatus = !prevStatus;
+    // Optimistic update
+    setIsFavorite(newStatus);
+    setNovel((prev) => prev ? { ...prev, favorites: prevCount + (newStatus ? 1 : -1) } : prev);
+    const result = await novelService.updateReadingStatus({
+      novelId: slug,
+      title: novel.title,
+      cover: novel.cover,
+      author: novel.author,
+      isFavorite: newStatus,
+    });
+    if (result?.success) {
       toast.success(newStatus ? 'تمت الإضافة للمفضلة' : 'تم الحذف من المفضلة');
-    } catch (err) {
-      // Rollback
-      setIsFavorite(!isFavorite);
-      setNovel((prev) => prev ? { ...prev, favorites: (prev.favorites || 0) + (isFavorite ? 1 : -1) } : prev);
-      toast.error('فشلت العملية');
+    } else {
+      // Real rollback to the exact previous state
+      setIsFavorite(prevStatus);
+      setNovel((prev) => prev ? { ...prev, favorites: prevCount } : prev);
+      toast.error('فشلت العملية، حاول مجدداً');
     }
+  };
+
+  const submitReport = async () => {
+    if (!slug || !novel) return;
+    if (reportTypes.length === 0 && !reportDetails.trim()) {
+      toast.error('اختر نوع المشكلة أو اكتب تفاصيلها');
+      return;
+    }
+    setReportSending(true);
+    try {
+      await http.post('/api/reports', {
+        novelId: slug,
+        novelTitle: novel.title,
+        chapterNumber: null,
+        chapterTitle: '',
+        types: reportTypes,
+        details: reportDetails.trim(),
+      }, { auth: true });
+      toast.success('تم إرسال البلاغ، شكراً لك!');
+      setReportOpen(false);
+      setReportTypes([]);
+      setReportDetails('');
+    } catch (err: any) {
+      toast.error(err?.message || 'تعذر إرسال البلاغ الآن');
+    } finally {
+      setReportSending(false);
+    }
+  };
+
+  const toggleReportType = (t: string) => {
+    setReportTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   };
 
   const handleChapterClick = (chapter: ChapterMeta) => {
     if (!slug) return;
     // Navigate to reader
     navigate(`/novel/${slug}/reader/${chapter.number}`);
-    // Mark as read locally (optimistic)
-    if (!readChapters.includes(chapter.number)) {
+    // Mark as read locally (guests) — server marks via the reader
+    if (!isAuthenticated && !readChapters.includes(chapter.number)) {
       const newRead = [...readChapters, chapter.number];
-      if (localStorage.getItem('token')) {
-        // Will be updated on server when reading chapter
-      } else {
-        localStorage.setItem(`read_chapters_${slug}`, JSON.stringify(newRead));
-        setLocalReadChapters(newRead);
-      }
+      writeJSON(`read_chapters_${slug}`, newRead);
+      setLocalReadChapters(newRead);
     }
   };
 
-  const handleAddComment = async (content: string) => {
-    if (!slug) return;
+  const handleAddComment = async (content: string): Promise<boolean> => {
+    if (!slug) return false;
     try {
       const comment = await commentService.addComment(slug, content);
       setComments([comment, ...comments]);
       toast.success('تم إضافة التعليق');
+      return true;
     } catch (err: any) {
       toast.error(err.message || 'فشل إضافة التعليق');
+      return false;
     }
   };
 
@@ -358,23 +402,19 @@ export default function NovelPage() {
     ch.title.toLowerCase().includes(chapterSearch.toLowerCase())
   );
 
-  // Render description with preserved line breaks
+  // Render description — sanitized HTML only (XSS-safe)
   const renderDescription = (text: string) => {
     if (!text) return null;
     if (text.includes('<') && text.includes('>')) {
-      return <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: text }} />;
+      const clean = DOMPurify.sanitize(text, { USE_PROFILES: { html: true } });
+      return <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: clean }} />;
     }
     const paragraphs = text.split(/\n\s*\n/);
     return (
-      <div className="prose dark:prose-invert max-w-none">
+      <div className="prose prose-invert max-w-none">
         {paragraphs.map((para, idx) => (
-          <p key={idx} className="mb-4 leading-relaxed">
-            {para.split('\n').map((line, i) => (
-              <React.Fragment key={i}>
-                {line}
-                {i < para.split('\n').length - 1 && <br />}
-              </React.Fragment>
-            ))}
+          <p key={idx} className="mb-4 leading-relaxed whitespace-pre-line">
+            {para}
           </p>
         ))}
       </div>
@@ -387,9 +427,29 @@ export default function NovelPage() {
 
   if (!novel) {
     return (
-      <div className="min-h-screen bg-background text-foreground" dir="rtl">
-        <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
-        <div className="flex items-center justify-center h-64">الرواية غير موجودة</div>
+      <div className="min-h-screen bg-background text-foreground" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
+        <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
+        <div className="flex flex-col items-center justify-center h-96 gap-4 px-6">
+          <CloudOff className="text-muted-foreground" size={48} />
+          <p className="text-muted-foreground text-sm">{novelError || 'الرواية غير موجودة'}</p>
+          <div className="flex gap-3">
+            {novelError && (
+              <button
+                onClick={fetchNovel}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/80 transition-colors"
+              >
+                <RefreshCcw size={16} />
+                إعادة المحاولة
+              </button>
+            )}
+            <button
+              onClick={() => navigate('/')}
+              className="px-6 py-2.5 rounded-xl bg-white/10 border border-white/20 text-foreground font-bold text-sm hover:bg-white/20 transition-colors"
+            >
+              الرئيسية
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -403,7 +463,7 @@ export default function NovelPage() {
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="book" />
-        <meta property="og:url" content={`https://moonnovel.vercel.app/novel/${slug}`} />
+        <meta property="og:url" content={siteUrl(`/novel/${slug}`)} />
         <meta property="og:title" content={`رواية ${novel.title} - قمر الروايات`} />
         <meta property="og:description" content={novel.description?.slice(0, 160)} />
         <meta property="og:image" content={novel.cover} />
@@ -412,14 +472,14 @@ export default function NovelPage() {
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content={`https://moonnovel.vercel.app/novel/${slug}`} />
+        <meta property="twitter:url" content={siteUrl(`/novel/${slug}`)} />
         <meta property="twitter:title" content={`رواية ${novel.title} - قمر الروايات`} />
         <meta property="twitter:description" content={novel.description?.slice(0, 160)} />
         <meta property="twitter:image" content={novel.cover} />
 
         {/* AI Crawlers & SEO */}
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href={`https://moonnovel.vercel.app/novel/${slug}`} />
+        <link rel="canonical" href={siteUrl(`/novel/${slug}`)} />
 
         {/* Structured Data (JSON-LD) */}
         <script type="application/ld+json">
@@ -443,7 +503,7 @@ export default function NovelPage() {
         </script>
       </Helmet>
       <div className="relative min-h-screen bg-background text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
-        <Header isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
 
         {/* Background */}
         <div className="fixed w-full h-screen z-0 top-0 left-0">
@@ -513,11 +573,12 @@ export default function NovelPage() {
                   </div>
                 </div>
                 <div className="flex-center pt-2">
-                  <button className="justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 px-4 py-2 w-full rounded h-12 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-flag w-5 h-5">
-                      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
-                      <line x1="4" x2="4" y1="22" y2="15"></line>
-                    </svg>
+                  <button
+                    onClick={() => setReportOpen(true)}
+                    aria-label="الإبلاغ عن مشكلة في الرواية"
+                    className="justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 px-4 py-2 w-full rounded h-12 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 flex items-center gap-2"
+                  >
+                    <Flag size={18} className="w-5 h-5" />
                     الإبلاغ عن مشكلة
                   </button>
                 </div>
@@ -665,6 +726,18 @@ export default function NovelPage() {
                   <div className="space-y-2">
                     {loadingChapters ? (
                       <Skeleton className="h-16 rounded-xl" count={5} />
+                    ) : chaptersError ? (
+                      <div className="text-center py-10">
+                        <CloudOff className="mx-auto text-muted-foreground mb-3" size={40} />
+                        <p className="text-muted-foreground text-sm mb-4">تعذّر تحميل الفصول</p>
+                        <button
+                          onClick={() => setChaptersReloadKey((k) => k + 1)}
+                          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/80 transition-colors"
+                        >
+                          <RefreshCcw size={16} />
+                          إعادة المحاولة
+                        </button>
+                      </div>
                     ) : filteredChapters.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">لا توجد فصول مطابقة</div>
                     ) : (
@@ -686,6 +759,7 @@ export default function NovelPage() {
                                     draggable={false}
                                     className="object-cover rounded-md absolute inset-0 w-full h-full select-none"
                                     src={novel.cover}
+                                    onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
                                   />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
                                     <span className={`text-white font-bold text-lg ${isRead ? 'opacity-50' : ''}`}>
@@ -814,6 +888,78 @@ export default function NovelPage() {
         {/* Chapter Reader Modal (not used now, but keep for potential future) */}
         {/* <ChapterReader chapter={selectedChapter} isOpen={showReader} onClose={() => setShowReader(false)} /> */}
       </div>
+
+      {/* Report Modal */}
+      <AnimatePresence>
+        {reportOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+              onClick={() => !reportSending && setReportOpen(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 50 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-md bg-[#1a1a1a] rounded-2xl shadow-2xl border border-white/10 overflow-hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-label="الإبلاغ عن مشكلة"
+            >
+              <div className="p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-white">الإبلاغ عن مشكلة</h3>
+                  <button onClick={() => setReportOpen(false)} className="p-1 hover:bg-white/10 rounded-full transition-colors" aria-label="إغلاق">
+                    <X size={20} className="text-gray-400" />
+                  </button>
+                </div>
+                <p className="text-white/50 text-xs mb-3">رواية: <span className="text-white/80 font-semibold">{novel.title}</span></p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {['مشكلة في الترجمة', 'فصل مفقود', 'فصول مكررة', 'مشكلة في العرض', 'رابط صورة معطل', 'أخرى'].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => toggleReportType(t)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                        reportTypes.includes(t)
+                          ? 'bg-primary/20 border-primary/50 text-primary'
+                          : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  rows={4}
+                  placeholder="تفاصيل إضافية (اختياري)..."
+                  aria-label="تفاصيل البلاغ"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-primary transition-colors text-sm mb-4"
+                />
+                <button
+                  onClick={submitReport}
+                  disabled={reportSending}
+                  className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {reportSending ? (
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Flag size={16} />
+                      إرسال البلاغ
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }

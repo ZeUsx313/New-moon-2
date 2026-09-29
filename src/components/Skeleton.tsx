@@ -6,9 +6,10 @@ export const Skeleton = ({ className = '', count = 1 }: { className?: string; co
     <>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className={`relative overflow-hidden bg-gray-800/50 rounded-xl ${className}`}>
+          {/* RTL-neutral shimmer sweep */}
           <motion.div
-            className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent"
-            animate={{ x: ['0%', '100%'] }}
+            className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+            animate={{ x: ['-200%', '300%'] }}
             transition={{
               repeat: Infinity,
               duration: 1.5,

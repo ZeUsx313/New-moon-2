@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { LogIn, UserPlus, X, Lock } from 'lucide-react';
 
 interface AuthRequirementModalProps {
@@ -8,10 +9,13 @@ interface AuthRequirementModalProps {
 }
 
 export default function AuthRequirementModal({ isOpen, onClose }: AuthRequirementModalProps) {
+  const navigate = useNavigate();
+
+  // Navigate in-app so the login happens in THIS tab and auth state
+  // updates here immediately (no orphan new tabs).
   const handleAction = (type: 'login' | 'signup') => {
-    // Open in new tab as requested
-    window.open(`/${type}`, '_blank');
     onClose();
+    navigate(`/${type}`);
   };
 
   return (

@@ -1,3 +1,7 @@
+/**
+ * Central API configuration. All services go through src/lib/http.ts which
+ * adds auth, timeouts, retries and safe JSON parsing on top of this.
+ */
 const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
   if (envUrl && envUrl !== 'undefined' && envUrl !== '') {
@@ -6,7 +10,7 @@ const getApiBaseUrl = () => {
   return 'https://c-production-6948.up.railway.app';
 };
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
 
 export const api = {
   baseUrl: API_BASE_URL,

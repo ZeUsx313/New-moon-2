@@ -3,5 +3,6 @@ Allow: /
 Disallow: /login
 Disallow: /signup
 Disallow: /my-page
+Disallow: /novel/*/reader/*
 
-Sitemap: https://ais-pre-alukpn2lpso7r4p7yzguqv-15287201126.europe-west2.run.app/sitemap.xml
+Sitemap: https://moonnovel.vercel.app/sitemap.xml

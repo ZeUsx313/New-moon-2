@@ -1,4 +1,4 @@
-import { api } from './api';
+import { http } from '../lib/http';
 
 export interface Comment {
   _id: string;
@@ -43,64 +43,30 @@ export const commentService = {
     query.append('sort', sort);
     if (chapterNumber !== undefined) query.append('chapterNumber', chapterNumber.toString());
 
-    const res = await fetch(`${api.baseUrl}/api/novels/${novelId}/comments?${query.toString()}`);
-    if (!res.ok) throw new Error('فشل جلب التعليقات');
-    return res.json();
+    return http.get(`/api/novels/${novelId}/comments?${query.toString()}`);
   },
 
   async getReplies(commentId: string): Promise<Comment[]> {
-    const res = await fetch(`${api.baseUrl}/api/comments/${commentId}/replies`);
-    if (!res.ok) throw new Error('فشل جلب الردود');
-    return res.json();
+    return http.get(`/api/comments/${commentId}/replies`);
   },
 
   async addComment(novelId: string, content: string, parentId?: string, chapterNumber?: number): Promise<Comment> {
-    const res = await fetch(`${api.baseUrl}/api/comments`, {
-      method: 'POST',
-      headers: {
-        ...api.headers,
-        ...api.getAuthHeader(),
-      },
-      body: JSON.stringify({ novelId, content, parentId, chapterNumber }),
-    });
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || 'فشل إضافة التعليق');
-    }
-    return res.json();
+    return http.post<Comment>('/api/comments', { novelId, content, parentId, chapterNumber }, { auth: true });
   },
 
   async editComment(commentId: string, content: string): Promise<Comment> {
-    const res = await fetch(`${api.baseUrl}/api/comments/${commentId}`, {
-      method: 'PUT',
-      headers: {
-        ...api.headers,
-        ...api.getAuthHeader(),
-      },
-      body: JSON.stringify({ content }),
-    });
-    if (!res.ok) throw new Error('فشل تعديل التعليق');
-    return res.json();
+    return http.put<Comment>(`/api/comments/${commentId}`, { content }, { auth: true });
   },
 
   async deleteComment(commentId: string): Promise<void> {
-    const res = await fetch(`${api.baseUrl}/api/comments/${commentId}`, {
-      method: 'DELETE',
-      headers: api.getAuthHeader(),
-    });
-    if (!res.ok) throw new Error('فشل حذف التعليق');
+    await http.delete(`/api/comments/${commentId}`, { auth: true });
   },
 
   async reactToComment(commentId: string, action: 'like' | 'dislike'): Promise<{ likes: number; dislikes: number }> {
-    const res = await fetch(`${api.baseUrl}/api/comments/${commentId}/action`, {
-      method: 'POST',
-      headers: {
-        ...api.headers,
-        ...api.getAuthHeader(),
-      },
-      body: JSON.stringify({ action }),
-    });
-    if (!res.ok) throw new Error('فشل التفاعل مع التعليق');
-    return res.json();
+    return http.post<{ likes: number; dislikes: number }>(
+      `/api/comments/${commentId}/action`,
+      { action },
+      { auth: true }
+    );
   },
 };

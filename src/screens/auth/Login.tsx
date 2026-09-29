@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
-import { Mail, Lock, LogIn, UserPlus, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/auth';
 import { api } from '../../services/api';
@@ -32,13 +32,12 @@ export default function Login() {
       toast.success('تم تسجيل الدخول بنجاح');
       navigate('/');
     } catch (error: any) {
-      const status = error.response?.status;
-      const message = error.response?.data?.message;
-
+      const status = error?.status;
+      const message = error?.message;
       if (status === 404) {
         toast.error('الحساب غير موجود. يرجى إنشاء حساب جديد.');
       } else if (status === 401) {
-        toast.error('كلمة المرور غير صحيحة');
+        toast.error('البريد الإلكتروني أو كلمة المرور غير صحيحة');
       } else {
         toast.error(message || 'فشل تسجيل الدخول');
       }

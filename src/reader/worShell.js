@@ -1617,6 +1617,18 @@ function bridgeScript() {
         // newly appended chapters push the doc size up — trim the far tail
         if (S.continuousMode) enforceWindow(window.scrollY || 0);
       }
+      else if (kind === 'scrollToChapter') {
+        // smooth-scroll to a chapter section inside continuous mode
+        // (replaces the old parent-side eval hack — CSP-safe)
+        var n = 0;
+        var num = msg.number;
+        (function go() {
+          var el = document.querySelector('section[data-ch="' + num + '"]');
+          if (!el) return;
+          window.scrollTo({ top: el.offsetTop - 8, behavior: 'smooth' });
+          if (++n < 3) requestAnimationFrame(go);
+        })();
+      }
       else if (kind === 'endReached') {
         window.__worEnd = true;
         var foot2 = $('#worContinuousFooter');

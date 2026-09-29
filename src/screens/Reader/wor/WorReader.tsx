@@ -449,7 +449,11 @@ export default function WorReader() {
     const novelRef = useRef<any>(null);
     useEffect(() => { novelRef.current = novel; }, [novel]);
 
+    // Guards against a slow older chapter response overwriting a newer one
+    const chapterReqRef = useRef(0);
+
     const fetchChapter = useCallback(async () => {
+        const reqId = ++chapterReqRef.current;
         setLoading(true);
         setErrorInfo(null);
         setExtraSections([]);
@@ -459,6 +463,7 @@ export default function WorReader() {
         setCurrentViewedChapter(parseInt(chapterId || '1') || 1);
         try {
             const chapterData = await novelService.getChapter(novelId!, chapterId!);
+            if (reqId !== chapterReqRef.current) return; // stale response — ignore
             if (chapterData && chapterData.content) {
                 chapterData.content = normalizeContent(chapterData.content);
             }
@@ -469,11 +474,13 @@ export default function WorReader() {
             if (chapterData?.totalChapters) setRealTotalChapters(chapterData.totalChapters);
 
             const savedOffset = await loadScrollPosition(chapterId || '1');
+            if (reqId !== chapterReqRef.current) return;
             pendingRestoreRef.current = savedOffset;
 
             if (chapterData) {
                 const processed = applyReplacements(chapterData.content || '');
                 setTimeout(() => {
+                    if (reqId !== chapterReqRef.current) return;
                     sendChapterToWeb({ ...chapterData, processedContent: processed });
                     sendSettings(settingsRef.current);
                 }, 0);
@@ -483,13 +490,17 @@ export default function WorReader() {
             updateProgressOnServer(chapterData, chapterId || '1');
             fetchCommentCount(chapterId || '1');
         } catch (err: any) {
-            const status = err?.message?.includes('403') ? 403 : err?.message?.includes('404') ? 404 : 0;
+            if (reqId !== chapterReqRef.current) return;
+            // ApiError carries the real HTTP status — classify honestly
+            const status = err?.status || 0;
             let message = 'فشل تحميل الفصل. تحقق من اتصالك بالإنترنت ثم أعد المحاولة.';
             if (status === 403) message = 'هذا الفصل غير متاح حالياً (خاص أو لم يُنشر بعد).';
             else if (status === 404) message = 'الفصل غير موجود. ربما تم حذفه أو تغيير ترقيمه.';
+            else if (status >= 500) message = err?.message || 'الخادم تعثّر أثناء تحميل الفصل — غالباً مشكلة مؤقتة، أعد المحاولة بعد قليل.';
+            else if (status === 0) message = err?.message || message;
             setErrorInfo({ message, status });
         } finally {
-            setLoading(false);
+            if (reqId === chapterReqRef.current) setLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [novelId, chapterId, applyReplacements, sendChapterToWeb, sendSettings]);
@@ -586,10 +597,8 @@ export default function WorReader() {
             postToWeb({ kind: 'appendChapter', number: nextNum, html });
             if (autoScrollNextRef.current) {
                 autoScrollNextRef.current = false;
-                setTimeout(() => {
-                    const win: any = iframeRef.current?.contentWindow;
-                    win?.eval?.(`(function(){var n=0;(function go(){var el=document.querySelector('section[data-ch="${nextNum}"]'); if(!el) return; window.scrollTo({top: el.offsetTop - 8, behavior:'smooth'}); if(++n<3) requestAnimationFrame(go);})();})();`);
-                }, 350);
+                // scroll inside the shell via the bridge (no eval — CSP-safe)
+                setTimeout(() => postToWeb({ kind: 'scrollToChapter', number: nextNum }), 350);
             }
         } catch {
             setEndReached(true);
@@ -611,8 +620,8 @@ export default function WorReader() {
     };
 
     const scrollToSection = (num: number) => {
-        const win: any = iframeRef.current?.contentWindow;
-        win?.eval?.(`(function(){var n=0;(function go(){var el=document.querySelector('section[data-ch="${num}"]'); if(!el) return; window.scrollTo({top: el.offsetTop - 8, behavior:'smooth'}); if(++n<3) requestAnimationFrame(go);})();})();`);
+        // scroll inside the shell via the bridge (no eval — CSP-safe)
+        postToWeb({ kind: 'scrollToChapter', number: num });
     };
 
     const navigateNextPrev = (offset: number) => {
@@ -703,7 +712,7 @@ export default function WorReader() {
     const handleSaveCopyrights = async () => {
         setCopyrightLoading(true);
         try {
-            await fetch(`${api.baseUrl}/api/admin/copyright`, {
+            const res = await fetch(`${api.baseUrl}/api/admin/copyright`, {
                 method: 'POST',
                 headers: { ...api.headers, ...api.getAuthHeader() },
                 body: JSON.stringify({
@@ -716,6 +725,10 @@ export default function WorReader() {
                     chapterSeparatorText: settingsRef.current.separatorText,
                 }),
             });
+            if (!res.ok) {
+                toast.error('فشل الحفظ — تحقق من صلاحيتك ثم أعد المحاولة');
+                return;
+            }
             toast.success('تم حفظ إعدادات الحقوق');
             fetchChapter();
         } catch {
@@ -733,24 +746,29 @@ export default function WorReader() {
         const executeAction = async () => {
             setCleaningLoading(true);
             try {
+                let res: Response;
                 if (cleanerEditingIndex !== null && cleanerOldWord) {
-                    await fetch(`${api.baseUrl}/api/admin/cleaner/${encodeURIComponent(cleanerOldWord)}`, {
+                    res = await fetch(`${api.baseUrl}/api/admin/cleaner/${encodeURIComponent(cleanerOldWord)}`, {
                         method: 'PUT',
                         headers: { ...api.headers, ...api.getAuthHeader() },
                         body: JSON.stringify({ word: newCleanerWord.trim() }),
                     });
-                    setCleanerEditingIndex(null);
-                    setCleanerOldWord('');
                 } else {
-                    await fetch(`${api.baseUrl}/api/admin/cleaner`, {
+                    res = await fetch(`${api.baseUrl}/api/admin/cleaner`, {
                         method: 'POST',
                         headers: { ...api.headers, ...api.getAuthHeader() },
                         body: JSON.stringify({ word: newCleanerWord.trim() }),
                     });
                 }
+                if (!res.ok) {
+                    toast.error('فشل تنفيذ العملية — تحقق من صلاحيتك ثم أعد المحاولة');
+                    return;
+                }
+                setCleanerEditingIndex(null);
+                setCleanerOldWord('');
                 setNewCleanerWord('');
                 await fetchCleanerWords();
-                toast.success(cleanerEditingIndex !== null ? 'تم التحديث بنجاح' : 'تم الحذف من جميع الفصول بنجاح');
+                toast.success('تم تنفيذ العملية على جميع الفصول بنجاح');
                 fetchChapter();
             } catch {
                 toast.error('فشل تنفيذ العملية');
@@ -771,10 +789,14 @@ export default function WorReader() {
     const handleDeleteCleaner = async (item: string) => {
         if (!window.confirm('هل تريد إزالة هذا النص من القائمة؟')) return;
         try {
-            await fetch(`${api.baseUrl}/api/admin/cleaner/${encodeURIComponent(item)}`, {
+            const res = await fetch(`${api.baseUrl}/api/admin/cleaner/${encodeURIComponent(item)}`, {
                 method: 'DELETE',
                 headers: api.getAuthHeader(),
             });
+            if (!res.ok) {
+                toast.error('فشل الحذف — تحقق من صلاحيتك');
+                return;
+            }
             fetchCleanerWords();
             if (newCleanerWord === item) {
                 setNewCleanerWord('');
@@ -788,7 +810,7 @@ export default function WorReader() {
 
     const submitReport = async (msg: any) => {
         try {
-            await fetch(`${api.baseUrl}/api/reports`, {
+            const res = await fetch(`${api.baseUrl}/api/reports`, {
                 method: 'POST',
                 headers: { ...api.headers, ...api.getAuthHeader() },
                 body: JSON.stringify({
@@ -800,6 +822,10 @@ export default function WorReader() {
                     details: msg.details || '',
                 }),
             });
+            if (!res.ok) {
+                toast.error('تعذر إرسال البلاغ الآن — حاول مجدداً');
+                return;
+            }
             toast.success('تم إرسال البلاغ، شكراً لك!');
         } catch {
             toast.error('تعذر إرسال البلاغ الآن');
@@ -810,6 +836,8 @@ export default function WorReader() {
     useEffect(() => {
         if (settings.keepAwake) KeepAwake.activateKeepAwakeAsync();
         else KeepAwake.deactivateKeepAwake();
+        // Release the wake lock when leaving the reader
+        return () => { try { KeepAwake.deactivateKeepAwake(); } catch { /* ignore */ } };
     }, [settings.keepAwake]);
 
     // ========================= shell -> parent messages =========================
@@ -912,6 +940,9 @@ export default function WorReader() {
     useEffect(() => {
         const listener = (event: MessageEvent) => {
             if (event.source !== iframeRef.current?.contentWindow) return;
+            // Only accept messages coming from our own app origin (the sandboxed
+            // srcDoc iframe inherits the parent origin) — blocks foreign frames
+            if (event.origin && !event.origin.includes(window.location.hostname)) return;
             const raw = event.data;
             if (raw == null) return;
             let data: any = raw;
@@ -1025,9 +1056,15 @@ export default function WorReader() {
                 onClose={() => setShowComments(false)}
                 novelId={novelId!}
                 chapterId={currentViewedChapter}
-                onAddComment={async (content: string) => {
-                    await commentService.addComment(novelId!, content, undefined, currentViewedChapter);
-                    fetchCommentCount(currentViewedChapter);
+                onAddComment={async (content: string): Promise<boolean> => {
+                    try {
+                        await commentService.addComment(novelId!, content, undefined, currentViewedChapter);
+                        fetchCommentCount(currentViewedChapter);
+                        return true;
+                    } catch (err: any) {
+                        toast.error(err?.message || 'فشل إضافة التعليق');
+                        return false;
+                    }
                 }}
             />
 
