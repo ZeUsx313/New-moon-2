@@ -5,6 +5,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { UIProvider } from './src/context/UIContext';
 import AuthRequirementModal from './src/components/Modal/AuthRequirementModal';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import ScrollToTop from './src/components/ScrollToTop';
@@ -18,6 +19,7 @@ import Home from './src/screens/Home';
 const NovelPage = lazy(() => import('./src/screens/NovelPage'));
 const Library = lazy(() => import('./src/screens/Library'));
 const MyPage = lazy(() => import('./src/screens/MyPage'));
+const UserProfile = lazy(() => import('./src/screens/UserProfile'));
 const Downloads = lazy(() => import('./src/screens/Downloads'));
 const Reader = lazy(() => import('./src/screens/Reader'));
 const Login = lazy(() => import('./src/screens/auth/Login'));
@@ -59,15 +61,19 @@ function GlobalAuthModal() {
 }
 
 /** Footer shows on all normal pages, but not inside the immersive reader.
- *  BottomNav floats on the same pages — content reserves room for it. */
+ *  BottomNav floats on the same pages — content reserves room for it.
+ *  الشريط السفلي يختفي (مع حجز المساحة) داخل صفحة الرواية وصفحة العضو والقارئ. */
 function Layout() {
   const location = useLocation();
   const isReader = /^\/novel\/[^/]+\/reader\//.test(location.pathname);
+  const isNovelPage = /^\/novel\/[^/]+\/?$/.test(location.pathname);
+  const isMemberPage = /^\/user\/[^/]+/.test(location.pathname);
+  const navHiddenRoute = isReader || isNovelPage || isMemberPage;
 
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={isReader ? undefined : { paddingBottom: 'calc(86px + env(safe-area-inset-bottom, 0px))' }}
+      style={navHiddenRoute ? undefined : { paddingBottom: 'calc(86px + env(safe-area-inset-bottom, 0px))' }}
     >
       <OfflineBanner />
       <div className="flex-1 flex flex-col">
@@ -79,6 +85,7 @@ function Layout() {
             <Route path="/library" element={<Library />} />
             <Route path="/downloads" element={<Downloads />} />
             <Route path="/my-page" element={<MyPage />} />
+            <Route path="/user/:userId" element={<UserProfile />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/auth/google/callback" element={<GoogleCallback />} />
@@ -90,7 +97,7 @@ function Layout() {
         </Suspense>
       </div>
       {!isReader && <Footer />}
-      {!isReader && <BottomNav />}
+      <BottomNav forceHidden={navHiddenRoute} />
     </div>
   );
 }
@@ -102,7 +109,8 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <AuthProvider>
-              <Router>
+              <UIProvider>
+                <Router>
                 <ScrollToTop />
                 <GlobalAuthModal />
                 <Toaster
@@ -118,7 +126,8 @@ export default function App() {
                   }}
                 />
                 <Layout />
-              </Router>
+                </Router>
+              </UIProvider>
             </AuthProvider>
           </ThemeProvider>
         </QueryClientProvider>

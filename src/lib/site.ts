@@ -15,11 +15,13 @@ export const siteUrl = (path: string = '/'): string => {
 export const SITE_NAME = 'قمر الروايات';
 export const SITE_TAGLINE = 'بوابتك لعالم الخيال';
 
-/** Unified status pill styling (was inconsistent between Home and NovelPage). */
+/** Unified status pill styling (was inconsistent between Home and NovelPage).
+ *  الهوية أبيض/أسود: مستمرة = حبر كامل، مكتملة = باهت، متوقفة = أحمر دلالي صارم. */
 export const getStatusStyle = (status: string): string => {
-  if (status === 'مستمرة') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-  if (status === 'مكتملة') return 'bg-sky-500/20 text-sky-300 border-sky-500/30';
-  return 'bg-red-500/20 text-red-300 border-red-500/30';
+  if (status === 'مستمرة') return 'bg-foreground/10 text-foreground border-foreground/25';
+  if (status === 'مكتملة') return 'bg-foreground/5 text-foreground/60 border-foreground/15';
+  if (status === 'منزّلة') return 'bg-foreground/8 text-foreground/80 border-foreground/20';
+  return 'bg-red-500/15 text-red-400 border-red-500/30';
 };
 
 /** Relative Arabic time formatting (shared). */

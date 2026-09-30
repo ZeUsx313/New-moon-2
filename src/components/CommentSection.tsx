@@ -90,7 +90,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         <button
           onClick={handleSubmit}
           disabled={sending || !newComment.trim()}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center gap-2"
         >
           {sending && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
           أضف تعليق

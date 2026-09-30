@@ -184,6 +184,9 @@ export const offlineEngine = {
             : `تم تنزيل ${done - failed} فصلاً${failed ? ` — تعذّر ${failed} فصلاً (ضغط على الخادم غالباً)` : ''} — الإجمالي المحلي ${finalCount}${failed ? ' — اضغط «تحديث» لاحقاً لاستكمال الباقي مجاناً' : ''}`,
       };
       onProgress(progress);
+      // 🔥 تهيئة القارئ للعمل دون اتصال: نحمّل chunk القارئ الآن (أونلاين)
+      // حتى يُخزّنه Service Worker ويشتغل فوراً لاحقاً دون إنترنت.
+      import('../screens/Reader').catch(() => { /* أفضل جهد */ });
       return progress;
     } catch (err: any) {
       if (err instanceof DownloadCancelled || err?.name === 'DownloadCancelled') {

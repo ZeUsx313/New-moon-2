@@ -15,14 +15,19 @@ import {
   Info,
   ShieldCheck,
   FileText,
+  Mail,
+  LayoutDashboard,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import toast from 'react-hot-toast';
 
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useUI } from '../context/UIContext';
 
-// استيراد الصورة من مجلد assets
+// استيراد الصور من مجلد assets
 import logoImg from '../assets/AF32FFD4-DC2A-4D6A-9C05-F0A2E7288DC9.png';
+import defaultAvatar from '../assets/adaptive-icon.png';
 
 interface HeaderProps {
   isDarkMode: boolean;
@@ -35,24 +40,31 @@ const SAFE_TOP = 'env(safe-area-inset-top, 0px)';
  * الشريط العلوي — تصميم مستوحى من مجرة الروايات:
  * شبكة ثلاثية (أدوات يمين • الشعار بالمنتصف • أدوات يسار) على شريط
  * زجاجي ثابت يختبئ عند التمرير للأسفل ويعود عند التمرير للأعلى.
- * مع درج جانبي (الخطوط الثلاثة) ولوحة بحث موسّعة — كل شيء يعمل،
- * ومع ذلك الحركة والهوية (الشعار، الألوان، الخط) من روح موقعنا.
+ *
+ * الدرج الجانبي (الخطوط الثلاثة) بنفس بنية درج التطبيق:
+ *   غلاف بحساب المستخدم ← الرئيسية/المكتبة/صفحتي ← التنزيلات/المظهر
+ *   ← سياسة الخصوصية/تواصل معنا/من نحن/شروط الاستخدام ← أدوات الإدارة (للمشرفين).
+ * كل ذلك بهوية الموقع (أسود/أبيض) وكل عنصر فيه يعمل فعلاً.
  */
 export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, userInfo, logout, openAuthModal } = useAuth();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { isDrawerOpen, setDrawerOpen } = useUI();
+  const drawerOpen = isDrawerOpen;
+  const setDrawerOpenState = setDrawerOpen;
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [headerHidden, setHeaderHidden] = useState(false);
 
+  const isAdmin = userInfo?.role === 'admin' || userInfo?.role === 'contributor';
+
   // إغلاق كل شيء عند تغيير المسار
   useEffect(() => {
-    setDrawerOpen(false);
+    setDrawerOpenState(false);
     setSearchOpen(false);
     setHeaderHidden(false);
-  }, [location.pathname]);
+  }, [location.pathname, setDrawerOpenState]);
 
   // قفل تمرير الصفحة أثناء فتح الدرج
   useEffect(() => {
@@ -64,15 +76,15 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setDrawerOpen(false);
+        setDrawerOpenState(false);
         setSearchOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [setDrawerOpenState]);
 
-  // إخفاء الشريط عند التمرير للأسفل وإظهره عند الأعلى (كالتصميم المرجعي)
+  // إخفاء الشريط عند التمرير للأسفل وإظهاره عند الأعلى (كالتصميم المرجعي)
   useEffect(() => {
     let last = window.scrollY;
     let ticking = false;
@@ -99,18 +111,6 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
     navigate(q ? `/library?q=${encodeURIComponent(q)}` : '/library');
   };
 
-  const drawerLinks = [
-    { to: '/', label: 'الرئيسية', Icon: HomeIcon },
-    { to: '/library', label: 'المكتبة', Icon: Library },
-    { to: '/downloads', label: 'التنزيلات', Icon: Download },
-    { to: '/my-page', label: 'صفحتي', Icon: User, protected: true },
-  ];
-  const drawerPages = [
-    { to: '/about', label: 'من نحن', Icon: Info },
-    { to: '/privacy', label: 'سياسة الخصوصية', Icon: ShieldCheck },
-    { to: '/terms', label: 'شروط الاستخدام', Icon: FileText },
-  ];
-
   const goProtected = (to: string) => {
     if (!isAuthenticated) {
       openAuthModal();
@@ -120,7 +120,43 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
   };
 
   const iconBtn =
-    'p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+    'p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40';
+
+  /** صف درج عام (تنقل أو صفحات) */
+  const DrawerRow = ({
+    to,
+    label,
+    Icon,
+    onClick,
+    active,
+    dim = false,
+  }: {
+    to?: string;
+    label: string;
+    Icon: React.ComponentType<{ size?: number; className?: string }>;
+    onClick?: () => void;
+    active?: boolean;
+    dim?: boolean;
+  }) => (
+    <button
+      onClick={() => {
+        setDrawerOpenState(false);
+        if (onClick) onClick();
+        else if (to) navigate(to);
+      }}
+      className={`flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[15px] font-bold transition-colors w-full text-right ${
+        active
+          ? 'bg-white/15 text-white'
+          : dim
+            ? 'text-white/55 hover:text-white hover:bg-white/8'
+            : 'text-white/75 hover:text-white hover:bg-white/8'
+      }`}
+    >
+      <Icon size={20} />
+      {label}
+      {to && <ChevronLeft size={16} className="mr-auto text-white/25" aria-hidden="true" />}
+    </button>
+  );
 
   return (
     <>
@@ -131,6 +167,7 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
         role="banner"
         className="fixed top-0 inset-x-0 z-50 transition-transform duration-300 ease-out focus-within:translate-y-0 data-[hidden=true]:pointer-events-none"
         data-hidden={headerHidden && !searchOpen && !drawerOpen}
+        data-testid="top-header"
         style={{
           transform: headerHidden && !searchOpen && !drawerOpen ? `translateY(calc(-100% - ${SAFE_TOP}))` : undefined,
         }}
@@ -144,11 +181,12 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
             <div className="flex items-center gap-1 justify-start">
               <button
                 type="button"
-                onClick={() => setDrawerOpen(true)}
+                onClick={() => setDrawerOpenState(true)}
                 className={iconBtn}
                 aria-label="فتح القائمة الجانبية"
                 aria-expanded={drawerOpen}
                 aria-controls="site-drawer"
+                data-testid="drawer-toggle"
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                   <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" />
@@ -224,13 +262,13 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="ابحث عن رواية بالاسم أو المؤلف…"
                     aria-label="بحث في الروايات"
-                    className="w-full bg-white/8 border border-white/15 rounded-2xl py-2.5 pr-10 pl-4 text-white placeholder:text-white/40 focus:outline-none focus:border-primary/60 focus:bg-white/10 transition-colors text-sm"
+                    className="w-full bg-white/8 border border-white/15 rounded-2xl py-2.5 pr-10 pl-4 text-white placeholder:text-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-colors text-sm"
                     dir="rtl"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="px-6 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-primary/85 active:scale-95 transition-all"
+                  className="px-6 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/85 active:scale-95 transition-all"
                 >
                   بحث
                 </button>
@@ -240,7 +278,7 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
         </AnimatePresence>
       </header>
 
-      {/* الدرج الجانبي (الخطوط الثلاثة) — يعمل على جميع الأحجام كالتصميم المرجعي */}
+      {/* ═══ الدرج الجانبي (الخطوط الثلاثة) — نفس بنية درج التطبيق ═══ */}
       <AnimatePresence>
         {drawerOpen && (
           <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="القائمة الجانبية">
@@ -248,108 +286,136 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setDrawerOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setDrawerOpenState(false)}
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             />
             <motion.aside
               id="site-drawer"
+              data-testid="side-drawer"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-              className="absolute top-0 bottom-0 right-0 w-[300px] max-w-[84vw] bg-[#0a0a0a]/95 backdrop-blur-2xl border-l border-white/10 flex flex-col overflow-y-auto"
+              className="absolute top-0 bottom-0 right-0 w-[310px] max-w-[85vw] bg-[#0a0a0a]/97 backdrop-blur-2xl border-l border-white/10 flex flex-col"
               style={{ paddingTop: SAFE_TOP }}
             >
-              {/* رأس الدرج */}
-              <div className="flex items-center justify-between p-5 pb-4">
-                <Link to="/" onClick={() => setDrawerOpen(false)} className="flex items-center gap-2" aria-label="الصفحة الرئيسية">
-                  <img src={logoImg} alt="" className="h-9 w-auto object-contain" />
-                  <span className="font-extrabold text-white">قمر الروايات</span>
-                </Link>
-                <button onClick={() => setDrawerOpen(false)} className={iconBtn} aria-label="إغلاق القائمة">
-                  <X size={20} />
-                </button>
+              <div className="flex-1 overflow-y-auto">
+                {/* ═══ القسم العلوي: بنر المستخدم + الحساب (كالتطبيق) ═══ */}
+                <div className="relative">
+                  <div className="h-32 w-full overflow-hidden">
+                    <img
+                      src={userInfo?.banner || defaultAvatar}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).src = defaultAvatar; }}
+                    />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/50 to-[#0a0a0a]" />
+                  <button
+                    onClick={() => setDrawerOpenState(false)}
+                    className="absolute top-3 left-3 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 transition-colors"
+                    aria-label="إغلاق القائمة"
+                  >
+                    <X size={18} />
+                  </button>
+                  <div className="absolute bottom-3 right-4 left-4 flex items-center gap-3">
+                    <button
+                      onClick={() => { setDrawerOpenState(false); goProtected('/my-page'); }}
+                      className="shrink-0"
+                      aria-label={isAuthenticated ? 'صفحتي' : 'تسجيل الدخول'}
+                    >
+                      {isAuthenticated && userInfo?.picture ? (
+                        <img
+                          src={userInfo.picture}
+                          alt=""
+                          className="w-14 h-14 rounded-full object-cover border-2 border-white/40"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <span className="w-14 h-14 rounded-full bg-white/10 border-2 border-white/40 flex items-center justify-center overflow-hidden">
+                          <img src={defaultAvatar} alt="" className="w-full h-full object-cover" />
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => { setDrawerOpenState(false); goProtected('/my-page'); }}
+                      className="min-w-0 text-right"
+                    >
+                      <p className="text-white font-extrabold text-[15px] truncate">
+                        {isAuthenticated ? (userInfo?.name || 'قارئ') : 'زائر'}
+                      </p>
+                      <p className="text-white/50 text-xs truncate">
+                        {isAuthenticated ? (userInfo?.email || '') : 'اضغط لتسجيل الدخول'}
+                      </p>
+                    </button>
+                    {isAuthenticated && (
+                      <button
+                        onClick={() => { setDrawerOpenState(false); logout(); }}
+                        className="mr-auto p-2 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 transition-colors"
+                        aria-label="تسجيل الخروج"
+                        title="تسجيل الخروج"
+                      >
+                        <LogOut size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* ═══ القسم الأول: التنقل الأساسي (كالتطبيق) ═══ */}
+                <nav aria-label="التنقل الرئيسي" className="px-3 mt-2 flex flex-col gap-1">
+                  <DrawerRow to="/" label="الرئيسية" Icon={HomeIcon} active={location.pathname === '/'} />
+                  <DrawerRow to="/library" label="المكتبة" Icon={Library} active={location.pathname.startsWith('/library') || location.pathname.startsWith('/novel/')} />
+                  <DrawerRow
+                    label="صفحتي"
+                    Icon={User}
+                    active={location.pathname.startsWith('/my-page')}
+                    onClick={() => goProtected('/my-page')}
+                  />
+                </nav>
+
+                <div className="h-px bg-white/10 mx-5 my-3" />
+
+                {/* ═══ القسم الثاني: التنزيلات والمظهر ═══ */}
+                <nav aria-label="أدوات" className="px-3 flex flex-col gap-1">
+                  <DrawerRow to="/downloads" label="التنزيلات" Icon={Download} active={location.pathname.startsWith('/downloads')} />
+                  <DrawerRow
+                    label={isDarkMode ? 'الوضع الفاتح' : 'الوضع المظلم'}
+                    Icon={isDarkMode ? Sun : Moon}
+                    onClick={() => setIsDarkMode(!isDarkMode)}
+                  />
+                </nav>
+
+                <div className="h-px bg-white/10 mx-5 my-3" />
+
+                {/* ═══ القسم الثالث: معلومات (كالتطبيق) ═══ */}
+                <nav aria-label="معلومات الموقع" className="px-3 flex flex-col gap-1">
+                  <DrawerRow to="/privacy" label="سياسة الخصوصية" Icon={ShieldCheck} dim active={location.pathname.startsWith('/privacy')} />
+                  <DrawerRow to="/about#contact" label="تواصل معنا" Icon={Mail} dim active={false} />
+                  <DrawerRow to="/about" label="من نحن" Icon={Info} dim active={location.pathname.startsWith('/about')} />
+                  <DrawerRow to="/terms" label="شروط الاستخدام" Icon={FileText} dim active={location.pathname.startsWith('/terms')} />
+                </nav>
+
+                {/* ═══ أدوات الإدارة (للمشرفين والمساهمين فقط — كما في الخطة) ═══ */}
+                {isAdmin && (
+                  <>
+                    <div className="h-px bg-white/10 mx-5 my-3" />
+                    <nav aria-label="أدوات الإدارة" className="px-3 flex flex-col gap-1">
+                      <p className="px-4 pt-1 pb-2 text-[10px] font-bold tracking-wider text-white/30">أدوات الإدارة</p>
+                      <DrawerRow
+                        label="لوحة التحكم"
+                        Icon={LayoutDashboard}
+                        onClick={() => toast('أدوات التحكم للموقع قيد الإعداد — وستكون متاحة هنا', { icon: '🛠️', duration: 3500 })}
+                      />
+                    </nav>
+                  </>
+                )}
+
+                <div className="h-6" />
               </div>
 
-              {/* التنقل الرئيسي */}
-              <nav aria-label="التنقل الرئيسي" className="px-3 flex flex-col gap-1">
-                {drawerLinks.map(({ to, label, Icon, ...rest }) => (
-                  <button
-                    key={to}
-                    onClick={() => {
-                      if ('protected' in rest && rest.protected && !isAuthenticated) {
-                        setDrawerOpen(false);
-                        openAuthModal();
-                        return;
-                      }
-                      navigate(to);
-                    }}
-                    className={`flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[15px] font-bold transition-colors ${
-                      location.pathname === to
-                        ? 'bg-primary/15 text-primary'
-                        : 'text-white/75 hover:text-white hover:bg-white/8'
-                    }`}
-                  >
-                    <Icon size={20} />
-                    {label}
-                    <ChevronLeft size={16} className="mr-auto text-white/25" aria-hidden="true" />
-                  </button>
-                ))}
-              </nav>
-
-              <div className="h-px bg-white/10 mx-5 my-4" />
-
-              {/* صفحات عامة */}
-              <nav aria-label="معلومات الموقع" className="px-3 flex flex-col gap-1">
-                {drawerPages.map(({ to, label, Icon }) => (
-                  <button
-                    key={to}
-                    onClick={() => navigate(to)}
-                    className="flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-medium text-white/55 hover:text-white hover:bg-white/8 transition-colors"
-                  >
-                    <Icon size={18} />
-                    {label}
-                  </button>
-                ))}
-              </nav>
-
-              {/* المصادقة */}
-              <div className="mt-auto p-5 pt-4">
-                {isAuthenticated ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3 px-2">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-extrabold text-lg">
-                        {(userInfo?.name || userInfo?.email || '؟').charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{userInfo?.name || 'قارئ'}</p>
-                        <p className="text-xs text-white/40 truncate">{userInfo?.email}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { setDrawerOpen(false); logout(); }}
-                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-sm font-bold text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition-colors"
-                    >
-                      <LogOut size={17} />
-                      تسجيل الخروج
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <button
-                      onClick={() => { setDrawerOpen(false); navigate('/login'); }}
-                      className="w-full py-3 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-primary/85 active:scale-95 transition-all"
-                    >
-                      تسجيل الدخول
-                    </button>
-                    <button
-                      onClick={() => { setDrawerOpen(false); navigate('/signup'); }}
-                      className="w-full py-3 rounded-2xl bg-white/8 border border-white/15 text-white font-bold text-sm hover:bg-white/15 active:scale-95 transition-all"
-                    >
-                      إنشاء حساب
-                    </button>
-                  </div>
-                )}
+              {/* تذييل الدرج — إصدار الموقع كالتطبيق */}
+              <div className="p-4 border-t border-white/10 text-center">
+                <p className="text-white/35 text-[11px] font-bold">قمر الروايات — v1.0</p>
               </div>
             </motion.aside>
           </div>

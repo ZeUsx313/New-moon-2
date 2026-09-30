@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
@@ -20,11 +21,15 @@ import {
   CloudOff,
   RefreshCcw,
   Download,
+  Tags,
+  PenLine,
+  WifiOff,
 } from 'lucide-react';
 import Header from '../components/Header';
 import SafeImage from '../components/SafeImage';
 import DownloadModal from '../components/DownloadModal';
 import { novelService, novelCache, Novel, ChapterMeta, ChaptersListResponse } from '../services/novel';
+import { userService, UserProfile } from '../services/user';
 import { commentService, Comment } from '../services/comment';
 import { http } from '../lib/http';
 import { Skeleton, NovelPageSkeleton } from '../components/Skeleton';
@@ -34,6 +39,7 @@ import { formatDate, getStatusStyle, siteUrl } from '../lib/site';
 import { readNumberArray, writeJSON } from '../lib/storage';
 import { offlineStore } from '../lib/offlineStore';
 import { useDebounce } from '../hooks/useDebounce';
+import defaultAvatar from '../assets/adaptive-icon.png';
 
 // Enhanced page selector modal with search and sort
 const EnhancedPageSelectorModal = ({
@@ -161,7 +167,9 @@ export default function NovelPage() {
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [chaptersError, setChaptersError] = useState(false);
   const [chaptersReloadKey, setChaptersReloadKey] = useState(0);
-  const [activeTab, setActiveTab] = useState<'chapters' | 'description' | 'comments'>('chapters');
+  const [activeTab, setActiveTab] = useState<'chapters' | 'description' | 'comments'>('description');
+  /** نتصفح النسخة المنزّلة؟ (فشل الشبكة مع وجود نسخة محلية، أو عدم اتصال) */
+  const [isOfflineNovel, setIsOfflineNovel] = useState(false);
   const [chapterSearch, setChapterSearch] = useState('');
   // 🔥 Server-side chapter search (debounced) — finds chapters on ANY page,
   // not just the currently loaded 25.
@@ -229,7 +237,8 @@ export default function NovelPage() {
     return Array.from(combined);
   }, [userProgress.readChapters, localReadChapters]);
 
-  // Fetch novel data
+  // Fetch novel data — with offline fallback:
+  // إذا فشل الشبكة وكانت الرواية منزّلة، نعرض بياناتها من المتجر المحلي
   const fetchNovel = useCallback(async (bypass = false) => {
     if (!slug) return;
     setLoadingNovel(true);
@@ -238,6 +247,7 @@ export default function NovelPage() {
       const data = await novelService.getNovelById(slug, bypass);
       setNovel(data);
       setTotalChapters(data.chaptersCount);
+      setIsOfflineNovel(false);
       const token = localStorage.getItem('token');
       if (token) {
         try {
@@ -252,6 +262,33 @@ export default function NovelPage() {
       }
     } catch (err: any) {
       console.error(err);
+      // 📴 وضع عدم الاتصال: نسخة منزّلة؟ نكمل منها بدل شاشة خطأ ميتة
+      try {
+        const rec = await offlineStore.getNovel(slug);
+        if (rec) {
+          setNovel({
+            _id: rec._id,
+            title: rec.title,
+            author: rec.author || 'غير معروف',
+            cover: rec.cover || '',
+            description: rec.description || '',
+            tags: [],
+            category: '',
+            status: 'منزّلة',
+            rating: 0,
+            views: 0,
+            favorites: 0,
+            lastChapterUpdate: rec.updatedAt,
+            createdAt: rec.downloadedAt,
+            chaptersCount: rec.chapterNumbers?.length || 0,
+          });
+          setTotalChapters(rec.chapterNumbers?.length || 0);
+          setIsOfflineNovel(true);
+          setNovelError(null);
+          setLoadingNovel(false);
+          return;
+        }
+      } catch { /* لا نسخة محلية أيضاً */ }
       setNovelError(err?.message || 'فشل تحميل الرواية');
       setNovel(null);
     } finally {
@@ -266,9 +303,41 @@ export default function NovelPage() {
   // Fetch chapters - ONLY WHEN TAB IS ACTIVE
   // Cached per (novel, page, sort, search) for 5 min: flipping pages back and
   // forth, or leaving and re-entering the novel, costs ZERO network requests.
+  // 📴 النسخة المنزّلة: القائمة تُقرأ من IndexedDB مباشرة بلا أي شبكة.
   const lastBypassedReloadRef = useRef(0);
   useEffect(() => {
     if (!slug || activeTab !== 'chapters') return;
+
+    // وضع عدم الاتصال — قائمة الفصول من المتجر المحلي
+    const loadOfflineChapters = async () => {
+      setLoadingChapters(true);
+      setChaptersError(false);
+      try {
+        const [rec, local] = await Promise.all([offlineStore.getNovel(slug), offlineStore.listChapters(slug)]);
+        const metas: ChapterMeta[] = local.map((c) => ({
+          _id: `${slug}:${c.number}`,
+          number: c.number,
+          title: c.title || rec?.chapterTitles?.[c.number] || `الفصل ${c.number}`,
+          createdAt: c.savedAt,
+          views: 0,
+        }));
+        setChapters(metas);
+        setServerTotalPages(1);
+        setTotalChapters(metas.length);
+        setDefaultFirstChapter(metas[0] || null);
+      } catch {
+        setChaptersError(true);
+        setChapters([]);
+      } finally {
+        setLoadingChapters(false);
+      }
+    };
+
+    if (isOfflineNovel) {
+      loadOfflineChapters();
+      return;
+    }
+
     const bypass = chaptersReloadKey !== lastBypassedReloadRef.current;
     let stale = false;
     const fetchChapters = async () => {
@@ -297,6 +366,25 @@ export default function NovelPage() {
       } catch (err) {
         if (!stale) {
           console.error(err);
+          // فشل الشبكة ونسخة منزّلة؟ قائمة محلية فوراً
+          try {
+            const local = await offlineStore.listChapters(slug);
+            if (local.length > 0) {
+              const rec = await offlineStore.getNovel(slug);
+              setChapters(local.map((c) => ({
+                _id: `${slug}:${c.number}`,
+                number: c.number,
+                title: c.title || rec?.chapterTitles?.[c.number] || `الفصل ${c.number}`,
+                createdAt: c.savedAt,
+                views: 0,
+              })));
+              setServerTotalPages(1);
+              setTotalChapters(local.length);
+              setChaptersError(false);
+              setLoadingChapters(false);
+              return;
+            }
+          } catch { /* لا نسخة محلية */ }
           setChaptersError(true);
           setChapters([]);
         }
@@ -306,7 +394,22 @@ export default function NovelPage() {
     };
     fetchChapters();
     return () => { stale = true; };
-  }, [slug, chaptersPage, sortOrder, activeTab, chaptersReloadKey, debouncedChapterSearch]);
+  }, [slug, chaptersPage, sortOrder, activeTab, chaptersReloadKey, debouncedChapterSearch, isOfflineNovel]);
+
+  // زر «اقرأ الفصل» يحتاج أول فصل حتى في تبويب الملخص — جلب خفيف (فصل واحد)
+  // مع كاش 5 دقائق، وبدون أي إعادة عند العودة للرواية.
+  useEffect(() => {
+    if (!slug || isOfflineNovel) return;
+    if (defaultFirstChapter) return;
+    let stale = false;
+    novelService
+      .getChaptersListFull(slug, 1, 1, 'asc')
+      .then((data) => {
+        if (!stale && data.chapters.length > 0) setDefaultFirstChapter(data.chapters[0]);
+      })
+      .catch(() => { /* سيُعاد عند فتح تبويب الفصول */ });
+    return () => { stale = true; };
+  }, [slug, isOfflineNovel, defaultFirstChapter]);
 
   // Fetch comments and reactions - ONLY WHEN TAB IS ACTIVE
   useEffect(() => {
@@ -479,6 +582,133 @@ export default function NovelPage() {
     );
   };
 
+  // ═══ بطاقة المترجم/الناشر — مثل بطاقة التطبيق (بنر + صورة + اسم) ═══
+  // بيانات خفيفة من /api/user/public-profile عبر بريد أو معرّف الناشر، مخزّنة 10 دقائق.
+  const authorEmail = novel?.authorEmail || '';
+  const authorUserId = novel?.authorId || '';
+  const { data: authorData } = useQuery({
+    queryKey: ['authorProfile', authorEmail, authorUserId],
+    queryFn: () => userService.getPublicProfile(authorEmail || undefined, authorUserId || undefined),
+    enabled: (!!authorEmail || !!authorUserId) && !isOfflineNovel,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    retry: 0,
+  });
+  const authorProfile: UserProfile | null = authorData?.user || null;
+  const authorName = authorProfile?.name || novel?.author || 'Zeus';
+
+  const renderTranslatorCard = () => {
+    // دون اتصال لا توجد بطاقة (لا بيانات محلية للناشر) — اسم المؤلف نصياً فقط
+    if (isOfflineNovel) {
+      return (
+        <p className="text-white/60 text-sm flex items-center gap-2">
+          <PenLine size={16} />
+          {novel.author}
+        </p>
+      );
+    }
+    const targetId = authorProfile?._id;
+    const bannerSrc = authorProfile?.banner || defaultAvatar;
+    const avatarSrc = authorProfile?.picture || defaultAvatar;
+    return (
+      <motion.button
+        whileHover={{ scale: targetId ? 1.01 : 1 }}
+        whileTap={{ scale: targetId ? 0.99 : 1 }}
+        onClick={() => { if (targetId) navigate(`/user/${targetId}`); }}
+        disabled={!targetId}
+        aria-label={targetId ? `زيارة صفحة الناشر ${authorName}` : `الناشر: ${authorName}`}
+        data-testid="translator-card"
+        className={`relative w-full rounded-2xl overflow-hidden border border-white/10 text-right block focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${targetId ? 'cursor-pointer' : 'cursor-default'}`}
+      >
+        {/* البنر */}
+        <div className="relative h-36 sm:h-40 w-full">
+          <img
+            src={bannerSrc}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).src = defaultAvatar; }}
+            loading="lazy"
+            draggable={false}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+          {/* المحتوى فوق البنر */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+            <img
+              src={avatarSrc}
+              alt=""
+              className="w-[72px] h-[72px] rounded-full object-cover border-[3px] border-white/85 shadow-lg"
+              onError={(e) => { (e.target as HTMLImageElement).src = defaultAvatar; }}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              draggable={false}
+            />
+            <span className="text-white font-extrabold text-lg drop-shadow-md max-w-full truncate">
+              {authorName}
+            </span>
+            <span className="text-white/70 text-[11px] font-bold bg-white/10 border border-white/20 backdrop-blur-sm rounded-full px-3 py-0.5">
+              ناشر الرواية
+            </span>
+          </div>
+          {targetId && (
+            <span className="absolute top-3 left-3 text-[11px] font-bold text-white/70 bg-black/45 backdrop-blur-sm border border-white/15 rounded-full px-2.5 py-1">
+              زيارة الصفحة ←
+            </span>
+          )}
+        </div>
+      </motion.button>
+    );
+  };
+
+  // ═══ تبويب الملخص: القصة ← التصنيفات ← بطاقة المترجم ═══
+  const renderSummary = () => (
+    <div className="space-y-6">
+      {/* القصة */}
+      <section aria-label="ملخص الرواية">
+        {novel.description ? (
+          renderDescription(novel.description)
+        ) : (
+          <p className="text-muted-foreground text-sm">لا يوجد ملخص لهذه الرواية بعد.</p>
+        )}
+      </section>
+
+      {/* التصنيفات */}
+      <section aria-label="تصنيفات الرواية" className="pt-2 border-t border-white/10">
+        <h3 className="flex items-center gap-2 text-white font-bold text-base mb-3 mt-4">
+          <Tags size={18} className="text-white/70" />
+          تصنيفات الرواية
+        </h3>
+        {(() => {
+          const cats = [...new Set([...(novel.category ? [novel.category] : []), ...(novel.tags || [])])];
+          if (cats.length === 0) {
+            return <p className="text-muted-foreground text-sm">لا توجد تصنيفات مضافة.</p>;
+          }
+          return (
+            <div className="flex flex-wrap gap-2">
+              {cats.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => navigate(`/library?q=${encodeURIComponent(tag)}`)}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/8 border border-white/15 text-white/75 hover:bg-white/15 hover:text-white hover:border-white/30 active:scale-95 transition-all"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+      </section>
+
+      {/* بطاقة المترجم */}
+      <section aria-label="بطاقة المترجم" className="pt-2 border-t border-white/10">
+        <h3 className="flex items-center gap-2 text-white font-bold text-base mb-3 mt-4">
+          <PenLine size={18} className="text-white/70" />
+          المترجم
+        </h3>
+        {renderTranslatorCard()}
+      </section>
+    </div>
+  );
+
   if (loadingNovel) {
     return <NovelPageSkeleton />;
   }
@@ -494,7 +724,7 @@ export default function NovelPage() {
             {novelError && (
               <button
                 onClick={() => fetchNovel(true)}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/80 transition-colors"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/80 transition-colors"
               >
                 <RefreshCcw size={16} />
                 إعادة المحاولة
@@ -563,6 +793,16 @@ export default function NovelPage() {
       <div className="relative min-h-screen bg-background text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
         <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
 
+        {/* 📴 شارة النسخة المنزّلة — البيانات من جهازك */}
+        {isOfflineNovel && (
+          <div className="relative z-20 max-w-[1400px] mx-auto px-4 mt-2">
+            <div className="flex items-center gap-2 text-[12px] font-bold text-white/85 bg-white/10 border border-white/25 rounded-full px-4 py-2 w-fit">
+              <WifiOff size={14} />
+              أنت تتصفح النسخة المنزّلة — البيانات محفوظة على جهازك وتعمل دون إنترنت
+            </div>
+          </div>
+        )}
+
         {/* Background */}
         <div className="fixed w-full h-screen z-0 top-0 left-0">
           <img
@@ -607,7 +847,7 @@ export default function NovelPage() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => { const c = defaultFirstChapter || chapters[0]; if (c) handleChapterClick(c); }}
-                        className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-white px-4 h-full w-full rounded bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 font-bold py-3"
+                        className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-primary-foreground px-4 h-full w-full rounded bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 font-bold py-3"
                       >
                         <BookOpen size={18} className="inline ml-2" />
                         اقرأ الفصل {(defaultFirstChapter || chapters[0])?.number || '1'}
@@ -653,13 +893,13 @@ export default function NovelPage() {
               {/* Stats: Views & Favorites */}
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 text-center border border-white/10">
-                  <Eye className="w-6 h-6 text-blue-400 mx-auto mb-1" />
-                  <div className="text-2xl font-bold">{novel.views.toLocaleString('en-US')}</div>
+                  <Eye className="w-6 h-6 text-white/70 mx-auto mb-1" />
+                  <div className="text-2xl font-bold">{isOfflineNovel ? '—' : novel.views.toLocaleString('en-US')}</div>
                   <div className="text-xs text-gray-400">مشاهدة</div>
                 </div>
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 text-center border border-white/10">
-                  <Heart className="w-6 h-6 text-pink-400 mx-auto mb-1" />
-                  <div className="text-2xl font-bold">{novel.favorites.toLocaleString('en-US')}</div>
+                  <Heart className="w-6 h-6 text-white/70 mx-auto mb-1" />
+                  <div className="text-2xl font-bold">{isOfflineNovel ? '—' : novel.favorites.toLocaleString('en-US')}</div>
                   <div className="text-xs text-gray-400">مفضلة</div>
                 </div>
               </div>
@@ -708,7 +948,7 @@ export default function NovelPage() {
                     <div>
                       <button
                         onClick={() => { const c = defaultFirstChapter || chapters[0]; if (c) handleChapterClick(c); }}
-                        className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-white px-4 h-full w-full rounded bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 font-bold py-3"
+                        className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-primary-foreground px-4 h-full w-full rounded bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 font-bold py-3"
                       >
                         <BookOpen size={18} className="inline ml-2" />
                         اقرأ الفصل {(defaultFirstChapter || chapters[0])?.number || '1'}
@@ -740,19 +980,11 @@ export default function NovelPage() {
 
               <div className="h-px bg-white/10 my-2" />
 
-              {/* Tabs */}
+              {/* Tabs — الملخص أولاً (افتراضي) ثم الفصول ثم التعليقات */}
               <div className="flex border-b border-white/10">
                 <button
-                  onClick={() => setActiveTab('chapters')}
-                  className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'chapters' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  الفصول ({totalChapters})
-                  {activeTab === 'chapters' && (
-                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                  )}
-                </button>
-                <button
                   onClick={() => setActiveTab('description')}
+                  data-testid="tab-summary"
                   className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'description' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   الملخص
@@ -761,7 +993,18 @@ export default function NovelPage() {
                   )}
                 </button>
                 <button
+                  onClick={() => setActiveTab('chapters')}
+                  data-testid="tab-chapters"
+                  className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'chapters' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  الفصول ({totalChapters})
+                  {activeTab === 'chapters' && (
+                    <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                  )}
+                </button>
+                <button
                   onClick={() => setActiveTab('comments')}
+                  data-testid="tab-comments"
                   className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'comments' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   التعليقات ({comments.length})
@@ -805,7 +1048,7 @@ export default function NovelPage() {
                         <p className="text-muted-foreground text-sm mb-4">تعذّر تحميل الفصول</p>
                         <button
                           onClick={() => setChaptersReloadKey((k) => k + 1)}
-                          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/80 transition-colors"
+                          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/80 transition-colors"
                         >
                           <RefreshCcw size={16} />
                           إعادة المحاولة
@@ -916,15 +1159,21 @@ export default function NovelPage() {
                 </div>
               )}
 
-              {/* Description Tab */}
-              {activeTab === 'description' && renderDescription(novel.description)}
+              {/* Summary Tab — الملخص + التصنيفات + بطاقة المترجم */}
+              {activeTab === 'description' && renderSummary()}
 
               {/* Comments Tab */}
               {activeTab === 'comments' && (
+                isOfflineNovel ? (
+                  <div className="text-center py-10">
+                    <WifiOff className="mx-auto text-white/30 mb-3" size={36} />
+                    <p className="text-muted-foreground text-sm">التعليقات والتفاعلات تتطلب اتصالاً بالإنترنت</p>
+                  </div>
+                ) : (
                 <>
                   {/* Reactions Row */}
                   <div className="flex flex-wrap justify-center gap-4 py-4 border-b border-white/10 mb-4">
-                    <button onClick={() => handleReaction('like')} className={`flex flex-col items-center gap-1 p-2 rounded-lg transition ${userReaction === 'like' ? 'bg-blue-500/20' : 'hover:bg-white/5'}`}>
+                    <button onClick={() => handleReaction('like')} className={`flex flex-col items-center gap-1 p-2 rounded-lg transition ${userReaction === 'like' ? 'bg-white/15' : 'hover:bg-white/5'}`}>
                       <ThumbsUp className="w-8 h-8" />
                       <span>{reactionStats.like}</span>
                     </button>
@@ -936,7 +1185,7 @@ export default function NovelPage() {
                       <span className="text-2xl">😂</span>
                       <span>{reactionStats.funny}</span>
                     </button>
-                    <button onClick={() => handleReaction('sad')} className={`flex flex-col items-center gap-1 p-2 rounded-lg transition ${userReaction === 'sad' ? 'bg-blue-500/20' : 'hover:bg-white/5'}`}>
+                    <button onClick={() => handleReaction('sad')} className={`flex flex-col items-center gap-1 p-2 rounded-lg transition ${userReaction === 'sad' ? 'bg-white/15' : 'hover:bg-white/5'}`}>
                       <span className="text-2xl">😢</span>
                       <span>{reactionStats.sad}</span>
                     </button>
@@ -953,6 +1202,7 @@ export default function NovelPage() {
                     onAddComment={handleAddComment}
                   />
                 </>
+                )
               )}
             </div>
           </div>
@@ -1017,7 +1267,7 @@ export default function NovelPage() {
                 <button
                   onClick={submitReport}
                   disabled={reportSending}
-                  className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full bg-primary text-primary-foreground font-bold py-3 rounded-xl hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {reportSending ? (
                     <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

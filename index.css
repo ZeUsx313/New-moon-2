@@ -5,11 +5,13 @@
 
 @theme {
   /* Light theme is the base; .dark overrides below */
+  /* الهوية: أسود وأبيض فقط — primary = حبر (أسود فاتح/أبيض داكن) */
   --color-background: #f6f6f8;
   --color-foreground: #121216;
   --color-muted: #6b7280;
   --color-muted-foreground: #6b7280;
-  --color-primary: #3b82f6;
+  --color-primary: #17181c;
+  --color-primary-foreground: #f6f6f8;
   --color-secondary: #1f2937;
   --color-accent: #f59e0b;
 
@@ -21,6 +23,8 @@
   --color-foreground: #ffffff;
   --color-muted: #9ca3af;
   --color-muted-foreground: #9ca3af;
+  --color-primary: #f5f5f5;
+  --color-primary-foreground: #0d0d0d;
 }
 
 @layer base {
@@ -65,4 +69,10 @@
 }
 .swiper-pagination-bullet-active {
   @apply bg-primary opacity-100;
+}
+/* أسهم التنقل — بالهوية الأحادية (بدون أزرق Swiper الافتراضي) */
+.swiper-button-prev,
+.swiper-button-next {
+  --swiper-navigation-color: var(--color-foreground);
+  opacity: 0.85;
 }

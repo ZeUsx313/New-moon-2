@@ -26,7 +26,7 @@ export default function OfflineBanner() {
           initial={{ y: -60 }}
           animate={{ y: 0 }}
           exit={{ y: -60 }}
-          className="fixed top-0 inset-x-0 z-[200] bg-amber-500/95 text-black text-sm font-bold py-2 px-4 flex items-center justify-center gap-2 shadow-lg"
+          className="fixed top-0 inset-x-0 z-[200] bg-white/95 text-black text-sm font-bold py-2 px-4 flex items-center justify-center gap-2 shadow-lg"
           role="status"
         >
           <WifiOff size={16} />

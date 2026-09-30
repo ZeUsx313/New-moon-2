@@ -10,10 +10,14 @@
  * - API calls (/api, /auth): NEVER cached — always live.
  */
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHELL_CACHE = `moon-shell-${VERSION}`;
 const ASSET_CACHE = `moon-assets-${VERSION}`;
 const STATIC_CACHE = `moon-static-${VERSION}`;
+const IMAGE_CACHE = `moon-images-${VERSION}`;
+
+/** حد أقصى لصور الغلافات المخزّنة (يُقلَّم الأقدم أولاً) */
+const IMAGE_CACHE_MAX = 400;
 
 // These are stale-while-revalidated (best-effort, never blocking)
 const STATIC_FILES = ['/manifest.json', '/icon.png', '/robots.txt'];
@@ -38,13 +42,42 @@ self.addEventListener('activate', (event) => {
       const names = await caches.keys();
       await Promise.all(
         names
-          .filter((n) => n.startsWith('moon-') && ![SHELL_CACHE, ASSET_CACHE, STATIC_CACHE].includes(n))
+          .filter((n) => n.startsWith('moon-') && ![SHELL_CACHE, ASSET_CACHE, STATIC_CACHE, IMAGE_CACHE].includes(n))
           .map((n) => caches.delete(n))
       );
       await self.clients.claim();
     })()
   );
 });
+
+/**
+ * تخزين صور الغلافات في المتصفح — cache-first.
+ * بمجرد تحميل صورة مرة تبقى محفوظة (حتى عبر الجلسات) ولا تُطلب من الخادم
+ * مرة أخرى، وتعمل حتى دون اتصال. تدعم الصور من مصادر خارجية
+ * (Firebase/Cloudinary…) عبر opaque responses مع تقليم تلقائي.
+ */
+async function handleImageRequest(req, url) {
+  const cache = await caches.open(IMAGE_CACHE);
+  const cached = await cache.match(req, { ignoreVary: true });
+  if (cached) return cached;
+  try {
+    const res = await fetch(req);
+    // نقبل الاستجابات الناجحة و opaque (status 0 للمصادر الخارجية)
+    if (res.ok || res.type === 'opaque') {
+      await cache.put(req, res.clone());
+      // تقليم: أبقِ الحجم تحت الحد الأقصى
+      const keys = await cache.keys();
+      if (keys.length > IMAGE_CACHE_MAX) {
+        const excess = keys.length - IMAGE_CACHE_MAX;
+        // keys مرتبة بترتيب الإدراج — نحذف الأقدم
+        await Promise.all(keys.slice(0, excess).map((k) => cache.delete(k)));
+      }
+    }
+    return res;
+  } catch {
+    return cached || Response.error();
+  }
+}
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
@@ -54,7 +87,19 @@ self.addEventListener('fetch', (event) => {
 
   // Never touch API/auth traffic
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return;
-  // Only handle same-origin requests
+
+  // 🖼️ صور (غلافات الروايات والبنرات، من موقعنا أو من مصادر خارجية):
+  // cache-first — تحمّل مرة واحدة وتُحفظ لدى متصفح المستخدم.
+  const isImageReq =
+    req.destination === 'image' ||
+    /\.(png|jpe?g|webp|gif|avif|svg)(\?|$)/i.test(url.pathname) ||
+    (url.origin !== self.location.origin && /firebasestorage\.googleapis\.com|lh3\.googleusercontent\.com|cloudinary\.com|imgur\.com/i.test(url.hostname));
+  if (isImageReq && /^https?:$/.test(url.protocol)) {
+    event.respondWith(handleImageRequest(req, url));
+    return;
+  }
+
+  // Only handle same-origin requests beyond images
   if (url.origin !== self.location.origin) return;
 
   // Hashed build assets → cache-first (they're content-hashed, immutable)

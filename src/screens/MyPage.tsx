@@ -19,7 +19,6 @@ import {
   UserCheck,
   FileText,
   UserPlus,
-  TabletSmartphone,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -128,7 +127,7 @@ const HistoryCard = ({ item, onClick }: { item: any; onClick: () => void }) => (
       <div className="mt-2">
         <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-primary to-purple-500 rounded-full transition-all duration-500"
+            className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full transition-all duration-500"
             style={{ width: `${item.progress || 0}%` }}
           />
         </div>
@@ -138,21 +137,37 @@ const HistoryCard = ({ item, onClick }: { item: any; onClick: () => void }) => (
   </motion.div>
 );
 
-// مكون البيانات (Stats)
-const DataRow = ({ icon: Icon, label, value, color = '#4a7cc7' }: { icon: any; label: string; value: string | number; color?: string }) => (
+// مكون بطاقة إحصائية — تصميم نظيف وأنيق بهوية الموقع (أسود/أبيض)
+const StatCard = ({
+  icon: Icon,
+  label,
+  value,
+  accent = false,
+}: {
+  icon: any;
+  label: string;
+  value: string | number;
+  accent?: boolean;
+}) => (
   <motion.div
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
+    initial={{ opacity: 0, y: 14 }}
+    animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.3 }}
-    className="flex flex-row-reverse justify-between items-center py-3 border-b border-white/10 last:border-0"
+    className={`relative rounded-2xl border p-4 overflow-hidden ${
+      accent
+        ? 'bg-white/10 border-white/25'
+        : 'bg-white/5 border-white/10'
+    }`}
   >
-    <div className="text-right">
-      <p className="text-white font-medium">{label}</p>
-      <p className="text-white/40 text-sm">{value}</p>
+    <div className="flex items-center justify-between gap-2">
+      <span className="w-10 h-10 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center shrink-0">
+        <Icon size={19} className="text-white/85" />
+      </span>
+      <span className="text-[2rem] leading-none font-extrabold text-white tracking-tight" dir="ltr">
+        {value}
+      </span>
     </div>
-    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
-      <Icon size={20} color={color} />
-    </div>
+    <p className="text-white/50 text-xs font-bold mt-3">{label}</p>
   </motion.div>
 );
 
@@ -188,10 +203,6 @@ export default function MyPage() {
   const isProfileAdmin = profileUser?.role === 'admin';
   const isProfileContributor = profileUser?.role === 'contributor' || isProfileAdmin;
   const isSelf = true; // هذه الصفحة للمستخدم الحالي
-
-  const notifyAdminPanel = () => {
-    toast('لوحة تحكم المترجمين متوفرة حالياً في تطبيق الهاتف فقط', { icon: '📱', duration: 4000 });
-  };
 
   // جلب البيانات
   const fetchProfileData = useCallback(async () => {
@@ -366,7 +377,7 @@ export default function MyPage() {
                   placeholder="أضف نبذة عنك..."
                 />
                 <div className="flex gap-2">
-                  <button onClick={handleUpdateProfile} className="bg-primary text-white px-4 py-2 rounded-lg">حفظ</button>
+                  <button onClick={handleUpdateProfile} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg">حفظ</button>
                   <button onClick={() => setIsEditing(false)} className="bg-white/10 text-white px-4 py-2 rounded-lg">إلغاء</button>
                 </div>
               </div>
@@ -389,17 +400,30 @@ export default function MyPage() {
           </div>
 
           <div className="bg-white/5 rounded-xl p-5 border border-white/10">
-            <h3 className="text-white font-bold text-lg mb-4">الإحصائيات</h3>
-            <div className="space-y-0">
-              <DataRow icon={isProfileAdmin ? Shield : isProfileContributor ? UserCheck : User} label="نوع العضوية" value={isProfileAdmin ? "مشرف" : isProfileContributor ? "مساهم" : "قارئ"} color={isProfileAdmin ? "#ff4444" : "#4a7cc7"} />
-              <DataRow icon={BookOpen} label="الفصول المقروءة" value={stats.readChapters} color="#4ade80" />
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-bold text-lg">الإحصائيات</h3>
+              <span
+                className={`flex items-center gap-1.5 text-[11px] font-bold rounded-full px-3 py-1 border ${
+                  isProfileAdmin
+                    ? 'bg-white/15 border-white/30 text-white'
+                    : isProfileContributor
+                      ? 'bg-white/10 border-white/20 text-white/85'
+                      : 'bg-white/5 border-white/10 text-white/60'
+                }`}
+              >
+                {isProfileAdmin ? <Shield size={12} /> : isProfileContributor ? <UserCheck size={12} /> : <User size={12} />}
+                {isProfileAdmin ? 'مشرف' : isProfileContributor ? 'مساهم' : 'قارئ'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard icon={BookOpen} label="الفصول المقروءة" value={stats.readChapters.toLocaleString('en-US')} accent />
               {isProfileContributor && (
                 <>
-                  <DataRow icon={FileText} label="الفصول المضافة" value={stats.addedChapters} color="#ffa500" />
-                  <DataRow icon={Eye} label="المشاهدات" value={stats.totalViews} color="#d44aff" />
+                  <StatCard icon={FileText} label="الفصول المضافة" value={stats.addedChapters.toLocaleString('en-US')} />
+                  <StatCard icon={Eye} label="إجمالي المشاهدات" value={stats.totalViews.toLocaleString('en-US')} />
                 </>
               )}
-              <DataRow icon={Calendar} label="تاريخ الانضمام" value={stats.joinDate} color="#888" />
+              <StatCard icon={Calendar} label="تاريخ الانضمام" value={stats.joinDate} />
             </div>
           </div>
         </motion.div>
@@ -704,15 +728,6 @@ export default function MyPage() {
 
                 {/* أزرار الإجراءات */}
                 <div className="flex gap-3 mt-4">
-                  {isProfileContributor && (
-                    <button
-                      onClick={notifyAdminPanel}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-all duration-300"
-                    >
-                      <TabletSmartphone size={16} />
-                      <span className="text-sm">لوحة التحكم</span>
-                    </button>
-                  )}
                   <button
                     onClick={() => setIsEditing(true)}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300"
@@ -795,7 +810,7 @@ export default function MyPage() {
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleUpdateProfile}
-                      className="flex-1 bg-primary text-white py-2 rounded-lg font-medium hover:bg-primary/80 transition-colors"
+                      className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg font-medium hover:bg-primary/80 transition-colors"
                     >
                       حفظ
                     </button>

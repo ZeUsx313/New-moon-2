@@ -97,6 +97,11 @@ export default function Downloads() {
     navigate(`/novel/${n._id}/reader/${target}`);
   };
 
+  /** الضغط على الرواية يفتح صفحة الرواية كاملة — تعمل دون إنترنت للنسخ المنزّلة */
+  const openNovelPage = (n: OfflineNovel) => {
+    navigate(`/novel/${n._id}`);
+  };
+
   const updateNovel = async (n: OfflineNovel) => {
     if (!navigator.onLine) return;
     const p = await offlineEngine.download(
@@ -162,7 +167,7 @@ export default function Downloads() {
             </p>
           </div>
           {!online && (
-            <span className="mr-auto flex items-center gap-1.5 text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-1.5">
+            <span className="mr-auto flex items-center gap-1.5 text-[11px] font-bold text-white/85 bg-white/10 border border-white/25 rounded-full px-3 py-1.5">
               <WifiOff size={13} />
               دون اتصال
             </span>
@@ -189,7 +194,7 @@ export default function Downloads() {
             </p>
             <button
               onClick={() => navigate('/library')}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-primary/85 active:scale-95 transition-all shadow-lg shadow-primary/20"
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/85 active:scale-95 transition-all shadow-lg shadow-primary/20"
             >
               <Library size={17} />
               تصفّح المكتبة
@@ -211,23 +216,24 @@ export default function Downloads() {
                   animate={{ opacity: 1, y: 0 }}
                   className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-sm overflow-hidden"
                 >
-                  {/* بطاقة الرواية */}
+                  {/* بطاقة الرواية — الضغط يفتح صفحة الرواية */}
                   <div className="flex gap-4 p-4">
                     <button
-                      onClick={() => readNovel(n)}
-                      className="shrink-0 rounded-xl overflow-hidden ring-1 ring-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      aria-label={`اقرأ ${n.title}`}
+                      onClick={() => openNovelPage(n)}
+                      className="shrink-0 rounded-xl overflow-hidden ring-1 ring-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                      aria-label={`فتح صفحة ${n.title}`}
+                      data-testid="downloaded-novel-card"
                     >
                       <SafeImage src={n.cover || '/icon.png'} alt={`غلاف ${n.title}`} className="w-[72px] h-[100px] object-cover" />
                     </button>
 
                     <div className="flex-1 min-w-0 flex flex-col">
-                      <button onClick={() => readNovel(n)} className="text-right">
+                      <button onClick={() => openNovelPage(n)} className="text-right">
                         <h3 className="font-extrabold text-[15px] leading-snug truncate hover:text-primary transition-colors">{n.title}</h3>
                       </button>
                       {n.author && <p className="text-muted-foreground text-xs mt-0.5 truncate">{n.author}</p>}
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] text-muted-foreground">
-                        <span className="font-bold text-emerald-400">{doneCount} فصل منزّل</span>
+                        <span className="font-bold text-white">{doneCount} فصل منزّل</span>
                         <span>{fmtMB(n.bytes || 0)}</span>
                         <span>محدّث {formatRelativeTime(n.updatedAt)}</span>
                       </div>
@@ -252,7 +258,7 @@ export default function Downloads() {
                       <div className="flex items-center gap-2 mt-3">
                         <button
                           onClick={() => readNovel(n)}
-                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white font-bold text-xs hover:bg-primary/85 active:scale-95 transition-all"
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/85 active:scale-95 transition-all"
                         >
                           <BookOpen size={14} />
                           قراءة

@@ -76,7 +76,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                 <p className="text-white/60 text-sm mb-3">{error}</p>
                 <button
                   onClick={load}
-                  className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/80 transition-colors"
+                  className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/80 transition-colors"
                 >
                   إعادة المحاولة
                 </button>

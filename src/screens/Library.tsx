@@ -39,12 +39,12 @@ const SORT_OPTIONS = [
   { id: 'title_desc', name: 'الاسم - ي إلى أ' },
 ];
 
-// Helper: لون الحالة
+// Helper: لون الحالة — هوية أبيض/أسود (متوقفة فقط أحمر دلالي)
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'مكتملة': return '#27ae60';
-    case 'متوقفة': return '#c0392b';
-    default: return '#2980b9';
+    case 'مكتملة': return 'rgba(255,255,255,0.6)';
+    case 'متوقفة': return '#f87171';
+    default: return 'rgba(255,255,255,0.9)';
   }
 };
 
@@ -375,7 +375,7 @@ export default function Library() {
                 <p className="text-white/60 mt-3 mb-4">تعذّر تحميل المكتبة — تحقق من اتصالك بالإنترنت</p>
                 <button
                   onClick={() => refetch()}
-                  className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/80 transition-colors"
+                  className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/80 transition-colors"
                 >
                   إعادة المحاولة
                 </button>

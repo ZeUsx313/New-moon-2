@@ -221,7 +221,7 @@ export default function DownloadModal({ isOpen, onClose, novel }: DownloadModalP
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => { onClose(); navigate('/downloads'); }}
-                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/85 active:scale-95 transition-all"
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/85 active:scale-95 transition-all"
                     >
                       <FolderOpen size={16} />
                       التنزيلات
@@ -290,7 +290,7 @@ export default function DownloadModal({ isOpen, onClose, novel }: DownloadModalP
                   <button
                     onClick={start}
                     disabled={willDownload === 0}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-white font-extrabold text-[15px] hover:bg-primary/85 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none transition-all shadow-lg shadow-primary/20"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-primary-foreground font-extrabold text-[15px] hover:bg-primary/85 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none transition-all shadow-lg shadow-primary/20"
                   >
                     <Download size={18} />
                     {willDownload === 0 ? 'كل النطاق منزّل ✓' : 'بدء التنزيل'}

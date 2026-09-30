@@ -27,8 +27,17 @@ const NovelCardSkeleton = () => (
   </div>
 );
 
+// ألوان شارات الترتيب — ذهبي/فضي/برونزي للأول الثلاثة، رمادي داكن موحّد للبقية
+const RANK_COLORS: Record<number, { bg: string; shadow: string }> = {
+  1: { bg: 'linear-gradient(180deg,#E8C15A 0%,#CFA006 55%,#A8820A 100%)', shadow: '0 6px 14px rgba(207,160,6,0.45)' },
+  2: { bg: 'linear-gradient(180deg,#C9D2D9 0%,#98A4AD 55%,#7A868F 100%)', shadow: '0 6px 14px rgba(152,164,173,0.4)' },
+  3: { bg: 'linear-gradient(180deg,#C99274 0%,#A3684B 55%,#84523A 100%)', shadow: '0 6px 14px rgba(163,104,75,0.4)' },
+};
+const RANK_DEFAULT_BG = 'linear-gradient(180deg,#3a3a3a 0%,#242424 100%)';
+
 // Novel Card Component (reusable)
-const NovelCard = ({ novel, index }: { novel: Novel; index: number }) => (
+// rank: رقم الترتيب في قسم «الأكثر قراءة» فقط — شارة شريط أعلى الغلاف
+const NovelCard = ({ novel, index, rank }: { novel: Novel; index: number; rank?: number }) => (
   <motion.div
     initial={{ opacity: 0, y: 30 }}
     animate={{ opacity: 1, y: 0 }}
@@ -44,12 +53,31 @@ const NovelCard = ({ novel, index }: { novel: Novel; index: number }) => (
             className="w-full h-full transition-transform duration-700 group-hover:scale-110 select-none"
           />
         </div>
+
+        {/* 🏆 شارة الترتيب — شريط أنيق أعلى الغلاف */}
+        {rank !== undefined && (
+          <div
+            className="absolute top-0 right-2.5 w-7 sm:w-8 h-10 sm:h-11 flex items-start justify-center pt-1.5 z-10"
+            style={{
+              background: RANK_COLORS[rank]?.bg || RANK_DEFAULT_BG,
+              boxShadow: RANK_COLORS[rank]?.shadow || '0 6px 14px rgba(0,0,0,0.35)',
+              borderRadius: '0 0 10px 10px',
+              clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%)',
+            }}
+            aria-label={`الترتيب ${rank}`}
+          >
+            <span className="text-white font-extrabold text-sm sm:text-base leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+              {rank}
+            </span>
+          </div>
+        )}
+
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
           <h3 className="text-white font-bold text-sm line-clamp-2 mb-2 text-center drop-shadow-md">
             {novel.title}
           </h3>
           <div className="flex justify-center items-center gap-1 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs text-white mx-auto w-fit">
-            <Star size={12} className="fill-yellow-400 text-yellow-400" />
+            <Star size={12} className="fill-white text-white" />
             {novel.rating}
           </div>
         </div>
@@ -58,11 +86,6 @@ const NovelCard = ({ novel, index }: { novel: Novel; index: number }) => (
         <h3 className="text-sm font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
           {novel.title}
         </h3>
-        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-          <span>{novel.author}</span>
-          <span>•</span>
-          <span>{novel.chaptersCount || 0} فصل</span>
-        </div>
       </div>
     </Link>
   </motion.div>
@@ -263,7 +286,7 @@ export default function Home() {
                     ))
                   : trendingNovels.map((novel, idx) => (
                       <SwiperSlide key={novel._id}>
-                        <NovelCard novel={novel} index={idx} />
+                        <NovelCard novel={novel} index={idx} rank={idx + 1} />
                       </SwiperSlide>
                     ))}
               </Swiper>
@@ -391,7 +414,7 @@ export default function Home() {
                   <p className="text-white/60 text-sm mb-4">تعذّر تحميل آخر التحديثات</p>
                   <button
                     onClick={() => fetchUpdatesPage(1, true)}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/80 transition-colors"
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/80 transition-colors"
                   >
                     <RefreshCcw size={16} />
                     إعادة المحاولة

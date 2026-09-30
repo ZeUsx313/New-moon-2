@@ -1,4 +1,5 @@
 import { http } from '../lib/http';
+import { apiCache } from '../lib/apiCache';
 
 export interface UserProfile {
   _id: string;
@@ -22,11 +23,23 @@ export interface UserStats {
 }
 
 export const userService = {
-  async getPublicProfile(email?: string, userId?: string): Promise<{ user: UserProfile }> {
-    const query = new URLSearchParams();
-    if (email) query.append('email', email);
-    if (userId) query.append('userId', userId);
-    return http.get<{ user: UserProfile }>(`/api/user/public-profile?${query.toString()}`);
+  /**
+   * الملف العام الخفيف (بطاقة الناشر / صفحة العضو) — مخزّن 10 دقائق
+   * (ذاكرة + sessionStorage) حتى لا يتكرر الطلب مع كل فتح رواية.
+   */
+  async getPublicProfile(email?: string, userId?: string, bypass = false): Promise<{ user: UserProfile }> {
+    const key = `userpub:${userId || email || ''}`.toLowerCase();
+    return apiCache.wrap(
+      key,
+      10 * 60 * 1000,
+      () => {
+        const query = new URLSearchParams();
+        if (email) query.append('email', email);
+        if (userId) query.append('userId', userId);
+        return http.get<{ user: UserProfile }>(`/api/user/public-profile?${query.toString()}`);
+      },
+      bypass,
+    );
   },
 
   async getUserStats(userId?: string, page: number = 1, limit: number = 20): Promise<UserStats> {
