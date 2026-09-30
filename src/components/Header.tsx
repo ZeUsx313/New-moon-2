@@ -5,8 +5,6 @@ import {
   Library,
   User,
   Search,
-  Sun,
-  Moon,
   Menu,
   X,
   Download,
@@ -17,24 +15,51 @@ import {
   FileText,
   Mail,
   LayoutDashboard,
+  BarChart3,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { useUI } from '../context/UIContext';
 
 // استيراد الصور من مجلد assets
 import logoImg from '../assets/AF32FFD4-DC2A-4D6A-9C05-F0A2E7288DC9.png';
 import defaultAvatar from '../assets/adaptive-icon.png';
 
-interface HeaderProps {
-  isDarkMode: boolean;
-  setIsDarkMode: (value: boolean) => void;
-}
+interface HeaderProps {}
+void 0 as unknown as HeaderProps | undefined; // (توافق — الخصائص أُلغيت مع إلغاء الوضع الفاتح)
 
 const SAFE_TOP = 'env(safe-area-inset-top, 0px)';
+
+/** 
+ * أفاتار المستخدم في الشريط العلوي: صورة الحساب إن وُجدت، وإلا حرف أول
+ * من الاسم داخل دائرة (بدل الأيقونة العامة — بند «صورتي لا تظهر»). 
+ */
+export function UserAvatar({ userInfo, size = 34, className = '' }: { userInfo: any; size?: number; className?: string }) {
+  const [failed, setFailed] = React.useState(false);
+  const showPic = !!userInfo?.picture && !failed;
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full overflow-hidden shrink-0 border border-white/25 bg-white/10 ${className}`}
+      style={{ width: size, height: size }}
+    >
+      {showPic ? (
+        <img
+          src={userInfo.picture}
+          alt=""
+          onError={() => setFailed(true)}
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <span className="font-extrabold text-white select-none" style={{ fontSize: size * 0.42 }}>
+          {(userInfo?.name || 'ز').trim().charAt(0).toUpperCase()}
+        </span>
+      )}
+    </span>
+  );
+}
 
 /**
  * الشريط العلوي — تصميم مستوحى من مجرة الروايات:
@@ -46,7 +71,7 @@ const SAFE_TOP = 'env(safe-area-inset-top, 0px)';
  *   ← سياسة الخصوصية/تواصل معنا/من نحن/شروط الاستخدام ← أدوات الإدارة (للمشرفين).
  * كل ذلك بهوية الموقع (أسود/أبيض) وكل عنصر فيه يعمل فعلاً.
  */
-export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
+export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, userInfo, logout, openAuthModal } = useAuth();
@@ -219,23 +244,19 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
               </span>
             </Link>
 
-            {/* أدوات النهاية (يسار في RTL): الوضع + حسابي */}
+            {/* أدوات النهاية (يسار في RTL): حسابي — الوضع الفاتح أُلغي (الموقع مظلم دائماً) */}
             <div className="flex items-center gap-1 justify-end">
-              <button
-                onClick={() => setIsDarkMode(!isDarkMode)}
-                className={iconBtn}
-                aria-label={isDarkMode ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع المظلم'}
-                title={isDarkMode ? 'الوضع الفاتح' : 'الوضع المظلم'}
-              >
-                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-              </button>
               <button
                 onClick={() => goProtected('/my-page')}
                 className={iconBtn}
-                aria-label="صفحتي"
-                title="صفحتي"
+                aria-label={isAuthenticated ? 'صفحتي' : 'تسجيل الدخول'}
+                title={isAuthenticated ? (userInfo?.name || 'صفحتي') : 'تسجيل الدخول'}
               >
-                <User size={20} />
+                {isAuthenticated ? (
+                  <UserAvatar userInfo={userInfo} size={30} />
+                ) : (
+                  <User size={20} />
+                )}
               </button>
             </div>
           </div>
@@ -333,7 +354,11 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
                         />
                       ) : (
                         <span className="w-14 h-14 rounded-full bg-white/10 border-2 border-white/40 flex items-center justify-center overflow-hidden">
-                          <img src={defaultAvatar} alt="" className="w-full h-full object-cover" />
+                          {isAuthenticated ? (
+                            <UserAvatar userInfo={userInfo} size={56} />
+                          ) : (
+                            <img src={defaultAvatar} alt="" className="w-full h-full object-cover" />
+                          )}
                         </span>
                       )}
                     </button>
@@ -378,11 +403,6 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
                 {/* ═══ القسم الثاني: التنزيلات والمظهر ═══ */}
                 <nav aria-label="أدوات" className="px-3 flex flex-col gap-1">
                   <DrawerRow to="/downloads" label="التنزيلات" Icon={Download} active={location.pathname.startsWith('/downloads')} />
-                  <DrawerRow
-                    label={isDarkMode ? 'الوضع الفاتح' : 'الوضع المظلم'}
-                    Icon={isDarkMode ? Sun : Moon}
-                    onClick={() => setIsDarkMode(!isDarkMode)}
-                  />
                 </nav>
 
                 <div className="h-px bg-white/10 mx-5 my-3" />
@@ -404,7 +424,12 @@ export default function Header({ isDarkMode, setIsDarkMode }: HeaderProps) {
                       <DrawerRow
                         label="لوحة التحكم"
                         Icon={LayoutDashboard}
-                        onClick={() => toast('أدوات التحكم للموقع قيد الإعداد — وستكون متاحة هنا', { icon: '🛠️', duration: 3500 })}
+                        onClick={() => { setDrawerOpenState(false); navigate('/dashboard'); }}
+                      />
+                      <DrawerRow
+                        label="التحليلات والإحصاءات"
+                        Icon={BarChart3}
+                        onClick={() => { setDrawerOpenState(false); navigate('/dashboard?tab=analytics'); }}
                       />
                     </nav>
                   </>

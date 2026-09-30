@@ -6,10 +6,10 @@ import { Autoplay, Pagination, Navigation } from 'swiper/modules';
 import { motion, AnimatePresence } from 'motion/react';
 import { TrendingUp, PlusCircle, Sparkles, Flame, Star, CloudOff, RefreshCcw } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+import { websiteJsonLd } from '../components/SEO';
 import Header from '../components/Header';
 import SafeImage from '../components/SafeImage';
 import { novelService, Novel } from '../services/novel';
-import { useTheme } from '../context/ThemeContext';
 import { getStatusStyle, formatRelativeTime, isNewChapter, siteUrl } from '../lib/site';
 
 import 'swiper/css';
@@ -92,7 +92,6 @@ const NovelCard = ({ novel, index, rank }: { novel: Novel; index: number; rank?:
 );
 
 export default function Home() {
-  const { isDark, toggleTheme } = useTheme();
   const [latestPage, setLatestPage] = useState(1);
   const [hasMoreUpdates, setHasMoreUpdates] = useState(true);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
@@ -186,13 +185,16 @@ export default function Home() {
         {/* AI Crawlers & SEO */}
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href={siteUrl('/')} />
+
+        {/* 🔎 صندوق بحث السايت-لينكس في نتائج جوجل */}
+        <script type="application/ld+json">{JSON.stringify(websiteJsonLd())}</script>
       </Helmet>
       <div
         className="min-h-screen bg-background text-foreground transition-colors duration-500"
         dir="rtl"
         style={{ fontFamily: "'Cairo', sans-serif" }}
       >
-        <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
+        <Header />
 
         <main className="pb-16">
           {/* Hero Slider with fixed animation */}
@@ -370,7 +372,8 @@ export default function Home() {
                         </div>
 
                         <div className="flex flex-col gap-2 flex-1 overflow-hidden">
-                          {(novel.chapters || []).slice(0, 5).map((chapter, chapIdx) => {
+                          {/* آخر 5 فصول من الخادم (recentChapters) مع تراجع للقائمة القديمة */}
+                          {((novel as any).recentChapters || novel.chapters || []).slice(0, 5).map((chapter: any, chapIdx: number) => {
                             const isNew = isNewChapter(chapter.createdAt);
                             return (
                               <Link

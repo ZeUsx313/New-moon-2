@@ -150,7 +150,7 @@ export default function Downloads() {
         <link rel="canonical" href="/downloads" />
       </Helmet>
 
-      <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
+      <Header />
 
       <main className="max-w-3xl mx-auto px-4 py-6 pb-10">
         {/* رأس الصفحة */}

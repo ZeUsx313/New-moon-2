@@ -18,7 +18,6 @@ import { novelService, Novel } from '../services/novel';
 import { categoryService, Category } from '../services/category';
 import { useDebounce } from '../hooks/useDebounce';
 import Header from '../components/Header';
-import { useTheme } from '../context/ThemeContext';
 
 // صورة الخلفية
 import backgroundImage from '../assets/adaptive-icon.png';
@@ -170,7 +169,6 @@ const FilterModal = ({
 
 export default function Library() {
   const navigate = useNavigate();
-  const { isDark, toggleTheme } = useTheme();
   const [searchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
   // Search arrives from the header (?q=…) or is typed here directly
@@ -299,7 +297,7 @@ export default function Library() {
         <title>قمر الروايات - المكتبة</title>
       </Helmet>
       <div className="min-h-screen bg-background text-foreground transition-colors duration-500" dir="rtl">
-        <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
+        <Header />
         <div className="relative overflow-hidden bg-black">
           {/* خلفية زجاجية */}
           <div className="absolute inset-0 z-0">

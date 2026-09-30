@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Flag, ShieldCheck, FileText, Users, BookOpen, Zap, Heart, WifiOff, MessageCircle, Clock } from 'lucide-react';
+import { Flag, ShieldCheck, FileText, Users, BookOpen, Zap, Heart, WifiOff, MessageCircle, Clock, BarChart3 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useTheme } from '../context/ThemeContext';
@@ -35,7 +35,7 @@ function StaticShell({
         <title>{`${title} - ${SITE_NAME}`}</title>
         <meta name="description" content={description} />
       </Helmet>
-      <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
+      <Header />
       <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-10">
         <h1 className="text-3xl font-bold mb-2">{title}</h1>
         <p className="text-muted-foreground text-sm mb-8">{description}</p>
@@ -241,6 +241,28 @@ export function Privacy() {
       <p>
         <strong className="text-foreground">لنبيع بياناتك أبداً:</strong> نحن لا نبيع ولا نؤجّر ولا نشارك
         بياناتك الشخصية مع أي جهة لأغراض إعلانية أو تجارية — هذا التزام ثابت.
+      </p>
+
+      <SectionTitle icon={BarChart3}>الإحصاءات وقياس الزيارات</SectionTitle>
+      <p>
+        لتحسين الموقع نستخدم نظام إحصاءات داخلياً بأسلوب مواقع جوجل العالمية، مع التزام صارم بالحد
+        الأدنى من البيانات:
+      </p>
+      <Bullets
+        items={[
+          <>نخزّن معرّفاً عشوائياً في متصفحك (بدون أي بيانات شخصية) لنفرّق الزوار الفريدين ونحصيهم.</>,
+          <>نسجّل الصفحات المشاهدة، مصدر الزيارة، نوع الجهاز (هاتف/حاسب) — بشكل مجمّع إحصائي.</>,
+          <>نحترم إعداد "Do Not Track" في متصفحك — إن فعّلته نتوقف عن القياس تماماً.</>,
+          <>قد نستخدم Google Analytics 4 مع تشفير عنوان IP (anonymize_ip) في بعض الفترات.</>,
+          <>بيانات الإحصاءات لا تُستخدم للإعلانات ولا تُشارك مع أي طرف تجاري.</>,
+        ]}
+      />
+
+      <SectionTitle icon={ShieldCheck}>الحماية من النسخ والسلوك الآلي</SectionTitle>
+      <p>
+        لحماية المحتوى من السرقة: نراقب أنماط الطلبات، ونقيّد العناوين التي تفتح فصولاً بسرعة غير
+        طبيعية (قد نطلب تحققاً بشرياً بسيطاً من Cloudflare Turnstile)، ونحظر عناوين IP التي تستخدم
+        سكربتات السحب الآلي. هذا لا يؤثر على القراءة الطبيعية إطلاقاً.
       </p>
 
       <SectionTitle icon={Users}>مشاركة البيانات مع مزودي الخدمة</SectionTitle>

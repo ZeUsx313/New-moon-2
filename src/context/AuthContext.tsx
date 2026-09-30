@@ -7,6 +7,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  /** تحديث بيانات المستخدم محلياً (بعد تعديل الملف الشخصي) — ينعكس فوراً في كل الواجهات */
+  updateUser: (user: User) => void;
   isAuthModalOpen: boolean;
   openAuthModal: () => void;
   closeAuthModal: () => void;
@@ -74,16 +76,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserInfo(null);
   }, []);
 
+  const updateUser = useCallback((user: User) => {
+    setUserInfo(user);
+  }, []);
+
   const openAuthModal = useCallback(() => setIsAuthModalOpen(true), []);
   const closeAuthModal = useCallback(() => setIsAuthModalOpen(false), []);
 
-  return (
+    return (
     <AuthContext.Provider value={{
       userInfo,
       isAuthenticated: !!userInfo,
       isLoading,
       login,
       logout,
+      updateUser,
       isAuthModalOpen,
       openAuthModal,
       closeAuthModal

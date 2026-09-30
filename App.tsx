@@ -12,6 +12,8 @@ import ScrollToTop from './src/components/ScrollToTop';
 import OfflineBanner from './src/components/OfflineBanner';
 import Footer from './src/components/Footer';
 import BottomNav from './src/components/BottomNav';
+import CaptchaGate from './src/components/CaptchaGate';
+import { trackPageview } from './src/lib/analytics';
 import Home from './src/screens/Home';
 
 // Route-level code splitting: the heavy screens (reader shell, profile, pages)
@@ -26,6 +28,7 @@ const Login = lazy(() => import('./src/screens/auth/Login'));
 const Signup = lazy(() => import('./src/screens/auth/Signup'));
 const GoogleCallback = lazy(() => import('./src/screens/auth/GoogleCallback'));
 const NotFound = lazy(() => import('./src/screens/NotFound'));
+const Dashboard = lazy(() => import('./src/screens/dashboard/Dashboard'));
 const About = lazy(() => import('./src/screens/StaticPages').then((m) => ({ default: m.About })));
 const Privacy = lazy(() => import('./src/screens/StaticPages').then((m) => ({ default: m.Privacy })));
 const Terms = lazy(() => import('./src/screens/StaticPages').then((m) => ({ default: m.Terms })));
@@ -70,6 +73,11 @@ function Layout() {
   const isMemberPage = /^\/user\/[^/]+/.test(location.pathname);
   const navHiddenRoute = isReader || isNovelPage || isMemberPage;
 
+  // 📊 تتبع الزيارات (Google-style analytics) — صفحة لكل تغيير مسار
+  React.useEffect(() => {
+    trackPageview(location.pathname + location.search);
+  }, [location.pathname, location.search]);
+
   return (
     <div
       className="min-h-screen flex flex-col"
@@ -86,6 +94,7 @@ function Layout() {
             <Route path="/downloads" element={<Downloads />} />
             <Route path="/my-page" element={<MyPage />} />
             <Route path="/user/:userId" element={<UserProfile />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/auth/google/callback" element={<GoogleCallback />} />
@@ -113,6 +122,7 @@ export default function App() {
                 <Router>
                 <ScrollToTop />
                 <GlobalAuthModal />
+                <CaptchaGate />
                 <Toaster
                   position="top-center"
                   reverseOrder={false}

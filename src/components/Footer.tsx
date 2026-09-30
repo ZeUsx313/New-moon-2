@@ -6,6 +6,10 @@ import { SITE_NAME } from '../lib/site';
  * Site footer — sticks to the bottom of the viewport on short pages
  * (parent layout is min-h-screen flex flex-col + mt-auto) and is pushed
  * down naturally on long pages.
+ *
+ * يتضمن تنبيه حقوق النشر + فخ السكرابر (Honeypot) — رابط مخفي تماماً
+ * عن البشر (aria-hidden + tabindex=-1 + صفر الحجم) لكن روبوتات السحب
+ * التي تستخرج كل الروابط وتزورها تُحظر عناوين IP لها فوراً على الخادم.
  */
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -33,6 +37,17 @@ export default function Footer() {
           <p className="text-white/30 text-xs">
             © {year} {SITE_NAME} — جميع الحقوق محفوظة
           </p>
+        </div>
+
+        {/* تنبيه النسخ الآلي */}
+        <p className="text-white/25 text-[11px] text-center mt-5 leading-relaxed">
+          🛡️ النسخ الآلي وإعادة نشر محتوى الموقع (روايات/فصول) ممنوع ومحظور — كل النصوص تحمل علامات مائية تتبع مصدر التسريب،
+          والسكرابرز تُحظر عناوين IP لها تلقائياً.
+        </p>
+
+        {/* 🕳️ فخ السكرابرز — غير مرئي للبشر إطلاقاً */}
+        <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', height: 0, overflow: 'hidden', opacity: 0 }}>
+          <a href="/api/security/honeypot" tabIndex={-1} rel="nofollow noindex">sitemap-full</a>
         </div>
       </div>
     </footer>

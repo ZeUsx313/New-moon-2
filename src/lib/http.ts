@@ -7,6 +7,7 @@
  * - Automatic Authorization header
  */
 import { api } from '../services/api';
+import { captchaPassHeader } from './captchaPass';
 
 export class ApiError extends Error {
   status: number;
@@ -63,6 +64,8 @@ function buildHeaders(opts: RequestOptions, isFormData: boolean): Record<string,
     const token = localStorage.getItem('token');
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
+  // 🛡️ رمز مرور الكابتشا المؤقت (إن حُلّ التحدي) يرافق كل الطلبات
+  Object.assign(headers, captchaPassHeader());
   return headers;
 }
 
@@ -90,6 +93,10 @@ export async function request<T = any>(path: string, options: RequestOptions = {
       const data = await parseResponseBody(res);
 
       if (!res.ok) {
+        // 🛡️ الخادم يطلب تحققاً بشرياً (سرعة غير طبيعية) → نظهر بوابة الكابتشا
+        if (res.status === 429 && data && (data as any).captchaRequired) {
+          try { (await import('./captchaPass')).dispatchCaptchaRequired(); } catch { /* ignore */ }
+        }
         const serverMessage =
           (data && typeof data.message === 'string' && data.message) ||
           (res.status === 502 ? 'الخادم غير متاح حالياً، حاول بعد قليل' :

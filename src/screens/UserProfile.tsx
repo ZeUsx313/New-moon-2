@@ -106,7 +106,7 @@ export default function UserProfile() {
         {profile?.bio && <meta name="description" content={profile.bio.slice(0, 160)} />}
       </Helmet>
 
-      <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
+      <Header />
 
       {loadingProfile ? (
         <main className="max-w-5xl mx-auto px-4 py-8">

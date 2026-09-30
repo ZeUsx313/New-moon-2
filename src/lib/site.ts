@@ -16,10 +16,11 @@ export const SITE_NAME = 'قمر الروايات';
 export const SITE_TAGLINE = 'بوابتك لعالم الخيال';
 
 /** Unified status pill styling (was inconsistent between Home and NovelPage).
- *  الهوية أبيض/أسود: مستمرة = حبر كامل، مكتملة = باهت، متوقفة = أحمر دلالي صارم. */
+ *  ألوان دلالية صريحة بطلب المستخدم: مستمرة = أزرق، مكتملة = أخضر، متوقفة = أحمر.
+ *  (الاستثناء الوحيد المسموح من الهوية الأحادية — ألوان وظيفية دلالية). */
 export const getStatusStyle = (status: string): string => {
-  if (status === 'مستمرة') return 'bg-foreground/10 text-foreground border-foreground/25';
-  if (status === 'مكتملة') return 'bg-foreground/5 text-foreground/60 border-foreground/15';
+  if (status === 'مستمرة') return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+  if (status === 'مكتملة') return 'bg-green-500/15 text-green-400 border-green-500/30';
   if (status === 'منزّلة') return 'bg-foreground/8 text-foreground/80 border-foreground/20';
   return 'bg-red-500/15 text-red-400 border-red-500/30';
 };

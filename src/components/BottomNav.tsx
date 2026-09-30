@@ -62,7 +62,6 @@ export default function BottomNav({ forceHidden = false }: { forceHidden?: boole
   const [avatarFailed, setAvatarFailed] = useState(false);
 
   const hidden = forceHidden || isDrawerOpen;
-  const showAvatar = isAuthenticated && !!userInfo?.picture && !avatarFailed;
 
   const handleItemClick = (e: React.MouseEvent, item: NavItem) => {
     if (item.protected && !isAuthenticated && !location.pathname.startsWith(item.to)) {
@@ -108,16 +107,27 @@ export default function BottomNav({ forceHidden = false }: { forceHidden?: boole
                   : 'text-white/55 hover:text-white hover:bg-white/5'
               }`}
             >
-              {item.to === '/my-page' && showAvatar ? (
-                <img
-                  src={userInfo?.picture}
-                  alt=""
-                  onError={() => setAvatarFailed(true)}
-                  className={`w-[22px] h-[22px] rounded-full object-cover border border-white/25 ${
-                    active ? 'translate-y-[-1px] ring-2 ring-white/40' : ''
-                  }`}
-                  referrerPolicy="no-referrer"
-                />
+              {item.to === '/my-page' && isAuthenticated ? (
+                userInfo?.picture && !avatarFailed ? (
+                  <img
+                    src={userInfo?.picture}
+                    alt=""
+                    onError={() => setAvatarFailed(true)}
+                    className={`w-[22px] h-[22px] rounded-full object-cover border border-white/25 ${
+                      active ? 'translate-y-[-1px] ring-2 ring-white/40' : ''
+                    }`}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  /* مسجل دخول بلا صورة (حساب بريد/فشل تحميل) → حرف أول من الاسم */
+                  <span
+                    className={`w-[22px] h-[22px] rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-[11px] font-extrabold text-white select-none ${
+                      active ? 'translate-y-[-1px] ring-2 ring-white/40' : ''
+                    }`}
+                  >
+                    {(userInfo?.name || 'ز').trim().charAt(0).toUpperCase()}
+                  </span>
+                )
               ) : (
                 <Icon size={22} strokeWidth={active ? 2.2 : 1.8} className={active ? 'translate-y-[-1px]' : ''} />
               )}

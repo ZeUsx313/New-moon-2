@@ -22,6 +22,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../services/api';
 import { novelService } from '../../../services/novel';
 import { apiCache } from '../../../lib/apiCache';
+import { protectChapterContent, copyrightNoticeHtml } from '../../../lib/protection';
 import { offlineStore, estimateBytes } from '../../../lib/offlineStore';
 import { commentService } from '../../../services/comment';
 import { userService } from '../../../services/user';
@@ -208,6 +209,15 @@ export default function WorReader() {
         replaceTermsInText(normalizeContent(raw), wordsTerms)
     ), [wordsTerms]);
 
+    // 🛡️ معالجة محمية: استبدال الكلمات ثم العلامة المائية الصفرية + إشعار الحقوق.
+    // تُطبَّق في كل نقطة تُرسل فيها نصوص الفصول إلى واجهة القارئ.
+    const processProtected = useCallback((raw: string, chNumber: number | string) => {
+        const replaced = applyReplacements(raw || '');
+        const title = novelRef.current?.title || '';
+        return protectChapterContent(replaced, title, novelId || '', chNumber, userInfo?.email || userInfo?.id || undefined);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [applyReplacements, novelId]);
+
     const sendChapterToWeb = useCallback((chapterData: any, opts: any = {}) => {
         if (!chapterData) return;
         const S = { ...settingsRef.current, colored: coloredRef.current };
@@ -240,7 +250,7 @@ export default function WorReader() {
             copyrightStart: chapterData.copyrightStart,
             copyrightEnd: chapterData.copyrightEnd,
             copyrightStyles: chapterData.copyrightStyles,
-        }, 0, S);
+        }, 0, S) + copyrightNoticeHtml(novel?.title || '');
         postToWeb({
             kind: 'chapter',
             number,
@@ -297,6 +307,13 @@ export default function WorReader() {
         } catch { /* ignore */ }
     };
 
+    // 🔥 إصلاح: الإعدادات كانت تُحفظ ولا تُحمّل أبداً — كل فتح فصل يعيد الضبط للافتراضي.
+    // تُحمّل مرة واحدة عند تركيب القارئ قبل عرض أي فصل.
+    const loadSettingsRef = useRef(loadSettings);
+    useEffect(() => {
+        loadSettingsRef.current();
+    }, []);
+
     // ========================= words actions (from shell) =========================
     const wordsAction = useCallback(async (msg: any) => {
         const scope = msg.scope === 'global' ? 'global' : 'novel';
@@ -349,7 +366,7 @@ export default function WorReader() {
         if (wordsInitRef.current <= 1) return;
         const ch = chapterRef.current;
         if (!ch) return;
-        const processed = applyReplacements(ch.content || '');
+        const processed = processProtected(ch.content || '', (ch as any).number || chapterId || '1');
         setTimeout(() => sendChapterToWeb({ ...ch, processedContent: processed }, { keepScroll: true }), 0);
     }, [wordsVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -645,7 +662,7 @@ export default function WorReader() {
             pendingRestoreRef.current = savedOffset;
 
             if (chapterData) {
-                const processed = applyReplacements(chapterData.content || '');
+                const processed = processProtected(chapterData.content || '', chapterId || '1');
                 setTimeout(() => {
                     if (reqId !== chapterReqRef.current) return;
                     sendChapterToWeb({ ...chapterData, processedContent: processed });
@@ -768,12 +785,12 @@ export default function WorReader() {
             const html = buildWorSectionHTML({
                 number: section.number,
                 title: section.title,
-                content: applyReplacements(section.rawContent),
+                content: processProtected(section.rawContent, section.number),
                 copyrightStart: section.copyrightStart,
                 copyrightEnd: section.copyrightEnd,
                 copyrightStyles: section.copyrightStyles,
             }, 1, settingsRef.current);
-            postToWeb({ kind: 'appendChapter', number: nextNum, html });
+            postToWeb({ kind: 'appendChapter', number: nextNum, html: html + copyrightNoticeHtml(novelRef.current?.title || '') });
             if (autoScrollNextRef.current) {
                 autoScrollNextRef.current = false;
                 // scroll inside the shell via the bridge (no eval — CSP-safe)
@@ -1037,7 +1054,7 @@ export default function WorReader() {
                 sendWords();
                 sendFav(isFavoriteRef.current);
                 if (chapterRef.current) {
-                    const processed = applyReplacements(chapterRef.current.content || '');
+                    const processed = processProtected(chapterRef.current.content || '', chapterRef.current.number || chapterId || '1');
                     sendChapterToWeb({ ...chapterRef.current, processedContent: processed });
                 }
                 break;
@@ -1088,7 +1105,7 @@ export default function WorReader() {
                     applySettingsPatch(data.patch);
                     if (needsRebuild && chapterRef.current) {
                         const ch = chapterRef.current;
-                        const processed = applyReplacements(ch.content || '');
+                        const processed = processProtected(ch.content || '', (ch as any).number || chapterId || '1');
                         setTimeout(() => sendChapterToWeb({ ...ch, processedContent: processed }, { keepScroll: true }), 0);
                     }
                 }

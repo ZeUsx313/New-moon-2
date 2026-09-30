@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { Helmet } from 'react-helmet-async';
+import { breadcrumbJsonLd } from '../components/SEO';
+import { trackNovelOpen } from '../lib/analytics';
 import DOMPurify from 'dompurify';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import {
   Star,
   ChevronLeft,
@@ -36,7 +37,7 @@ import { Skeleton, NovelPageSkeleton } from '../components/Skeleton';
 import { CommentSection } from '../components/CommentSection';
 import toast from 'react-hot-toast';
 import { formatDate, getStatusStyle, siteUrl } from '../lib/site';
-import { readNumberArray, writeJSON } from '../lib/storage';
+import { readNumberArray, readJSON, writeJSON } from '../lib/storage';
 import { offlineStore } from '../lib/offlineStore';
 import { useDebounce } from '../hooks/useDebounce';
 import defaultAvatar from '../assets/adaptive-icon.png';
@@ -154,7 +155,6 @@ export default function NovelPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, openAuthModal } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
   const [novel, setNovel] = useState<Novel | null>(null);
   const [novelError, setNovelError] = useState<string | null>(null);
   const [chapters, setChapters] = useState<ChapterMeta[]>([]);
@@ -185,6 +185,10 @@ export default function NovelPage() {
   const [isPageModalOpen, setIsPageModalOpen] = useState(false);
   // الفصل الافتراضي لزر «اقرأ الفصل» — لا يتأثر بالبحث أو التنقل بين الصفحات
   const [defaultFirstChapter, setDefaultFirstChapter] = useState<ChapterMeta | null>(null);
+  // 🔥 بند «القفز لآخر قراءة»: آخر فصل مقروء لهذه الرواية + هل قفزنا له بالفعل؟
+  const [lastReadJump, setLastReadJump] = useState<number | null>(null);
+  const lastReadJumpedRef = useRef(false);
+  const pendingDescJumpRef = useRef<number | null>(null);
   const [reactionStats, setReactionStats] = useState({ like: 0, love: 0, funny: 0, sad: 0, angry: 0 });
   const [userReaction, setUserReaction] = useState<string | null>(null);
   // Local read chapters for guest users (crash-proof read, per-novel)
@@ -226,6 +230,31 @@ export default function NovelPage() {
   const chaptersPerPage = 25;
   const totalPages = serverTotalPages || Math.ceil(totalChapters / chaptersPerPage);
 
+  /**
+   * 🔥 فتح تبويب الفصول مع القفز التلقائي لصفحة آخر فصل مقروء
+   * (تصاعدي: الصفحة = ceil(N/25) مباشرة — تنازلي: بعد أول جلب نحسب من الإجمالي)
+   */
+  const openChaptersTab = () => {
+    if (activeTab !== 'chapters' && !lastReadJumpedRef.current) {
+      lastReadJumpedRef.current = true;
+      try {
+        const saved = readJSON<{ id?: number }>(`last_read_${slug}`, {});
+        const n = Number(saved?.id || userProgress.lastChapterId || 0);
+        if (n > 0) {
+          setLastReadJump(n);
+          if (sortOrder === 'asc') {
+            const target = Math.ceil(n / chaptersPerPage);
+            if (target > 1 && (!serverTotalPages || target <= serverTotalPages)) setChaptersPage(target);
+          } else {
+            // ترتيب تنازلي: نحتاج الإجمالي — نؤجل الحساب بعد أول جلب
+            pendingDescJumpRef.current = n;
+          }
+        }
+      } catch { /* لا تاريخ قراءة */ }
+    }
+    setActiveTab('chapters');
+  };
+
   // A new search starts from page 1 (never mixes page 4 with a fresh query)
   useEffect(() => {
     setChaptersPage(1);
@@ -248,6 +277,8 @@ export default function NovelPage() {
       setNovel(data);
       setTotalChapters(data.chaptersCount);
       setIsOfflineNovel(false);
+      // 📊 تتبع فتح الرواية (تحليلات الموقع)
+      trackNovelOpen(slug);
       const token = localStorage.getItem('token');
       if (token) {
         try {
@@ -357,6 +388,15 @@ export default function NovelPage() {
           setServerTotalPages(data.totalPages);
           // إجمالي الخادم هو الحقيقة (يحتسب الفصول المخفية والبحث تلقائياً)
           setTotalChapters(data.total);
+          // 🔥 قفزة الترتيب التنازلي: بعد معرفة الإجمالي نحسب صفحة الفصل المقروء أخيراً
+          const pendingN = pendingDescJumpRef.current;
+          if (pendingN && data.total > 0) {
+            pendingDescJumpRef.current = null;
+            const target = Math.ceil((data.total - pendingN + 1) / chaptersPerPage);
+            if (target >= 1 && target !== chaptersPage && (!data.totalPages || target <= data.totalPages)) {
+              setChaptersPage(target);
+            }
+          }
           // زر «اقرأ الفصل» يثبت على أول فصل حقيقي (بدون بحث)
           if (!debouncedChapterSearch && data.chapters.length > 0) {
             setDefaultFirstChapter(data.chapters[0]);
@@ -716,7 +756,7 @@ export default function NovelPage() {
   if (!novel) {
     return (
       <div className="min-h-screen bg-background text-foreground" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
-        <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
+        <Header />
         <div className="flex flex-col items-center justify-center h-96 gap-4 px-6">
           <CloudOff className="text-muted-foreground" size={48} />
           <p className="text-muted-foreground text-sm">{novelError || 'الرواية غير موجودة'}</p>
@@ -769,6 +809,15 @@ export default function NovelPage() {
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href={siteUrl(`/novel/${slug}`)} />
 
+        {/* 🔎 مسار التنقل في نتائج جوجل */}
+        <script type="application/ld+json">
+          {JSON.stringify(breadcrumbJsonLd([
+            { name: 'الرئيسية', path: '/' },
+            { name: 'المكتبة', path: '/library' },
+            { name: novel.title || 'رواية', path: `/novel/${slug}` },
+          ]))}
+        </script>
+
         {/* Structured Data (JSON-LD) */}
         <script type="application/ld+json">
           {JSON.stringify({
@@ -791,7 +840,7 @@ export default function NovelPage() {
         </script>
       </Helmet>
       <div className="relative min-h-screen bg-background text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
-        <Header isDarkMode={isDark} setIsDarkMode={toggleTheme} />
+        <Header />
 
         {/* 📴 شارة النسخة المنزّلة — البيانات من جهازك */}
         {isOfflineNovel && (
@@ -993,7 +1042,7 @@ export default function NovelPage() {
                   )}
                 </button>
                 <button
-                  onClick={() => setActiveTab('chapters')}
+                  onClick={openChaptersTab}
                   data-testid="tab-chapters"
                   className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'chapters' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 >
@@ -1059,11 +1108,16 @@ export default function NovelPage() {
                     ) : (
                       filteredChapters.map((chapter) => {
                         const isRead = readChapters.includes(chapter.number);
+                        const isLastRead = lastReadJump === chapter.number;
                         return (
                           <div
                             key={chapter._id}
                             onClick={() => handleChapterClick(chapter)}
-                            className="flex flex-1 bg-white/5 border border-white/10 hover:bg-white/10 relative rounded-lg p-2 sm:p-3 transition-colors cursor-pointer"
+                            className={`flex flex-1 relative rounded-lg p-2 sm:p-3 transition-colors cursor-pointer border ${
+                              isLastRead
+                                ? 'bg-primary/10 border-primary/50 ring-1 ring-primary/40'
+                                : 'bg-white/5 border-white/10 hover:bg-white/10'
+                            }`}
                           >
                             <div className="w-full h-full flex items-center justify-between gap-2 sm:gap-3">
                               <div className="flex w-full items-center text-left justify-between text-gray-900 dark:text-white min-w-0">
@@ -1091,6 +1145,11 @@ export default function NovelPage() {
                                     <span className={`text-sm sm:text-base font-semibold font-cairo line-clamp-1 ${isRead ? 'text-gray-500' : 'text-white'}`}>
                                       {chapter.title || `الفصل ${chapter.number}`}
                                     </span>
+                                    {isLastRead && (
+                                      <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground">
+                                        آخر قراءة
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="flex flex-col sm:flex-row sm:justify-start sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-gray-400 mt-1">
                                     <time dateTime={chapter.createdAt}>{formatDate(chapter.createdAt)}</time>
