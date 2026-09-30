@@ -183,8 +183,23 @@ export const novelService = {
     return res.chapters;
   },
 
-  async getChapter(novelId: string, chapterId: string): Promise<ChapterFull> {
-    return http.get<ChapterFull>(`/api/novels/${novelId}/chapters/${chapterId}`, { retries: 0 });
+  /**
+   * جلب فصل كامل.
+   * - auth: يُرسل التوكن تلقائياً إن وُجد — المسجلون يحصلون على ميزانية
+   *   أوسع في حدود سرعة الخادم (قراءة عادية أسرع دون 429).
+   * - batch: يعلن أن الطلب جزء من تنزيل للقراءة دون إنترنت (X-Moon-Batch)
+   *   فيمنحه الخادم ميزانية الدفعات السخية بدل حد القراءة العادي.
+   */
+  async getChapter(
+    novelId: string,
+    chapterId: string,
+    opts: { batch?: boolean } = {},
+  ): Promise<ChapterFull> {
+    return http.get<ChapterFull>(`/api/novels/${novelId}/chapters/${chapterId}`, {
+      retries: 0,
+      auth: true,
+      headers: opts.batch ? { 'X-Moon-Batch': 'offline-download' } : undefined,
+    });
   },
 
   async reactToNovel(novelId: string, type: 'like' | 'love' | 'funny' | 'sad' | 'angry'): Promise<{

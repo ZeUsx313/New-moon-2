@@ -10,8 +10,20 @@
  *   - القارئ البشري لا يرى شيئاً إطلاقاً.
  */
 
-/** محارف صفرية العرض آمنة للعربية (لا تكسر التشكيل أو الاتجاه). */
-const ZW_CHARS = ['\u200B', '\u200C', '\u200D'];
+/**
+ * محارف صفرية العرض آمنة للعربية.
+ *
+ * 🐌 درس مهم (بعد بلاغ «الكلمات متقطعة في القارئ»):
+ *   U+200B (مسافة صفرية) و U+200C (ZWNJ) تكسران اتصال الحروف العربية —
+ *   المحرك الطباعي يعاملهما كحرف غير متصل في وسط الكلمة فتنقطع الوصلة.
+ *   الحرف الوحيد الآمن: U+2060 WORD JOINER — شفاف تماماً أمام خوارزمية
+ *   الاتصال (Joining_Type = T)، لا يُرى، لا يسمح بفواصل أسطر، ويبقى
+ *   يلوّث أي نسخ/سحب آلي بالقدر نفسه.
+ */
+const ZW_CHARS = ['\u2060'];
+
+/** أي محارف صفرية قديمة أو خارجية تُنزع قبل الزرع (منع التراكم وضمان النقاء). */
+const ZW_STRIP_RE = /[\u200B\u200C\u200D\u2060\uFEFF]/g;
 
 /** بذرة شبه عشوائية ثابتة من سلسلة (mulberry32). */
 function seededRandom(seedStr: string): () => number {
@@ -34,6 +46,9 @@ function seededRandom(seedStr: string): () => number {
  */
 export function watermarkText(text: string, seed: string): string {
   if (!text || text.length < 24) return text;
+  // نظّف أولاً أي محارف صفرية موجودة (زرع سابق أو مصدر خارجي)
+  // eslint-disable-next-line no-param-reassign
+  text = text.replace(ZW_STRIP_RE, '');
   const rand = seededRandom(seed);
   let out = '';
   let sinceLast = 0;

@@ -494,6 +494,7 @@ function AnalyticsTab() {
 function SecurityTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [confirmAll, setConfirmAll] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -511,6 +512,15 @@ function SecurityTab() {
       toast.success(`تم فك حظر ${ip}`);
       load();
     } catch { toast.error('فشل فك الحظر'); }
+  };
+
+  const unbanAll = async () => {
+    try {
+      const res = await adminService.unbanAllIps();
+      toast.success(`تم فك حظر جميع العناوين (${res?.removed ?? 0}) ومسح عدادات المخالفات`);
+      setConfirmAll(false);
+      load();
+    } catch { toast.error('فشل فك الحظر الجماعي'); }
   };
 
   if (loading) return <div className="py-20 flex justify-center"><Spinner /></div>;
@@ -531,13 +541,36 @@ function SecurityTab() {
         ))}
       </div>
 
+      {/* سياسة التصعيد — الحظر آخر خيار إضطراري */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+        <h4 className="text-white font-bold text-sm mb-2 flex items-center gap-2"><ShieldAlert size={15} /> سياسة الحماية الحالية</h4>
+        <ol className="text-white/60 text-xs space-y-1.5 list-decimal ps-5 leading-relaxed">
+          <li>تجاوز الحدود → <span className="text-white/85">تهدئة 429 مع مدة انتظار</span> — لا حظر أبداً في هذه المرحلة.</li>
+          <li>إن ضُبطت الكابتشا → بوابة تحقق بشرية، وحلّها يمنح حرية قراءة 15 دقيقة.</li>
+          <li>الحظر المؤقت (15د) <span className="text-white/85">آخر خيار إضطراري</span> — فقط لمن يتجاهل التهديدات 10+ مرة خلال 15 دقيقة، أو فخ السكرابر.</li>
+          <li>المشرفون/المساهمون مستثنون تماماً، وتنزيل الفصول للقراءة دون إنترنت له ميزانية سخية مستقلة (300/د للمسجلين) ولا يُحظر منه.</li>
+        </ol>
+      </div>
+
       <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2">
           <h4 className="text-white font-bold text-sm flex items-center gap-2"><ShieldAlert size={15} /> عناوين محظورة</h4>
-          <button onClick={load} className="p-2 rounded-lg hover:bg-white/10 text-white/70" aria-label="تحديث"><RefreshCcw size={15} /></button>
+          <div className="flex items-center gap-2">
+            {(data?.bans || []).length > 0 && (
+              confirmAll ? (
+                <>
+                  <button onClick={unbanAll} className="bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold rounded-lg px-3 py-1.5">تأكيد فك الجميع</button>
+                  <button onClick={() => setConfirmAll(false)} className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg px-3 py-1.5">إلغاء</button>
+                </>
+              ) : (
+                <button onClick={() => setConfirmAll(true)} className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg px-3 py-1.5">فك حظر الجميع</button>
+              )
+            )}
+            <button onClick={load} className="p-2 rounded-lg hover:bg-white/10 text-white/70" aria-label="تحديث"><RefreshCcw size={15} /></button>
+          </div>
         </div>
         {(data?.bans || []).length === 0 ? (
-          <p className="py-10 text-center text-white/40 text-sm">لا توجد حظرز حالياً — الأمن هادئ</p>
+          <p className="py-10 text-center text-white/40 text-sm">لا توجد حظرات حالياً — الأمن هادئ</p>
         ) : (
           <div className="divide-y divide-white/5">
             {data.bans.map((b: any) => (

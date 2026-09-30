@@ -124,6 +124,11 @@ export const adminService = {
     await http.post('/api/admin/security/unban', { ip }, { auth: true, retries: 0 });
   },
 
+  /** فك حظر جميع العناوين ومسح عدادات المخالفات فوراً */
+  async unbanAllIps(): Promise<{ removed: number }> {
+    return http.post('/api/admin/security/unban-all', {}, { auth: true, retries: 0 });
+  },
+
   async getSecurityStats(): Promise<any> {
     return http.get('/api/admin/security/stats', { auth: true });
   },

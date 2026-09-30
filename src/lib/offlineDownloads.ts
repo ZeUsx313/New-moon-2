@@ -9,6 +9,7 @@
  */
 
 import { novelService } from '../services/novel';
+import { ApiError } from './http';
 import { offlineStore, estimateBytes, OfflineChapter, OfflineNovel } from './offlineStore';
 
 export type DownloadPhase = 'preparing' | 'downloading' | 'done' | 'cancelled' | 'error';
@@ -33,7 +34,23 @@ interface RunningJob {
 const running = new Map<string, RunningJob>();
 const lastProgress = new Map<string, DownloadProgress>();
 
-const CONCURRENCY = 3;
+const CONCURRENCY = 2;
+/**
+ * تنفّس لطيف بين الدفعات (ملّي ثانية) — التنزيل للقراءة دون اتصال عملية
+ * مشروعة بوتيرة إنسان مريحة، وليست هجمة على الخادم.
+ * مع اثنين متزامنين + 350ms يظل المعدل ≈ 130-160 فصلاً/دقيقة كحد أقصى —
+ * أي أقل بكثير من ميزانية الدفعات على الخادم (300/د) فلا يحدث 429 أصلاً،
+ * وإن حدث فالمحرك يحترم Retry-After وينتظر بدل أن يصطدم بالجدار.
+ */
+const BATCH_PACING_MS = 350;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** ثواني الانتظار المطلوبة من الخادم عند 429 (مع حد أقصى معقول) */
+function retryAfterMs(err: any): number {
+  const s = Number(err?.data?.retryAfter ?? err?.data?.retryAfterSeconds ?? 0);
+  if (Number.isFinite(s) && s > 0) return Math.min(s, 90) * 1000;
+  return 20_000;
+}
 
 export const offlineEngine = {
   isRunning(novelId: string): boolean {
@@ -103,14 +120,16 @@ export const offlineEngine = {
       const downloadOne = async (meta: { number: number; title: string }) => {
         try {
           let full: any = null;
-          // محاولة واحدة بديلة عند الفشل (الخادم يتعثر أحياناً تحت التزامن)
-          for (let attempt = 0; attempt < 2; attempt++) {
+          // حتى 4 محاولات: أخطاء الشبكة/التعثر تُعاد بسرعة، أما 429
+          // (تهدئة الخادم) فننتظر المدة المطلوبة — التنزيل لا يُحظر أبداً.
+          for (let attempt = 0; attempt < 4; attempt++) {
             try {
-              full = await novelService.getChapter(novelId, String(meta.number));
+              full = await novelService.getChapter(novelId, String(meta.number), { batch: true });
               break;
-            } catch (e) {
-              if (attempt === 1) throw e;
-              await new Promise((r) => setTimeout(r, 600));
+            } catch (e: any) {
+              const isThrottle = e instanceof ApiError && e.status === 429;
+              if (attempt === 3) throw e;
+              await sleep(isThrottle ? retryAfterMs(e) : 600 + attempt * 400);
             }
           }
           if (job.stop) return;
@@ -159,10 +178,11 @@ export const offlineEngine = {
           onProgress(progress);
         }
 
-        // صفحة الحالية بـ CONCURRENCY متزامنة
+        // صفحة الحالية بـ CONCURRENCY متزامنة + تنفّس لطيف بين الدفعات
         for (let i = 0; i < inRange.length; i += CONCURRENCY) {
           if (job.stop) throw new DownloadCancelled();
           await Promise.all(inRange.slice(i, i + CONCURRENCY).map(downloadOne));
+          if (i + CONCURRENCY < inRange.length) await sleep(BATCH_PACING_MS);
         }
 
         if (!res.totalPages || page >= res.totalPages || (res.chapters || []).length === 0) break;
