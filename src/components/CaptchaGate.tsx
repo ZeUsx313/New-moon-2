@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { ShieldCheck } from 'lucide-react';
 
 import { storeCaptchaPass } from '../lib/captchaPass';
+import { API_BASE_URL } from '../services/api';
 
 declare global {
   interface Window {
@@ -86,7 +87,7 @@ export default function CaptchaGate(): React.ReactElement {
         language: 'ar',
         callback: async (token: string) => {
           try {
-            const res = await fetch('/api/security/captcha', {
+            const res = await fetch(`${API_BASE_URL}/api/security/captcha`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ token }),
@@ -106,10 +107,14 @@ export default function CaptchaGate(): React.ReactElement {
     });
   }, [open, solved]);
 
-  const close = () => {
+  const close = (announceSolved = false) => {
     setOpen(false);
     setSolved(false);
     widgetIdRef.current = null;
+    if (announceSolved) {
+      // مسار التهدئة (بلا Turnstile): إنهاء العدّاد بنجاح = تأكيد بشري كافٍ
+      try { window.dispatchEvent(new CustomEvent('captcha-solved')); } catch { /* ignore */ }
+    }
   };
 
   return (
@@ -143,7 +148,7 @@ export default function CaptchaGate(): React.ReactElement {
                   فتحت الفصول بسرعة أعلى من المعتاد — انتظر قليلاً لحماية الموقع من النسخ الآلي.
                 </p>
                 <p className="text-white text-3xl font-extrabold mb-4">{cooldown}</p>
-                <button onClick={close} disabled={cooldown > 0} className="bg-white/10 disabled:opacity-40 text-white font-bold rounded-xl px-6 py-2.5">
+                <button onClick={() => close(true)} disabled={cooldown > 0} className="bg-white/10 disabled:opacity-40 text-white font-bold rounded-xl px-6 py-2.5">
                   {cooldown > 0 ? 'انتظر...' : 'فهمت'}
                 </button>
               </>

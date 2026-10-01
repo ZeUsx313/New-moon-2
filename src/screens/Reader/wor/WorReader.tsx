@@ -23,6 +23,12 @@ import { api } from '../../../services/api';
 import { novelService } from '../../../services/novel';
 import { apiCache } from '../../../lib/apiCache';
 import { protectChapterContent, copyrightNoticeHtml } from '../../../lib/protection';
+import {
+    noteChapterOpen, noteReaderEngagement,
+    shouldChallengeBeforeNext, markChallengeSolved,
+} from '../../../lib/readerRisk';
+import { dispatchCaptchaRequired } from '../../../lib/captchaPass';
+import { ensureReaderSession } from '../../../lib/readerSession';
 import { offlineStore, estimateBytes } from '../../../lib/offlineStore';
 import { commentService } from '../../../services/comment';
 import { userService } from '../../../services/user';
@@ -628,6 +634,8 @@ export default function WorReader() {
     }, [novelId]);
 
     const fetchChapter = useCallback(async () => {
+        // 🎫 جلسة القراءة — تهيئة غير حاجبة (الطلبات التالية تحمل X-Reader-Session)
+        if (navigator.onLine) ensureReaderSession().catch(() => { });
         const reqId = ++chapterReqRef.current;
         setLoading(true);
         setErrorInfo(null);
@@ -646,6 +654,8 @@ export default function WorReader() {
             if (chapterData) {
                 sectionTitlesRef.current = { ...sectionTitlesRef.current, [parseInt(chapterId || '1') || 1]: chapterData.title || `فصل ${chapterId}` };
             }
+            // 🛡️ رصد نمط القراءة — يُغلق حدث الفصل السابق ويفتح حدث هذا الفصل
+            noteChapterOpen(parseInt(chapterId || '1') || 1);
             if (chapterData?.totalChapters) setRealTotalChapters(chapterData.totalChapters);
 
             // تذكّر آخر فصل مقروء داخل النسخة المنزّلة (لتفتح «التنزيلات» من مكانه)
@@ -807,12 +817,40 @@ export default function WorReader() {
     };
 
     // ========================= navigation =========================
+    // 🛡️ بوابة الفصل التالي (مستوحاة من reading challenge في قراءة مجرة):
+    // عند رصد نمط آلي (فصول متتالية بسرعة غير بشرية) يُحجز الانتقال حتى
+    // يجتاز المستخدم بوابة التحقق — ثم يكمل تلقائياً من نفس النقطة.
+    const pendingGateNavRef = useRef<(() => void) | null>(null);
+    useEffect(() => {
+        const onSolved = () => {
+            markChallengeSolved();
+            const fn = pendingGateNavRef.current;
+            pendingGateNavRef.current = null;
+            fn?.();
+        };
+        window.addEventListener('captcha-solved', onSolved);
+        return () => window.removeEventListener('captcha-solved', onSolved);
+    }, []);
+
+    /** يمرّر الانتقال عبر بوابة التحقق إن رصد نمطاً آلياً — للأمام فقط (الرجوع حر) */
+    const gateThen = (isForward: boolean, proceed: () => void) => {
+        if (isForward && shouldChallengeBeforeNext()) {
+            pendingGateNavRef.current = proceed;
+            dispatchCaptchaRequired();
+            return;
+        }
+        proceed();
+    };
+
     const navigateChapter = (targetId: number | string) => {
         if (parseInt(targetId as any) === parseInt(chapterId || '1')) return;
-        clearScrollFor(targetId);
-        setTimeout(() => {
-            navigate(`/novel/${novelId}/reader/${targetId}`, { replace: true });
-        }, 120);
+        const forward = parseInt(targetId as any) > parseInt(chapterId || '1');
+        gateThen(forward, () => {
+            clearScrollFor(targetId);
+            setTimeout(() => {
+                navigate(`/novel/${novelId}/reader/${targetId}`, { replace: true });
+            }, 120);
+        });
     };
 
     const scrollToSection = (num: number) => {
@@ -854,8 +892,10 @@ export default function WorReader() {
             const nextIndex = currentIndex + offset;
             if (nextIndex >= 0 && nextIndex < sortedAvailable.length) {
                 const nextChapId = sortedAvailable[nextIndex];
-                if (offset > 0) clearScrollFor(nextChapId);
-                navigate(`/novel/${novelId}/reader/${nextChapId}`, { replace: true });
+                gateThen(offset > 0, () => {
+                    if (offset > 0) clearScrollFor(nextChapId);
+                    navigate(`/novel/${novelId}/reader/${nextChapId}`, { replace: true });
+                });
             } else {
                 toast.error(offset > 0 ? 'أنت في آخر فصل منزل.' : 'أنت في أول فصل منزل.');
             }
@@ -868,8 +908,10 @@ export default function WorReader() {
                 toast.error('أنت في آخر فصل متاح.');
                 return;
             }
-            if (offset > 0) clearScrollFor(nextNum);
-            navigate(`/novel/${novelId}/reader/${nextNum}`, { replace: true });
+            gateThen(offset > 0, () => {
+                if (offset > 0) clearScrollFor(nextNum);
+                navigate(`/novel/${novelId}/reader/${nextNum}`, { replace: true });
+            });
         }
     };
 
@@ -1065,6 +1107,8 @@ export default function WorReader() {
                 lastScrollPosRef.current = { chapter: chNum, offset: inOffset, global: data.offset };
                 setCurrentViewedChapter((prev: number) => (parseInt(prev as any) === chNum ? prev : chNum));
                 queueSaveScroll(chNum, inOffset, data.offset);
+                // 🛡️ تمرير حقيقي داخل النص = دليل قراءة بشرية (يعفي الفصل من عدّاد السرعة)
+                if (data.offset > 400) noteReaderEngagement(chNum);
                 break;
             }
             case 'needNext':

@@ -8,6 +8,7 @@
  */
 import { api } from '../services/api';
 import { captchaPassHeader } from './captchaPass';
+import { readerSessionHeaderSync } from './readerSession';
 
 export class ApiError extends Error {
   status: number;
@@ -66,6 +67,9 @@ function buildHeaders(opts: RequestOptions, isFormData: boolean): Record<string,
   }
   // 🛡️ رمز مرور الكابتشا المؤقت (إن حُلّ التحدي) يرافق كل الطلبات
   Object.assign(headers, captchaPassHeader());
+  // 🎫 جلسة القراءة (إن وُجدت) — تثبت أن الطلب من متصفح حقيقي يشغّل JS
+  // نسخة متزامنة فقط (لا شبكة) — الجلسة تُهيأ غير حاجبة عند فتح القارئ
+  Object.assign(headers, readerSessionHeaderSync());
   return headers;
 }
 

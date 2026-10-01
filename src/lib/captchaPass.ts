@@ -30,9 +30,12 @@ export function captchaPassHeader(): Record<string, string> {
   } catch { return {}; }
 }
 
-/** تخزين رمز المرور بعد نجاح التحقق */
+/** تخزين رمز المرور بعد نجاح التحقق — ويُذاع حدث ليُكمل أي انتقال معلّق على البوابة */
 export function storeCaptchaPass(token: string, ttlMs = 15 * 60 * 1000): void {
   try {
     sessionStorage.setItem(PASS_KEY, JSON.stringify({ token, until: Date.now() + ttlMs }));
+  } catch { /* ignore */ }
+  try {
+    window.dispatchEvent(new CustomEvent('captcha-solved'));
   } catch { /* ignore */ }
 }

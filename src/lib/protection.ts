@@ -1,95 +1,54 @@
 /**
- * حماية نصوص الفصول — طبقة التخريب اللطيف للسحب الآلي.
+ * 🛡️ حماية نصوص الفصول — فلسفة «مجرة الروايات» المعتمدة الآن:
  *
- * الفكرة: النص المعروض يبقى نصاً حقيقياً (SEO + وصولية)، لكن نزرع فيه
- * محارف صفرية العرض (Zero-Width) بمواضع شبه عشوائية ثابتة البذرة:
- *   - أي نسخ/سحب آلي يجلب النص محمّلاً بمحارف خفية تُفسد المطابقة التامة
- *     وتلوّث مجموعات التدريب/النسخ المستخرجة آلياً.
- *   - كل رواية+فصل+قارئ تنتج بصمة مميزة — إن ظهرت نسخة مسروقة يمكن
- *     معرفة مصدرها (تتبع التسريبات).
- *   - القارئ البشري لا يرى شيئاً إطلاقاً.
+ *   النص المُعروض للقارئ مقدس — لا يُزرع فيه أي محرف خفي إطلاقاً.
+ *   (المحاولات السابقة: U+200B/ZWNJ ثم U+2060 — كلها كسرت اتصال الحروف
+ *   العربية عملياً في متصفحات حقيقية رغم ضمانات المواصفات النظرية.
+ *   درس نهائي مؤلم: حماية تتضح للقارئ = خسارة مضاعفة).
+ *
+ * ما تبقى من هذه الطبقة:
+ *   1) تطهير المحتوى من أي محارف صفرية قديمة/خارجية (يشفي فصول التنزيلات
+ *      القديمة المخزنة في IndexedDB وأي محتوى حُرّف سابقاً) — يعاد عرضه
+ *      بحروف عربية متصلة 100%.
+ *   2) إشعار حقوق مرئي لطيف بنهاية كل فصل (مثل رسالة «دعمك للمصدر الأصلي»
+ *      في المواقع الكبيرة — صادق ولا يتخريب القراءة).
+ *
+ * الحماية الفعلية ضد السحب الآلي انتقلت إلى محيط الموقع:
+ *   جلسات قراءة موقّعة + رصد نمط السرعة + بوابة تحقق بشرية قبل الفصل
+ *   التالي + سلّم تصعيد خادمي — انظر lib/readerRisk.ts و lib/readerSession.ts
+ *   وخدمة الأمان على الخادم.
  */
 
-/**
- * محارف صفرية العرض آمنة للعربية.
- *
- * 🐌 درس مهم (بعد بلاغ «الكلمات متقطعة في القارئ»):
- *   U+200B (مسافة صفرية) و U+200C (ZWNJ) تكسران اتصال الحروف العربية —
- *   المحرك الطباعي يعاملهما كحرف غير متصل في وسط الكلمة فتنقطع الوصلة.
- *   الحرف الوحيد الآمن: U+2060 WORD JOINER — شفاف تماماً أمام خوارزمية
- *   الاتصال (Joining_Type = T)، لا يُرى، لا يسمح بفواصل أسطر، ويبقى
- *   يلوّث أي نسخ/سحب آلي بالقدر نفسه.
- */
-const ZW_CHARS = ['\u2060'];
+/** محارف صفرية/تنسيقية تكسر العربية أو تلوث النص — تُنزع دائماً. */
+const ZW_STRIP_RE = /[\u200B\u200C\u200D\u2060\uFEFF\u200E\u200F\u00AD]/g;
 
-/** أي محارف صفرية قديمة أو خارجية تُنزع قبل الزرع (منع التراكم وضمان النقاء). */
-const ZW_STRIP_RE = /[\u200B\u200C\u200D\u2060\uFEFF]/g;
-
-/** بذرة شبه عشوائية ثابتة من سلسلة (mulberry32). */
-function seededRandom(seedStr: string): () => number {
-  let h = 1779033703 ^ seedStr.length;
-  for (let i = 0; i < seedStr.length; i++) {
-    h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353);
-    h = (h << 13) | (h >>> 19);
-  }
-  return function () {
-    h = Math.imul(h ^ (h >>> 16), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-  };
+/** ينزع كل المحارف الخفية من نص خام (ليس HTML). */
+export function sanitizeRawText(text: string): string {
+  if (!text) return text;
+  return text.replace(ZW_STRIP_RE, '');
 }
 
 /**
- * يزرع محارف صفرية العرض داخل نص عربي/لاتيني بمعدل ~1 لكل 9-14 حرفاً.
- * النص الخام (ليس HTML) — يُستخدم قبل التحويل إلى HTML.
+ * معالجة محتوى الفصل قبل العرض: تطهير فقط — لا زرع، لا تحريف، لا لمس.
+ * نفس التوقيع السابق كي تبقى كل نقاط الاستدعاء في WorReader كما هي.
+ * (user اختياري ومهمل عمداً — بقي لتوافق الاستدعاءات القديمة.)
  */
-export function watermarkText(text: string, seed: string): string {
-  if (!text || text.length < 24) return text;
-  // نظّف أولاً أي محارف صفرية موجودة (زرع سابق أو مصدر خارجي)
-  // eslint-disable-next-line no-param-reassign
-  text = text.replace(ZW_STRIP_RE, '');
-  const rand = seededRandom(seed);
-  let out = '';
-  let sinceLast = 0;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    out += ch;
-    if (ch === ' ' || ch === '\n') { sinceLast = 0; continue; }
-    sinceLast++;
-    // زرع داخل الكلمات فقط (ليس في المسافات) وبكثافة منخفضة
-    if (sinceLast > 2 && rand() < 0.09) {
-      out += ZW_CHARS[Math.floor(rand() * ZW_CHARS.length)];
-      sinceLast = 0;
-    }
-  }
-  return out;
+export function protectChapterContent(content: string, _novelTitle?: string, _novelId?: string, _chapterNumber?: string | number, _userId?: string): string {
+  if (!content) return content;
+  // نظّف المقاطع النصية فقط بين الوسوم — الوسوم نفسها لا تُلمس
+  const parts = content.split(/(<[^>]+>)/g);
+  return parts
+    .map((part) => (part.startsWith('<') ? part : sanitizeRawText(part)))
+    .join('');
 }
 
-/** إشعار الحقوق المُلحق بنهاية كل فصل (مرئي بلطف، غير قابل للحذف بالنسخ). */
+/** إشعار الحقوق المُلحق بنهاية كل فصل (مرئي بلطف، صادق، لا يعطّل القراءة). */
 export function copyrightNoticeHtml(novelTitle: string): string {
   return (
     `<div class="moon-copyright-notice" style="user-select:none;-webkit-user-select:none;margin-top:2.2em;padding:14px 16px;` +
     `border:1px dashed rgba(255,255,255,.22);border-radius:12px;font-size:.86em;line-height:1.9;opacity:.85;">` +
-    `🛡️ <strong>تنبيه حقوق النشر:</strong> هذا الفصل جزء من رواية «${novelTitle}» على موقع قمر الروايات. ` +
-    `نسخ المحتوى أو إعادة نشره — آلياً أو يدوياً — <strong>ممنوع ومُتتبَّع</strong>، ` +
-    `وكل نصوص الفصول تحمل علامة مائية فريدة تكشف مصدر أي نسخة مسروقة. ` +
-    `السكرابينغ يعرّض عنوان IP للحظر الدائم.</div>`
+    `🛡️ <strong>تنبيه حقوق النشر:</strong> هذا الفصل من رواية «${novelTitle}» على موقع قمر الروايات. ` +
+    `دعمك بالمصدر الأصلي يساعد على استمرار الترجمة والنشر — النسخ وإعادة النشر آلياً أو يدوياً ممنوع ` +
+    `ويخضع للرصد الآلي وسياسات الموقع.</div>`
   );
-}
-
-/**
- * معالجة محتوى الفصل: العلامة المائية الصفرية على المقاطع النصية فقط.
- * (إشعار الحقوق يُلحق في مرحلة بناء HTML النهائي — copyrightNoticeHtml)
- */
-export function protectChapterContent(content: string, novelTitle: string, novelId: string, chapterNumber: string | number, userId?: string): string {
-  if (!content) return content;
-  const seed = `${novelId}:${chapterNumber}:${userId || 'guest'}`;
-  // نزرع العلامة المائية في المقاطع النصية فقط (بين > و <) حتى لا نُتلف الوسوم
-  const parts = content.split(/(<[^>]+>)/g);
-  const protectedParts = parts.map((part) => {
-    if (part.startsWith('<')) return part; // وسم — نتركه
-    return watermarkText(part, seed + part.length);
-  });
-  return protectedParts.join('');
 }
