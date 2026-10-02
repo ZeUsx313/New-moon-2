@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Library, Download, User } from 'lucide-react';
+import { Home, Library, Download, User, History } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
@@ -8,7 +8,7 @@ import { useUI } from '../context/UIContext';
 /**
  * الشريط السفلي العائم — بروح مجرة الروايات (حبة زجاجية عائمة)
  * وبالهوية الرمادية/السوداء/البيضاء لموقعنا. كل العناصر تعمل فعلاً:
- *   الرئيسية / المكتبة / التنزيلات / صفحتي (بوابة مصادقة للزوار).
+ *   الرئيسية / المكتبة / التنزيلات / السجل / صفحتي (بوابة مصادقة للزوار).
  *
  * يختفي (انزلاقاً) في الحالات التي يطلبها التصميم:
  *   - داخل صفحة أي رواية أو القارئ (forceHidden من App.tsx)
@@ -44,6 +44,12 @@ const ITEMS: NavItem[] = [
     label: 'التنزيلات',
     Icon: Download,
     match: (p: string) => p.startsWith('/downloads'),
+  },
+  {
+    to: '/history',
+    label: 'السجل',
+    Icon: History,
+    match: (p: string) => p.startsWith('/history'),
   },
   {
     to: '/my-page',
@@ -86,7 +92,7 @@ export default function BottomNav({ forceHidden = false }: { forceHidden?: boole
         initial={{ y: 90, opacity: 0 }}
         animate={hidden ? { y: 120, opacity: 0 } : { y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className={`pointer-events-auto grid grid-cols-4 gap-1 h-[68px] p-2 rounded-[26px] border border-white/10 bg-[#0a0a0a]/90 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.55)] ${
+        className={`pointer-events-auto grid grid-cols-5 gap-1 h-[68px] p-2 rounded-[26px] border border-white/10 bg-[#0a0a0a]/90 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.55)] ${
           hidden ? 'pointer-events-none' : ''
         }`}
       >

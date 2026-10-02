@@ -133,7 +133,7 @@ export default function CaptchaGate(): React.ReactElement {
               <>
                 <h2 className="text-white font-bold text-lg mb-1">تم التحقق بنجاح ✓</h2>
                 <p className="text-white/50 text-sm mb-4">أعد المحاولة الآن وسيعمل كل شيء — صلاحية المرور 15 دقيقة.</p>
-                <button onClick={close} className="bg-primary text-primary-foreground font-bold rounded-xl px-6 py-2.5">متابعة</button>
+                <button onClick={() => close()} className="bg-primary text-primary-foreground font-bold rounded-xl px-6 py-2.5">متابعة</button>
               </>
             ) : SITE_KEY ? (
               <>

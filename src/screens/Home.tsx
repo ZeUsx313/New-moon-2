@@ -9,6 +9,7 @@ import { Helmet } from 'react-helmet-async';
 import { websiteJsonLd } from '../components/SEO';
 import Header from '../components/Header';
 import SafeImage from '../components/SafeImage';
+import ResumeReading from '../components/ResumeReading';
 import { novelService, Novel } from '../services/novel';
 import { getStatusStyle, formatRelativeTime, isNewChapter, siteUrl } from '../lib/site';
 
@@ -260,6 +261,9 @@ export default function Home() {
                   ))}
             </Swiper>
           </section>
+
+          {/* Section: Resume Reading (استئناف القراءة) — مطابق للتطبيق، بعد الهيرو */}
+          <ResumeReading />
 
           {/* Section: Most Read (الأكثر قراءة) */}
           <section className="px-4 md:px-8 mt-12">

@@ -425,12 +425,16 @@ export default function WorReader() {
         try {
             await novelService.updateReadingStatus({
                 novelId: novelId!,
-                title: novel?.title,
-                cover: novel?.cover,
-                author: novel?.author || novel?.translator,
+                // novelRef يحل مشكلة الفتح المباشر برابط الفصل قبل اكتمال جلب بيانات
+                // الرواية — بدونه يُسجَّل تقدم بلا عنوان فيفشل عرضه في سجل التطبيق
+                title: novelRef.current?.title || novel?.title,
+                cover: novelRef.current?.cover || novel?.cover,
+                author: novelRef.current?.author || novelRef.current?.translator || novel?.author || novel?.translator,
                 lastChapterId: parseInt(chapterNum as any) || parseInt(chapterId || '1'),
                 lastChapterTitle: titleForChapter(chapterNum),
             });
+            const n = parseInt(chapterNum as any);
+            if (!Number.isNaN(n)) lastSyncedProgressRef.current = n;
         } catch { /* ignore */ }
     };
 
@@ -574,6 +578,8 @@ export default function WorReader() {
 
     // Guards against a slow older chapter response overwriting a newer one
     const chapterReqRef = useRef(0);
+    // 🔄 آخر رقم فصل تمت مزامنة تقدمه مع الخادم (يمنع تكرار POST لنفس الفصل)
+    const lastSyncedProgressRef = useRef<number | null>(null);
 
     /**
      * جلب الفصل بأولوية النسخة المنزّلة (القراءة دون اتصال):
@@ -729,6 +735,17 @@ export default function WorReader() {
         fetchChapter();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [novelId, chapterId]);
+
+    // 🔄 مزامنة تقدم القراءة عند تغير الفصل المُشاهَد فعلياً —
+    // تغطي وضع التمرير المستمر (فصول تُضاف دون تغيير الرابط) كما في التطبيق،
+    // وتتجاهل الفصل الذي سبقت مزامنته من fetchChapter (منع POST مكرر).
+    // updateReadingStatus نفسها تُخزّن محلياً للزوار وتُرسل للخادم للمسجّلين
+    useEffect(() => {
+        if (!novelId || !chapterRef.current) return;
+        if (lastSyncedProgressRef.current === currentViewedChapter) return;
+        updateProgressOnServer(chapterRef.current, currentViewedChapter);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentViewedChapter, novelId]);
 
     // chapters list + author + favorite
     useEffect(() => {

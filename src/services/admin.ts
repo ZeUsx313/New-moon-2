@@ -35,6 +35,7 @@ export interface ScraperLog {
   _id: string;
   message: string;
   level?: string;
+  type?: string;
   timestamp: string;
 }
 

@@ -23,12 +23,34 @@ const Library = lazy(() => import('./src/screens/Library'));
 const MyPage = lazy(() => import('./src/screens/MyPage'));
 const UserProfile = lazy(() => import('./src/screens/UserProfile'));
 const Downloads = lazy(() => import('./src/screens/Downloads'));
+const HistoryPage = lazy(() => import('./src/screens/HistoryPage'));
 const Reader = lazy(() => import('./src/screens/Reader'));
 const Login = lazy(() => import('./src/screens/auth/Login'));
 const Signup = lazy(() => import('./src/screens/auth/Signup'));
 const GoogleCallback = lazy(() => import('./src/screens/auth/GoogleCallback'));
 const NotFound = lazy(() => import('./src/screens/NotFound'));
-const Dashboard = lazy(() => import('./src/screens/dashboard/Dashboard'));
+const DashboardLayout = lazy(() => import('./src/screens/dashboard/DashboardLayout'));
+const DashboardIndex = lazy(() => import('./src/screens/dashboard/CorePages').then((m) => ({ default: m.NovelsPage })));
+const NovelCreatePage = lazy(() => import('./src/screens/dashboard/CorePages').then((m) => ({ default: m.NovelCreatePage })));
+const NovelEditPage = lazy(() => import('./src/screens/dashboard/CorePages').then((m) => ({ default: m.NovelEditPage })));
+const ChaptersPage = lazy(() => import('./src/screens/dashboard/CorePages').then((m) => ({ default: m.ChaptersPage })));
+const BulkUploadPage = lazy(() => import('./src/screens/dashboard/CorePages').then((m) => ({ default: m.BulkUploadPage })));
+const GlossaryPage = lazy(() => import('./src/screens/dashboard/CorePages').then((m) => ({ default: m.GlossaryPage })));
+const TranslationJobsPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationJobsPage })));
+const TranslationJobDetailPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationJobDetailPage })));
+const TranslationSettingsPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationSettingsPage })));
+const MetadataTranslationPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataTranslationPage })));
+const TitleGenPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TitleGenPage })));
+const TitleFixerPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TitleFixerPage })));
+const AutoImportPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.AutoImportPage })));
+const ScraperKeysPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.ScraperKeysPage })));
+const UsersPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.UsersPage })));
+const CategoriesPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.CategoriesPage })));
+const CleanerPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.CleanerPage })));
+const CopyrightPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.CopyrightPage })));
+const LogsPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.LogsPage })));
+const AnalyticsPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.AnalyticsPage })));
+const SecurityPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.SecurityPage })));
 const About = lazy(() => import('./src/screens/StaticPages').then((m) => ({ default: m.About })));
 const Privacy = lazy(() => import('./src/screens/StaticPages').then((m) => ({ default: m.Privacy })));
 const Terms = lazy(() => import('./src/screens/StaticPages').then((m) => ({ default: m.Terms })));
@@ -92,9 +114,37 @@ function Layout() {
             <Route path="/novel/:novelId/reader/:chapterId" element={<Reader />} />
             <Route path="/library" element={<Library />} />
             <Route path="/downloads" element={<Downloads />} />
+            <Route path="/history" element={<HistoryPage />} />
             <Route path="/my-page" element={<MyPage />} />
             <Route path="/user/:userId" element={<UserProfile />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={<DashboardLayout />}>
+              <Route index element={<DashboardIndex />} />
+              <Route path="novels" element={<DashboardIndex />} />
+              <Route path="novels/new" element={<NovelCreatePage />} />
+              <Route path="novel-edit" element={<NovelEditPage />} />
+              <Route path="novel-edit/:novelId" element={<NovelEditPage />} />
+              <Route path="chapters" element={<ChaptersPage />} />
+              <Route path="chapters/:novelId" element={<ChaptersPage />} />
+              <Route path="bulk-upload" element={<BulkUploadPage />} />
+              <Route path="bulk-upload/:novelId" element={<BulkUploadPage />} />
+              <Route path="glossary" element={<GlossaryPage />} />
+              <Route path="glossary/:novelId" element={<GlossaryPage />} />
+              <Route path="translation-jobs" element={<TranslationJobsPage />} />
+              <Route path="translation-jobs/:jobId" element={<TranslationJobDetailPage />} />
+              <Route path="translation-settings" element={<TranslationSettingsPage />} />
+              <Route path="metadata-translation" element={<MetadataTranslationPage />} />
+              <Route path="title-generator" element={<TitleGenPage />} />
+              <Route path="title-fixer" element={<TitleFixerPage />} />
+              <Route path="auto-import" element={<AutoImportPage />} />
+              <Route path="scraper-keys" element={<ScraperKeysPage />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="categories" element={<CategoriesPage />} />
+              <Route path="cleaner" element={<CleanerPage />} />
+              <Route path="copyright" element={<CopyrightPage />} />
+              <Route path="logs" element={<LogsPage />} />
+              <Route path="analytics" element={<AnalyticsPage />} />
+              <Route path="security" element={<SecurityPage />} />
+            </Route>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/auth/google/callback" element={<GoogleCallback />} />

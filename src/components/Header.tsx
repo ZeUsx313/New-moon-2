@@ -429,7 +429,7 @@ export default function Header() {
                       <DrawerRow
                         label="التحليلات والإحصاءات"
                         Icon={BarChart3}
-                        onClick={() => { setDrawerOpenState(false); navigate('/dashboard?tab=analytics'); }}
+                        onClick={() => { setDrawerOpenState(false); navigate('/dashboard/analytics'); }}
                       />
                     </nav>
                   </>
