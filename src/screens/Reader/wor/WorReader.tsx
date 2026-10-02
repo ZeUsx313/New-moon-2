@@ -37,7 +37,7 @@ import { CommentsModal } from '../components/CommentsModal';
 import buildWorShell from '../../../reader/worShell';
 import {
     loadWordsStore, saveWordsStore, novelScopeOf, effectiveTerms,
-    replaceTermsInText, buildColoredTerms, buildColoredRegexSources,
+    replaceTermsInText, buildColoredTerms, buildColoredRegexSources, sortWordsList,
 } from '../../../reader/wordsStore';
 import { KeepAwake } from '../../../reader/optionalModules';
 import {
@@ -190,8 +190,8 @@ export default function WorReader() {
     }, [postToWeb]);
 
     const wordsItemsPayload = useCallback(() => ({
-        novel: novelScopeOf(wordsStoreRef.current, novelId),
-        global: wordsStoreRef.current.global || [],
+        novel: sortWordsList(novelScopeOf(wordsStoreRef.current, novelId)),
+        global: sortWordsList(wordsStoreRef.current.global || []),
     }), [novelId]);
 
     const sendWords = useCallback(() => {
@@ -320,6 +320,24 @@ export default function WorReader() {
         loadSettingsRef.current();
     }, []);
 
+    // 🔥 إصلاح: كلمات الاستبدال نفس المشكلة — تُحفظ في localStorage لكن لا تُحمّل
+    // أبداً عند فتح الفصل، فتختفي من القائمة ولا تُطبق على النص (المستخدم رآها
+    // «تختفي بمجرد الخروج من الفصل»). التطبيق يستدعي loadWords() عند الفتح
+    // (NativeReaderScreen) — الموقع نسيها. تُحمّل مرة لكل رواية ثم تُدفع للقارئ.
+    useEffect(() => {
+        if (!novelId) return;
+        let alive = true;
+        (async () => {
+            const store = await loadWordsStore(novelId, novelRef.current?.title || novel?.title);
+            if (!alive) return;
+            wordsStoreRef.current = store;
+            setWordsVersion((v) => v + 1);
+            sendWords();
+        })();
+        return () => { alive = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [novelId]);
+
     // ========================= words actions (from shell) =========================
     const wordsAction = useCallback(async (msg: any) => {
         const scope = msg.scope === 'global' ? 'global' : 'novel';
@@ -364,12 +382,12 @@ export default function WorReader() {
         }
     }, [novelId, postToWeb, sendWords, wordsItemsPayload]);
 
-    // Re-render the open chapter right after a word change (Galaxy behavior:
-    // the replacement takes effect while reading, without leaving the chapter)
-    const wordsInitRef = useRef(0);
+    // Re-render the open chapter right after a word change or after the words
+    // store loads (Galaxy behavior: the replacement takes effect while reading,
+    // without leaving the chapter). بلا عدّاد تخطي: عند التركيب لا فصل محمّل
+    // فالتأثير لا يفعل شيئاً، وعند اكتمال تحميل الكلمات مع فصل معروض يُعاد
+    // معالجته فوراً — وإلا بقيت الاستبدالات غير مطبقة على الفصل المفتوح.
     useEffect(() => {
-        wordsInitRef.current += 1;
-        if (wordsInitRef.current <= 1) return;
         const ch = chapterRef.current;
         if (!ch) return;
         const processed = processProtected(ch.content || '', (ch as any).number || chapterId || '1');

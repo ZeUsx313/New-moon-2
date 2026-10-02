@@ -72,11 +72,13 @@ export const translatorService = {
   async deleteExtractJob(id: string): Promise<any> { return http.delete(`/api/admin/tools/extract-titles/jobs/${id}`, { auth: true }); },
 
   /* ═══════════ مفاتيح السكرابر + كوكيز TomatoMTL ═══════════ */
-  async getScraperKeys(): Promise<{ keys: string[]; tomatomtlCookies?: string }> { return http.get('/api/admin/scraper-keys', { auth: true }); },
+  async getScraperKeys(): Promise<{ keys: string[]; tomatomtlCookies?: string; wtrlabCookies?: string }> { return http.get('/api/admin/scraper-keys', { auth: true }); },
   async saveScraperKeys(keys: string[]): Promise<any> { return http.post('/api/admin/scraper-keys', { keys }, { auth: true, timeoutMs: 60000 }); },
   async checkScraperKeys(): Promise<any> { return http.get('/api/admin/scraper-keys/check', { auth: true, timeoutMs: 60000 }); },
   async saveTomatomtlCookies(cookies: string): Promise<any> { return http.post('/api/admin/scraper-keys', { tomatomtlCookies: cookies }, { auth: true, timeoutMs: 60000 }); },
   async checkTomatomtlSession(): Promise<{ ok?: boolean; message?: string }> { return http.post('/api/admin/scraper-keys/check-tomatomtl', {}, { auth: true, timeoutMs: 150000 }); },
+  async saveWtrlabCookies(cookies: string): Promise<any> { return http.post('/api/admin/scraper-keys', { wtrlabCookies: cookies }, { auth: true, timeoutMs: 60000 }); },
+  async checkWtrlabSession(): Promise<{ ok?: boolean; message?: string }> { return http.post('/api/admin/scraper-keys/check-wtrlab', {}, { auth: true, timeoutMs: 150000 }); },
   async getWatchlist(): Promise<any[]> { return list(await http.get('/api/admin/watchlist', { auth: true })); },
 
   /* ═══════════ المنظف العام (كلمات تُنزع من كل الفصول) ═══════════ */

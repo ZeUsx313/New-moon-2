@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Users as UsersIcon, Plus, X, RefreshCcw, ShieldAlert, Eraser, Copyright,
-  KeyRound, DownloadCloud, Play, Trash2, Save, Search, Loader2, Cookie, Activity,
+  KeyRound, DownloadCloud, Play, Trash2, Save, Search, Loader2, Cookie, Activity, Globe,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -528,8 +528,9 @@ export function CopyrightPage() {
   );
 }
 
-/* ═══════════ مفاتيح السكرابر + كوكيز TomatoMTL (نفس واجهة التطبيق) ═══════════ */
+/* ═══════════ مفاتيح السكرابر + كوكيز TomatoMTL + كوكيز WTR-LAB (نفس واجهة التطبيق) ═══════════ */
 const TOMATOMTL_EXAMPLE = 'مثال (ترويسة Cookie كاملة من المتصفح):\ncf_clearance=alvbHRPkSSaWrtoOVhRFGrz8P_tbInkp…; _ga=GA1.1.1632139315.1790935815; translator_button=en; remember_6TpGq1xR_F05q3tke-JkBw=wJwdY-taHOAxK15ymm9RarLW%7E5pnIX134L0vGDX5N3ROrYxcV_4xWJFLS; PHPSESSID=t349n0dhnsm74n6mqasln6rvne';
+const WTRLAB_EXAMPLE = 'مثال (ترويسة Cookie كاملة من المتصفح):\nwtr_session=eyJhbGciOiJIUzI1NiJ9…; __cf_bm=abc123…; cf_clearance=xyz789…';
 
 export function ScraperKeysPage() {
   const [keysText, setKeysText] = useState('');
@@ -542,12 +543,18 @@ export function ScraperKeysPage() {
   const [mtSaving, setMtSaving] = useState(false);
   const [mtChecking, setMtChecking] = useState(false);
   const [mtResult, setMtResult] = useState<{ ok?: boolean; message?: string } | null>(null);
+  // 🍪 كوكيز WTR-LAB
+  const [wtrText, setWtrText] = useState('');
+  const [wtrSaving, setWtrSaving] = useState(false);
+  const [wtrChecking, setWtrChecking] = useState(false);
+  const [wtrResult, setWtrResult] = useState<{ ok?: boolean; message?: string } | null>(null);
 
   useEffect(() => {
     translatorService.getScraperKeys()
       .then((res) => {
         setKeysText((res.keys || []).join('\n'));
         setMtText(res.tomatomtlCookies || '');
+        setWtrText(res.wtrlabCookies || '');
       })
       .catch(() => toast.error('فشل جلب المفاتيح'))
       .finally(() => setLoading(false));
@@ -593,11 +600,31 @@ export function ScraperKeysPage() {
     finally { setMtChecking(false); }
   };
 
+  // 🍪 حفظ كوكيز WTR-LAB (فارغ = تصفير — سحب مجهول للبيانات والفهرس)
+  const saveWtrCookies = async () => {
+    setWtrSaving(true);
+    try {
+      const res = await translatorService.saveWtrlabCookies(wtrText.trim());
+      toast.success(res?.wtrlab?.cleared ? 'فُرِّغت الكوكيز — البيانات والفهرس تبقى مجانية والفصول مجهولة' : 'حُفظت الكوكيز وأُرسلت للسكرابر');
+    } catch (e: any) { toast.error(e?.message || 'فشل حفظ الكوكيز'); }
+    finally { setWtrSaving(false); }
+  };
+
+  // 🍪 فحص حي لقراءة WTR-LAB عبر السكرابر
+  const checkWtrSession = async () => {
+    setWtrChecking(true);
+    setWtrResult(null);
+    try {
+      setWtrResult(await translatorService.checkWtrlabSession());
+    } catch (e: any) { toast.error(e?.message || 'فشل الفحص'); }
+    finally { setWtrChecking(false); }
+  };
+
   if (loading) return <div className="py-24 flex justify-center"><Spinner /></div>;
 
   return (
     <div>
-      <PageHead title="مفاتيح السكرابر" desc="مفاتيح ScraperAPI وكوكيز TomatoMTL — نفس واجهة التطبيق">
+      <PageHead title="مفاتيح السكرابر" desc="مفاتيح ScraperAPI وكوكيز TomatoMTL وWTR-LAB — نفس واجهة التطبيق">
         <button onClick={check} disabled={checking} className={btnGhost}>{checking ? <Spinner /> : <KeyRound size={15} />} فحص الأرصدة</button>
       </PageHead>
 
@@ -654,6 +681,40 @@ export function ScraperKeysPage() {
         {mtResult && (
           <div className={`mt-3 border rounded-xl px-4 py-3 text-xs leading-6 flex items-start gap-2 ${mtResult.ok ? 'border-green-400/40 text-green-400' : 'border-red-400/40 text-red-400'}`}>
             {mtResult.ok ? '✅' : '⚠️'} <span>{mtResult.message}</span>
+          </div>
+        )}
+      </div>
+
+      {/* 🍪 كوكيز WTR-LAB — نفس نصوص وبنية واجهة التطبيق */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-5 max-w-2xl mt-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Globe size={18} className="text-green-400" />
+          <h3 className="text-white font-bold text-sm">كوكيز WTR-LAB — جلسة القراءة</h3>
+        </div>
+        <p className="text-white/60 text-xs leading-6 whitespace-pre-line">
+          {'موقع WTR-LAB (wtr-lab.com): بيانات الروايات والفهارس تعمل بلا جلسة، لكن محتوى الفصول يحصّن نفسه بتحدي Turnstile — الجلسة المسجلة تتجاوزه.\n'
+          + 'أسهل طريقة: افتح wtr-lab.com مسجلاً الدخول ← F12 ← Network ← اضغط أي طلب ← انسخ قيمة ترويسة «cookie» كاملة والصقها هنا.\n'
+          + 'ترك الحقل فارغاً + حفظ = تصفير (سحب مجهول: البيانات والفهرس فقط).\n'
+          + 'إن توقفت القراءة بتحدي تحقق فجدد الكوكيز بنفس الطريقة.'}
+        </p>
+        <pre className="mt-3 bg-black/40 border border-white/10 rounded-xl p-3 text-[11px] font-mono text-white/50 overflow-x-auto" dir="ltr">{WTRLAB_EXAMPLE}</pre>
+
+        <textarea
+          className={inputCls + ' font-mono text-xs mt-4'} rows={4}
+          value={wtrText} onChange={(e) => setWtrText(e.target.value)}
+          dir="ltr" placeholder="ترويسة Cookie كاملة — سطر واحد"
+        />
+        <div className="flex flex-wrap gap-3 mt-3">
+          <button onClick={saveWtrCookies} disabled={wtrSaving} className={btnPrimary}>
+            {wtrSaving ? <Spinner /> : <Save size={15} />} حفظ وإرسال للسكرابر
+          </button>
+          <button onClick={checkWtrSession} disabled={wtrChecking} className={btnGhost}>
+            {wtrChecking ? <Spinner /> : <Activity size={15} />} فحص القراءة
+          </button>
+        </div>
+        {wtrResult && (
+          <div className={`mt-3 border rounded-xl px-4 py-3 text-xs leading-6 flex items-start gap-2 ${wtrResult.ok ? 'border-green-400/40 text-green-400' : 'border-red-400/40 text-red-400'}`}>
+            {wtrResult.ok ? '✅' : '⚠️'} <span>{wtrResult.message}</span>
           </div>
         )}
       </div>
