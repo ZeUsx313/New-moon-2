@@ -10,12 +10,32 @@ import {
   Download,
   LogOut,
   ChevronLeft,
+  ChevronDown,
   Info,
   ShieldCheck,
   FileText,
   Mail,
-  LayoutDashboard,
+  BookOpen,
+  Wrench,
+  PlusSquare,
+  FileEdit,
+  Layers,
+  UploadCloud,
+  BookMarked,
+  Cpu,
+  Settings,
+  Database,
+  ListTree,
+  Bot,
+  DownloadCloud,
+  KeyRound,
+  Tags,
+  Eraser,
+  Copyright,
+  ScrollText,
   BarChart3,
+  ShieldAlert,
+  LayoutDashboard,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -83,6 +103,54 @@ export default function Header() {
   const [headerHidden, setHeaderHidden] = useState(false);
 
   const isAdmin = userInfo?.role === 'admin' || userInfo?.role === 'contributor';
+  const isAdminOnly = userInfo?.role === 'admin';
+
+  /* ═══ الأقسام المباشرة في الشريط الجانبي ═══
+     بدل زر «لوحة التحكم» — كل قسم يتوسع في الدرج نفسه وكل زر ينقل مباشرة
+     إلى واجهته المستقلة (نفس شاشات التطبيق). */
+  const STAFF_SECTIONS: {
+    id: string;
+    label: string;
+    Icon: React.ComponentType<{ size?: number; className?: string }>;
+    adminOnly?: boolean;
+    items: { to: string; label: string; Icon: React.ComponentType<{ size?: number; className?: string }> }[];
+  }[] = [
+    {
+      id: 'translators',
+      label: 'قسم المترجمين',
+      Icon: BookOpen,
+      items: [
+        { to: '/dashboard/novels', label: 'رواياتي', Icon: LayoutDashboard },
+        { to: '/dashboard/novels/new', label: 'إضافة رواية', Icon: PlusSquare },
+        { to: '/dashboard/novel-edit', label: 'تعديل تفاصيل رواية', Icon: FileEdit },
+        { to: '/dashboard/chapters', label: 'إضافة وتعديل الفصول', Icon: Layers },
+        { to: '/dashboard/bulk-upload', label: 'نشر جماعي ZIP', Icon: UploadCloud },
+        { to: '/dashboard/glossary', label: 'إدارة المصطلحات', Icon: BookMarked },
+      ],
+    },
+    {
+      id: 'admin',
+      label: 'قسم الإدارة',
+      Icon: Wrench,
+      adminOnly: true,
+      items: [
+        { to: '/dashboard/translation-jobs', label: 'وظائف الترجمة الآلية', Icon: Cpu },
+        { to: '/dashboard/translation-settings', label: 'إعدادات المترجم', Icon: Settings },
+        { to: '/dashboard/metadata-jobs', label: 'مهام تعريب البيانات', Icon: Database },
+        { to: '/dashboard/title-generator', label: 'مولد عناوين الفصول', Icon: Bot },
+        { to: '/dashboard/title-fixer', label: 'إصلاح عناوين الفصول', Icon: ListTree },
+        { to: '/dashboard/auto-import', label: 'الاستيراد التلقائي', Icon: DownloadCloud },
+        { to: '/dashboard/scraper-keys', label: 'مفاتيح السكرابر', Icon: KeyRound },
+        { to: '/dashboard/users', label: 'المستخدمون والأدوار', Icon: User },
+        { to: '/dashboard/categories', label: 'التصنيفات', Icon: Tags },
+        { to: '/dashboard/cleaner', label: 'المنظف والاستبدال', Icon: Eraser },
+        { to: '/dashboard/copyright', label: 'إشعارات الحقوق', Icon: Copyright },
+        { to: '/dashboard/logs', label: 'السجلات', Icon: ScrollText },
+        { to: '/dashboard/analytics', label: 'التحليلات', Icon: BarChart3 },
+        { to: '/dashboard/security', label: 'الأمان', Icon: ShieldAlert },
+      ],
+    },
+  ];
 
   // إغلاق كل شيء عند تغيير المسار
   useEffect(() => {
@@ -182,6 +250,67 @@ export default function Header() {
       {to && <ChevronLeft size={16} className="mr-auto text-white/25" aria-hidden="true" />}
     </button>
   );
+
+  /** قسم قابل للتوسيع داخل الدرج — الأزرار تظهر مباشرة تحته (بدون لوحة تحكم) */
+  const DrawerSection = ({
+    section,
+  }: {
+    section: {
+      id: string;
+      label: string;
+      Icon: React.ComponentType<{ size?: number; className?: string }>;
+      items: { to: string; label: string; Icon: React.ComponentType<{ size?: number; className?: string }> }[];
+    };
+  }) => {
+    const [open, setOpen] = useState(() => section.items.some((i) => location.pathname.startsWith(i.to)));
+    const hasActive = section.items.some((i) => location.pathname.startsWith(i.to));
+    return (
+      <div>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className={`flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[15px] font-extrabold transition-colors w-full text-right ${
+            hasActive ? 'bg-white/15 text-white' : 'text-white/80 hover:text-white hover:bg-white/8'
+          }`}
+        >
+          <section.Icon size={20} />
+          <span className="flex-1">{section.label}</span>
+          <ChevronDown size={17} className={`text-white/40 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+        </button>
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-1 mb-1 mr-5 pr-3 border-r border-white/10 flex flex-col gap-0.5">
+                {section.items.map((item) => (
+                  <button
+                    key={item.to}
+                    onClick={() => {
+                      setDrawerOpenState(false);
+                      navigate(item.to);
+                    }}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13.5px] font-bold transition-colors w-full text-right ${
+                      location.pathname === item.to
+                        ? 'bg-white text-black'
+                        : 'text-white/60 hover:text-white hover:bg-white/8'
+                    }`}
+                  >
+                    <item.Icon size={16} />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -415,22 +544,14 @@ export default function Header() {
                   <DrawerRow to="/terms" label="شروط الاستخدام" Icon={FileText} dim active={location.pathname.startsWith('/terms')} />
                 </nav>
 
-                {/* ═══ أدوات الإدارة (للمشرفين والمساهمين فقط — كما في الخطة) ═══ */}
+                {/* ═══ الأقسام المباشرة (بدون لوحة تحكم — توسيع في الدرج نفسه) ═══ */}
                 {isAdmin && (
                   <>
                     <div className="h-px bg-white/10 mx-5 my-3" />
-                    <nav aria-label="أدوات الإدارة" className="px-3 flex flex-col gap-1">
-                      <p className="px-4 pt-1 pb-2 text-[10px] font-bold tracking-wider text-white/30">أدوات الإدارة</p>
-                      <DrawerRow
-                        label="لوحة التحكم"
-                        Icon={LayoutDashboard}
-                        onClick={() => { setDrawerOpenState(false); navigate('/dashboard'); }}
-                      />
-                      <DrawerRow
-                        label="التحليلات والإحصاءات"
-                        Icon={BarChart3}
-                        onClick={() => { setDrawerOpenState(false); navigate('/dashboard/analytics'); }}
-                      />
+                    <nav aria-label="أقسام العمل" className="px-3 flex flex-col gap-1">
+                      {STAFF_SECTIONS.filter((s) => !s.adminOnly || isAdminOnly).map((section) => (
+                        <DrawerSection key={section.id} section={section} />
+                      ))}
                     </nav>
                   </>
                 )}

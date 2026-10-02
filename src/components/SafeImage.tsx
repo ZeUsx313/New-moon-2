@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { normalizeCoverUrl as normalizeCoverUrlLocal } from '../lib/coverFallback';
 
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -17,6 +18,11 @@ const FALLBACK_ICON =
 /**
  * Image with lazy loading, a shimmer placeholder, and a graceful fallback
  * when the remote cover fails to load (broken covers never look "broken").
+ *
+ * 🔥 إصلاح أغلفة wfxs.tw: عند فشل التحميل تُجرَّب نسخة بروكسي الخادم
+ * (/api/image-proxy — بدون Referer) مرة واحدة عبر حالة React نظيفة
+ * قبل إظهار البديل. الصورة موسومة data-safe-image ليقفز عنها
+ * مستمع الـ fallback العام (لا تداخل معالجات).
  */
 export default function SafeImage({
   src,
@@ -28,20 +34,34 @@ export default function SafeImage({
 }: SafeImageProps) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [triedProxy, setTriedProxy] = useState(false);
 
   const showFallback = failed || !src;
+
+  /** الرابط المعروض فعلياً: الأصلي، ثم نسخة البروكسي عند أول فشل */
+  const proxied = normalizeCoverUrlLocal(src);
+  const displaySrc = triedProxy && proxied ? proxied : src;
+
+  const handleError = () => {
+    if (proxied && proxied !== src && !triedProxy) {
+      setTriedProxy(true);
+      return;
+    }
+    setFailed(true);
+  };
 
   return (
     <span className={`relative block overflow-hidden ${className}`} aria-busy={!loaded && !showFallback}>
       {!showFallback && (
         <img
-          src={src}
+          src={displaySrc}
           alt={alt}
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"
           draggable={false}
+          data-safe-image="1"
           onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
+          onError={handleError}
           className={`w-full h-full object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
           {...rest}
         />

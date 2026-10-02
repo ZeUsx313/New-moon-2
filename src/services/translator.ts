@@ -57,6 +57,14 @@ export const translatorService = {
   async pauseTitleGen(id: string): Promise<any> { return http.post(`/api/title-gen/jobs/${id}/pause`, {}, { auth: true }); },
   async deleteTitleGenJob(id: string): Promise<any> { return http.delete(`/api/title-gen/jobs/${id}`, { auth: true }); },
 
+  /* قائمة فصول رواية كاملة (منتقي النطاقات في مولد العناوين) —
+     نفس نداء التطبيق: GET /api/novels/{id}/chapters-list?limit=10000
+     الرد إما مصفوفة قديمة أو { chapters, total, totalPages } */
+  async getNovelChaptersList(novelId: string): Promise<any[]> {
+    const res = await http.get(`/api/novels/${novelId}/chapters-list?limit=10000`, { auth: true });
+    return Array.isArray(res) ? res : res?.chapters || [];
+  },
+
   /* ═══════════ استخراج/إصلاح عناوين الفصول ═══════════ */
   async getExtractJobs(): Promise<any[]> { return list(await http.get('/api/admin/tools/extract-titles/jobs', { auth: true })); },
   async getExtractJob(id: string): Promise<any> { return http.get(`/api/admin/tools/extract-titles/jobs/${id}`, { auth: true }); },

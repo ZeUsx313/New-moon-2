@@ -38,10 +38,16 @@ const BulkUploadPage = lazy(() => import('./src/screens/dashboard/CorePages').th
 const GlossaryPage = lazy(() => import('./src/screens/dashboard/CorePages').then((m) => ({ default: m.GlossaryPage })));
 const TranslationJobsPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationJobsPage })));
 const TranslationJobDetailPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationJobDetailPage })));
+const TranslationStartPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationStartPage })));
 const TranslationSettingsPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationSettingsPage })));
-const MetadataTranslationPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataTranslationPage })));
-const TitleGenPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TitleGenPage })));
-const TitleFixerPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TitleFixerPage })));
+const MetadataJobsPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataJobsPage })));
+const MetadataStartPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataStartPage })));
+const TitleGenHubPage = lazy(() => import('./src/screens/dashboard/TitleGenPages').then((m) => ({ default: m.TitleGenHubPage })));
+const TitleGenStartPage = lazy(() => import('./src/screens/dashboard/TitleGenPages').then((m) => ({ default: m.TitleGenStartPage })));
+const TitleGenSettingsPage = lazy(() => import('./src/screens/dashboard/TitleGenPages').then((m) => ({ default: m.TitleGenSettingsPage })));
+const TitleGenDetailPage = lazy(() => import('./src/screens/dashboard/TitleGenPages').then((m) => ({ default: m.TitleGenDetailPage })));
+const TitleFixerSelectPage = lazy(() => import('./src/screens/dashboard/TitleGenPages').then((m) => ({ default: m.TitleFixerSelectPage })));
+const TitleFixerDetailPage = lazy(() => import('./src/screens/dashboard/TitleGenPages').then((m) => ({ default: m.TitleFixerDetailPage })));
 const AutoImportPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.AutoImportPage })));
 const ScraperKeysPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.ScraperKeysPage })));
 const UsersPage = lazy(() => import('./src/screens/dashboard/AdminPages').then((m) => ({ default: m.UsersPage })));
@@ -131,10 +137,16 @@ function Layout() {
               <Route path="glossary/:novelId" element={<GlossaryPage />} />
               <Route path="translation-jobs" element={<TranslationJobsPage />} />
               <Route path="translation-jobs/:jobId" element={<TranslationJobDetailPage />} />
+              <Route path="translation-start" element={<TranslationStartPage />} />
               <Route path="translation-settings" element={<TranslationSettingsPage />} />
-              <Route path="metadata-translation" element={<MetadataTranslationPage />} />
-              <Route path="title-generator" element={<TitleGenPage />} />
-              <Route path="title-fixer" element={<TitleFixerPage />} />
+              <Route path="metadata-jobs" element={<MetadataJobsPage />} />
+              <Route path="metadata-start" element={<MetadataStartPage />} />
+              <Route path="title-generator" element={<TitleGenHubPage />} />
+              <Route path="title-generator/start" element={<TitleGenStartPage />} />
+              <Route path="title-generator/settings" element={<TitleGenSettingsPage />} />
+              <Route path="title-generator/jobs/:jobId" element={<TitleGenDetailPage />} />
+              <Route path="title-fixer" element={<TitleFixerSelectPage />} />
+              <Route path="title-fixer/jobs/:jobId" element={<TitleFixerDetailPage />} />
               <Route path="auto-import" element={<AutoImportPage />} />
               <Route path="scraper-keys" element={<ScraperKeysPage />} />
               <Route path="users" element={<UsersPage />} />

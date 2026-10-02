@@ -47,10 +47,10 @@ const SECTIONS: SideSection[] = [
     Icon: Wrench,
     adminOnly: true,
     items: [
-      { to: '/dashboard/translation-jobs', label: 'وظائف الترجمة الآلية', Icon: Cpu },
-      { to: '/dashboard/translation-settings', label: 'إعدادات الذكاء الاصطناعي', Icon: Settings },
-      { to: '/dashboard/metadata-translation', label: 'ترجمة بيانات الروايات', Icon: Database },
-      { to: '/dashboard/title-generator', label: 'توليد عناوين الفصول', Icon: FileText },
+      { to: '/dashboard/translation-jobs', label: 'المترجم الذكي (الترجمة الآلية)', Icon: Cpu },
+      { to: '/dashboard/translation-settings', label: 'إعدادات المترجم', Icon: Settings },
+      { to: '/dashboard/metadata-jobs', label: 'مهام تعريب البيانات', Icon: Database },
+      { to: '/dashboard/title-generator', label: 'مولد عناوين الفصول', Icon: FileText },
       { to: '/dashboard/title-fixer', label: 'إصلاح عناوين الفصول', Icon: ListTree },
       { to: '/dashboard/auto-import', label: 'الاستيراد التلقائي (السكرابر)', Icon: DownloadCloud },
       { to: '/dashboard/scraper-keys', label: 'مفاتيح السكرابر', Icon: KeyRound },
@@ -88,8 +88,8 @@ function SideContent({ onNav }: { onNav?: () => void }) {
   const location = useLocation();
   // الأقسام القابلة للتوسيع — تُفتح تلقائياً إذا كان النشط داخلها
   const [open, setOpen] = useState<Record<string, boolean>>({
-    translators: location.pathname.startsWith('/dashboard') && SECTIONS.some((s) => s.id === 'translators' && s.items?.some((i) => location.pathname === i.to)),
-    admin: SECTIONS.some((s) => s.id === 'admin' && s.items?.some((i) => location.pathname === i.to)),
+    translators: SECTIONS.some((s) => s.id === 'translators' && s.items?.some((i) => location.pathname.startsWith(i.to))),
+    admin: SECTIONS.some((s) => s.id === 'admin' && s.items?.some((i) => location.pathname.startsWith(i.to))),
   });
 
   return (
@@ -112,7 +112,7 @@ function SideContent({ onNav }: { onNav?: () => void }) {
           return <SideLink key={section.id} to={section.to} label={section.label} Icon={section.Icon} onNav={onNav} />;
         }
         const isOpen = !!open[section.id];
-        const hasActive = section.items?.some((i) => location.pathname === i.to) || false;
+        const hasActive = section.items?.some((i) => location.pathname.startsWith(i.to)) || false;
         return (
           <div key={section.id} className="mb-1">
             <button
