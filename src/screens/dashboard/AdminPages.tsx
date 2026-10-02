@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Users as UsersIcon, Plus, X, RefreshCcw, ShieldAlert, Eraser, Copyright,
-  KeyRound, DownloadCloud, Play, Trash2, Save, Search, Loader2,
+  KeyRound, DownloadCloud, Play, Trash2, Save, Search, Loader2, Cookie, Activity,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -528,17 +528,27 @@ export function CopyrightPage() {
   );
 }
 
-/* ═══════════ مفاتيح السكرابر ═══════════ */
+/* ═══════════ مفاتيح السكرابر + كوكيز TomatoMTL (نفس واجهة التطبيق) ═══════════ */
+const TOMATOMTL_EXAMPLE = 'مثال (ترويسة Cookie كاملة من المتصفح):\ncf_clearance=alvbHRPkSSaWrtoOVhRFGrz8P_tbInkp…; _ga=GA1.1.1632139315.1790935815; translator_button=en; remember_6TpGq1xR_F05q3tke-JkBw=wJwdY-taHOAxK15ymm9RarLW%7E5pnIX134L0vGDX5N3ROrYxcV_4xWJFLS; PHPSESSID=t349n0dhnsm74n6mqasln6rvne';
+
 export function ScraperKeysPage() {
   const [keysText, setKeysText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [checking, setChecking] = useState(false);
   const [statuses, setStatuses] = useState<any[] | null>(null);
+  // 🍪 كوكيز TomatoMTL
+  const [mtText, setMtText] = useState('');
+  const [mtSaving, setMtSaving] = useState(false);
+  const [mtChecking, setMtChecking] = useState(false);
+  const [mtResult, setMtResult] = useState<{ ok?: boolean; message?: string } | null>(null);
 
   useEffect(() => {
     translatorService.getScraperKeys()
-      .then((res) => setKeysText((res.keys || []).join('\n')))
+      .then((res) => {
+        setKeysText((res.keys || []).join('\n'));
+        setMtText(res.tomatomtlCookies || '');
+      })
       .catch(() => toast.error('فشل جلب المفاتيح'))
       .finally(() => setLoading(false));
   }, []);
@@ -563,11 +573,31 @@ export function ScraperKeysPage() {
     finally { setChecking(false); }
   };
 
+  // 🍪 حفظ كوكيز TomatoMTL (فارغ = إعادة للثابتة بالكود)
+  const saveCookies = async () => {
+    setMtSaving(true);
+    try {
+      const res = await translatorService.saveTomatomtlCookies(mtText.trim());
+      toast.success(res?.tomatomtl?.cleared ? 'فُرِّغت الكوكيز — يعود السكرابر للثابتة بالكود' : 'حُفظت الكوكيز وأُرسلت للسكرابر');
+    } catch (e: any) { toast.error(e?.message || 'فشل حفظ الكوكيز'); }
+    finally { setMtSaving(false); }
+  };
+
+  // 🍪 فحص حي للجلسة عبر السكرابر
+  const checkSession = async () => {
+    setMtChecking(true);
+    setMtResult(null);
+    try {
+      setMtResult(await translatorService.checkTomatomtlSession());
+    } catch (e: any) { toast.error(e?.message || 'فشل الفحص'); }
+    finally { setMtChecking(false); }
+  };
+
   if (loading) return <div className="py-24 flex justify-center"><Spinner /></div>;
 
   return (
     <div>
-      <PageHead title="مفاتيح السكرابر" desc="مفاتيح ScraperAPI التي يستخدمها السكرابر لتجاوز الحجب — سطر لكل مفتاح">
+      <PageHead title="مفاتيح السكرابر" desc="مفاتيح ScraperAPI وكوكيز TomatoMTL — نفس واجهة التطبيق">
         <button onClick={check} disabled={checking} className={btnGhost}>{checking ? <Spinner /> : <KeyRound size={15} />} فحص الأرصدة</button>
       </PageHead>
 
@@ -588,6 +618,42 @@ export function ScraperKeysPage() {
                 {s.remaining !== undefined && <span className="text-white/50 text-xs">متبقٍ: {s.remaining}</span>}
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* 🍪 كوكيز TomatoMTL — نفس نصوص وبنية واجهة التطبيق */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-5 max-w-2xl mt-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Cookie size={18} className="text-red-400" />
+          <h3 className="text-white font-bold text-sm">كوكيز TomatoMTL — حساب القراءة</h3>
+        </div>
+        <p className="text-white/60 text-xs leading-6 whitespace-pre-line">
+          {'موقع TomatoMTL يتطلب حساباً لقراءة الفصول — السكرابر يستخدم كوكيز حسابك للمسح. المهم بين الكوكيز ثلاثة فقط والبقية (إعلانات/تحليلات) تُتجاهل تلقائياً:\n'
+          + '1) remember_... = «تذكرني» يصلح ≈ 5 سنوات — هو الموضوع ثابتاً في كود السكرابر.\n'
+          + '2) PHPSESSID = جلسة قصيرة العمر (ساعات) — إن انتهى يعيد remember_ الدخول تلقائياً.\n'
+          + '3) cf_clearance = حماية Cloudflare قصيرة ومرتبطة بجهازك/IP — جدّدها من هنا متى توقفت الجلسة.\n\n'
+          + 'أسهل طريقة: افتح tomatomtl.com مسجلاً الدخول ← F12 ← Network ← اضغط أي طلب ← انسخ قيمة ترويسة «cookie» كاملة والصقها هنا (كل الكوكيز معاً).\n'
+          + 'ترك الحقل فارغاً + حفظ = استخدام الكوكيز الثابتة في كود السكرابر.'}
+        </p>
+        <pre className="mt-3 bg-black/40 border border-white/10 rounded-xl p-3 text-[11px] font-mono text-white/50 overflow-x-auto" dir="ltr">{TOMATOMTL_EXAMPLE}</pre>
+
+        <textarea
+          className={inputCls + ' font-mono text-xs mt-4'} rows={4}
+          value={mtText} onChange={(e) => setMtText(e.target.value)}
+          dir="ltr" placeholder="ترويسة Cookie كاملة — سطر واحد"
+        />
+        <div className="flex flex-wrap gap-3 mt-3">
+          <button onClick={saveCookies} disabled={mtSaving} className={btnPrimary}>
+            {mtSaving ? <Spinner /> : <Save size={15} />} حفظ وإرسال للسكرابر
+          </button>
+          <button onClick={checkSession} disabled={mtChecking} className={btnGhost}>
+            {mtChecking ? <Spinner /> : <Activity size={15} />} فحص الجلسة
+          </button>
+        </div>
+        {mtResult && (
+          <div className={`mt-3 border rounded-xl px-4 py-3 text-xs leading-6 flex items-start gap-2 ${mtResult.ok ? 'border-green-400/40 text-green-400' : 'border-red-400/40 text-red-400'}`}>
+            {mtResult.ok ? '✅' : '⚠️'} <span>{mtResult.message}</span>
           </div>
         )}
       </div>
