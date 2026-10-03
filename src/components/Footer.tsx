@@ -3,52 +3,67 @@ import { Link } from 'react-router-dom';
 import { SITE_NAME } from '../lib/site';
 
 /**
- * Site footer — sticks to the bottom of the viewport on short pages
- * (parent layout is min-h-screen flex flex-col + mt-auto) and is pushed
- * down naturally on long pages.
+ * الفوتر — تصميم أنيق نظيف بروح الموقع (رمادي/أسود/أبيض + لمسة قمر):
+ *   - يظهر فقط في الصفحات المختارة (الرئيسية + الصفحات الثابتة + غير الموجود)
+ *     وليس في كل صفحات الموقع — وفق طلب المستخدم «ليس ثابتاً ودائماً ظاهراً».
+ *   - لا يحتوي أي تحذيرات نسخ — حُذفت كلها.
  *
- * يتضمن تنبيه حقوق النشر + فخ السكرابر (Honeypot) — رابط مخفي تماماً
- * عن البشر (aria-hidden + tabindex=-1 + صفر الحجم) لكن روبوتات السحب
+ * يتضمن فخ السكرابر (Honeypot) — رابط مخفي تماماً عن البشر
+ * (aria-hidden + tabindex=-1 + صفر الحجم) لكن روبوتات السحب
  * التي تستخرج كل الروابط وتزورها تُحظر عناوين IP لها فوراً على الخادم.
  */
+
+const LINKS = [
+  { to: '/', label: 'الرئيسية' },
+  { to: '/library', label: 'المكتبة' },
+  { to: '/about', label: 'من نحن' },
+  { to: '/privacy', label: 'سياسة الخصوصية' },
+  { to: '/terms', label: 'شروط الاستخدام' },
+];
+
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-auto border-t border-white/10 bg-black/60 backdrop-blur-sm">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          {/* Brand */}
-          <div className="text-center md:text-right">
-            <p className="text-white font-bold text-lg">{SITE_NAME}</p>
-            <p className="text-white/40 text-xs mt-1">منصة قراءة الروايات العربية والعالمية المترجمة</p>
+    <footer className="mt-auto relative overflow-hidden">
+      {/* خط علوي ناعم متلاشٍ بدل الحد الصلب */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-white/15 to-transparent" aria-hidden="true" />
+
+      <div className="max-w-6xl mx-auto px-4 pt-10 pb-8">
+        <div className="flex flex-col items-center gap-7">
+          {/* العلامة */}
+          <div className="text-center">
+            <p className="text-white font-extrabold text-lg flex items-center justify-center gap-2 tracking-tight">
+              <span aria-hidden="true" className="text-white/60">🌙</span>
+              {SITE_NAME}
+            </p>
+            <p className="text-white/35 text-xs mt-2">منصة قراءة الروايات العربية والعالمية المترجمة</p>
           </div>
 
-          {/* Links */}
-          <nav aria-label="روابط الموقع" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-            <Link to="/" className="text-white/60 hover:text-white transition-colors">الرئيسية</Link>
-            <Link to="/library" className="text-white/60 hover:text-white transition-colors">المكتبة</Link>
-            <Link to="/about" className="text-white/60 hover:text-white transition-colors">من نحن</Link>
-            <Link to="/privacy" className="text-white/60 hover:text-white transition-colors">سياسة الخصوصية</Link>
-            <Link to="/terms" className="text-white/60 hover:text-white transition-colors">شروط الاستخدام</Link>
+          {/* الروابط — كبسولات ناعمة */}
+          <nav aria-label="روابط الموقع" className="flex flex-wrap items-center justify-center gap-1.5">
+            {LINKS.map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                className="px-4 py-2 rounded-full text-[13px] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors"
+              >
+                {l.label}
+              </Link>
+            ))}
           </nav>
 
-          {/* Copyright */}
-          <p className="text-white/30 text-xs">
+          {/* فاصل متلاشٍ + حقوق النشر */}
+          <div className="w-full h-px bg-gradient-to-l from-transparent via-white/10 to-transparent" aria-hidden="true" />
+          <p className="text-white/30 text-xs text-center">
             © {year} {SITE_NAME} — جميع الحقوق محفوظة
           </p>
         </div>
+      </div>
 
-        {/* تنبيه النسخ الآلي */}
-        <p className="text-white/25 text-[11px] text-center mt-5 leading-relaxed">
-          🛡️ النسخ الآلي وإعادة نشر محتوى الموقع (روايات/فصول) ممنوع ومحظور — كل النصوص تحمل علامات مائية تتبع مصدر التسريب،
-          والسكرابرز تُحظر عناوين IP لها تلقائياً.
-        </p>
-
-        {/* 🕳️ فخ السكرابرز — غير مرئي للبشر إطلاقاً */}
-        <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', height: 0, overflow: 'hidden', opacity: 0 }}>
-          <a href="/api/security/honeypot" tabIndex={-1} rel="nofollow noindex">sitemap-full</a>
-        </div>
+      {/* 🕳️ فخ السكرابرز — غير مرئي للبشر إطلاقاً */}
+      <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', height: 0, overflow: 'hidden', opacity: 0 }}>
+        <a href="/api/security/honeypot" tabIndex={-1} rel="nofollow noindex">sitemap-full</a>
       </div>
     </footer>
   );

@@ -13,11 +13,15 @@ const list = <T>(data: any): T[] => (Array.isArray(data) ? data : data?.items ||
 export const reviewService = {
   async getJobs(): Promise<any[]> { return list(await http.get('/api/review/jobs', { auth: true })); },
   async getJob(id: string): Promise<any> { return http.get(`/api/review/jobs/${id}`, { auth: true }); },
-  async start(payload: { novelId?: string; chapters?: 'all' | number[]; jobId?: string }): Promise<any> {
+  async start(payload: { novelId?: string; chapters?: 'all' | number[]; jobId?: string; chapterDelay?: number }): Promise<any> {
     return http.post('/api/review/start', payload, { auth: true, retries: 0, timeoutMs: 30000 });
   },
   async pauseJob(id: string): Promise<any> { return http.post(`/api/review/jobs/${id}/pause`, {}, { auth: true }); },
   async deleteJob(id: string): Promise<any> { return http.delete(`/api/review/jobs/${id}`, { auth: true }); },
+  /* ⏱️ تغيير الفاصل بين الفصول لمهمة جارية (يسري من الفصل التالي مباشرة) */
+  async updateDelay(id: string, seconds: number): Promise<any> {
+    return http.post(`/api/review/jobs/${id}/delay`, { seconds }, { auth: true });
+  },
   async getNovels(search = '', page = 1, limit = 20): Promise<any[]> {
     const q = new URLSearchParams({ search, page: String(page), limit: String(limit) });
     return list(await http.get(`/api/review/novels?${q}`, { auth: true }));

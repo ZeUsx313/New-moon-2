@@ -96,15 +96,22 @@ function GlobalAuthModal() {
   return <AuthRequirementModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />;
 }
 
-/** Footer shows on all normal pages, but not inside the immersive reader.
- *  BottomNav floats on the same pages — content reserves room for it.
- *  الشريط السفلي يختفي (مع حجز المساحة) داخل صفحة الرواية وصفحة العضو والقارئ. */
+/** الفوتر يظهر فقط في الصفحات المختارة — الرئيسية + الصفحات الثابتة + غير الموجود —
+ *  وليس في كل صفحات الموقع (طلب المستخدم: ليس ثابتاً ودائماً ظاهراً).
+ *  BottomNav يبقى في كل الصفحات العادية لكنه يختفي عند التمرير للأسفل (داخل المكوّن نفسه). */
+const FOOTER_ROUTES = ['/', '/about', '/privacy', '/terms'];
+const KNOWN_ROUTE_PREFIXES = ['/novel', '/library', '/downloads', '/history', '/my-page', '/user', '/dashboard', '/login', '/signup', '/auth'];
+
 function Layout() {
   const location = useLocation();
   const isReader = /^\/novel\/[^/]+\/reader\//.test(location.pathname);
   const isNovelPage = /^\/novel\/[^/]+\/?$/.test(location.pathname);
   const isMemberPage = /^\/user\/[^/]+/.test(location.pathname);
   const navHiddenRoute = isReader || isNovelPage || isMemberPage;
+
+  const isKnownRoute = FOOTER_ROUTES.includes(location.pathname)
+    || KNOWN_ROUTE_PREFIXES.some((p) => location.pathname.startsWith(p));
+  const showFooter = !isKnownRoute || FOOTER_ROUTES.includes(location.pathname);
 
   // 📊 تتبع الزيارات (Google-style analytics) — صفحة لكل تغيير مسار
   React.useEffect(() => {
@@ -177,7 +184,7 @@ function Layout() {
           </Routes>
         </Suspense>
       </div>
-      {!isReader && <Footer />}
+      {showFooter && <Footer />}
       <BottomNav forceHidden={navHiddenRoute} />
     </div>
   );

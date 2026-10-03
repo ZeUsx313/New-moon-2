@@ -234,6 +234,8 @@ export function ReviewStartPage() {
   const [selectionMode, setSelectionMode] = useState<'all' | 'manual'>('all');
   const [selectedChapters, setSelectedChapters] = useState<number[]>([]);
   const [rangeInput, setRangeInput] = useState('');
+  // ⏱️ الفاصل بين كل فصل والذي يليه (بالثواني) — لتقليل الاستهلاك والسرعة
+  const [delayInput, setDelayInput] = useState('3');
   const [starting, setStarting] = useState(false);
   const [confirm, setConfirm] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
 
@@ -313,9 +315,12 @@ export function ReviewStartPage() {
     setConfirm({ open: false, message: '' });
     setStarting(true);
     try {
+      const delaySec = parseFloat(String(delayInput).replace(',', '.'));
+      const safeDelay = Number.isFinite(delaySec) && delaySec >= 0 && delaySec <= 3600 ? delaySec : 3;
       await reviewService.start({
         novelId: selectedNovel._id,
         chapters: selectionMode === 'manual' ? selectedChapters : 'all',
+        chapterDelay: safeDelay,
       });
       toast.success('تم بدء المراجعة');
       navigate('/dashboard/review-jobs');
@@ -410,6 +415,18 @@ export function ReviewStartPage() {
                 </button>
               </div>
 
+              {/* ⏱️ الفاصل بين الفصول — تحكم كامل من الواجهة لتقليل السرعة/الاستهلاك */}
+              <div className="flex items-center justify-between gap-2 bg-black/40 rounded-lg px-3 py-2 mb-3">
+                <span className="text-white/60 text-xs font-bold">⏱️ الفاصل بين كل فصل (ثواني)</span>
+                <input
+                  className="w-20 bg-white/5 border border-white/15 rounded-lg px-2 py-1.5 text-white text-xs text-center outline-none focus:border-white/40"
+                  placeholder="3"
+                  inputMode="decimal"
+                  value={delayInput}
+                  onChange={(e) => setDelayInput(e.target.value)}
+                />
+              </div>
+
               {selectionMode === 'manual' && (
                 <div>
                   <div className="flex gap-1.5 mb-2">
@@ -477,6 +494,10 @@ export function ReviewJobDetailPage() {
   const [job, setJob] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [novelMaxChapter, setNovelMaxChapter] = useState(0);
+  // ⏱️ التحكم الحي في الفاصل بين الفصول (بالثواني)
+  const [delayInput, setDelayInput] = useState('3');
+  const [savingDelay, setSavingDelay] = useState(false);
+  const delayDirtyRef = useRef(false); // يمنع الاستقصاء من مسح ما يكتبه المستخدم
   const [confirm, setConfirm] = useState<{ open: boolean; tone: 'info' | 'warning' | 'danger'; title: string; message: string; confirmText: string; action?: () => void }>({ open: false, tone: 'info', title: '', message: '', confirmText: '' });
 
   useEffect(() => {
@@ -487,6 +508,10 @@ export function ReviewJobDetailPage() {
           setJob(res);
           setLogs(Array.isArray(res.logs) ? [...res.logs].reverse() : []);
           if (res.novelMaxChapter) setNovelMaxChapter(res.novelMaxChapter);
+          // مزامنة حقل الفاصل مع الخادم فقط إن لم يعدّله المستخدم الآن
+          if (!savingDelay && !delayDirtyRef.current && res.chapterDelayMs !== undefined && res.chapterDelayMs !== null) {
+            setDelayInput(String(res.chapterDelayMs / 1000));
+          }
         }
       } catch { /* التحديث الدوري يعيد المحاولة */ }
     };
@@ -525,6 +550,25 @@ export function ReviewJobDetailPage() {
         navigate('/dashboard/review-jobs');
       } catch { toast.error('فشل الحذف'); }
     });
+
+  // ⏱️ حفظ الفاصل الجديد — يسري من الفصل التالي مباشرة دون إيقاف المهمة
+  const saveDelay = async () => {
+    const delaySec = parseFloat(String(delayInput).replace(',', '.'));
+    if (!Number.isFinite(delaySec) || delaySec < 0 || delaySec > 3600) {
+      toast.error('أدخل عدد ثوانٍ بين 0 و 3600');
+      return;
+    }
+    setSavingDelay(true);
+    try {
+      await reviewService.updateDelay(job?._id || job?.id, delaySec);
+      delayDirtyRef.current = false;
+      toast.success(`تم تغيير الفاصل إلى ${delaySec} ثانية`);
+    } catch {
+      toast.error('فشل تغيير الفاصل');
+    } finally {
+      setSavingDelay(false);
+    }
+  };
 
   if (!job) {
     return (
@@ -611,6 +655,33 @@ export function ReviewJobDetailPage() {
           <span className="text-red-400 font-extrabold text-sm">حذف المهمة</span>
         </button>
       </div>
+
+      {/* ⏱️ الفاصل بين الفصول — تحكم حي بدون إيقاف المهمة */}
+      <Glass className="p-4 mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-white font-extrabold text-sm">⏱️ الفاصل بين كل فصل (ثواني)</p>
+            <p className="text-white/40 text-[11px] mt-1">يسري من الفصل التالي مباشرة — بدون إيقاف المهمة</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              className="w-20 bg-white/5 border border-white/15 rounded-lg px-2 py-2 text-white text-xs text-center outline-none focus:border-white/40"
+              placeholder="3"
+              inputMode="decimal"
+              value={delayInput}
+              onChange={(e) => { delayDirtyRef.current = true; setDelayInput(e.target.value); }}
+            />
+            <button
+              onClick={saveDelay}
+              disabled={savingDelay}
+              className="bg-white text-black rounded-lg px-5 py-2 text-xs font-extrabold hover:bg-white/85 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {savingDelay && <Loader2 size={13} className="animate-spin" />}
+              حفظ
+            </button>
+          </div>
+        </div>
+      </Glass>
 
       {/* 🚩 الفصول المعلَّمة */}
       {findings.length > 0 && (

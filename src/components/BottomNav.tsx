@@ -66,8 +66,29 @@ export default function BottomNav({ forceHidden = false }: { forceHidden?: boole
   const { isDrawerOpen } = useUI();
   // فشل تحميل صورة الحساب → نعود لأيقونة الأشخاص تلقائياً
   const [avatarFailed, setAvatarFailed] = useState(false);
+  // 🎯 ليس ثابتاً دائماً أمام العين: يختفي انزلاقاً عند التمرير للأسفل
+  // ويعود عند أول تمريرة للأعلى (نفس سلوك تطبيقات الجوال الحديثة)
+  const [scrolledDown, setScrolledDown] = useState(false);
 
-  const hidden = forceHidden || isDrawerOpen;
+  React.useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const delta = y - lastY;
+      if (y < 80) {
+        setScrolledDown(false);
+      } else if (delta > 6) {
+        setScrolledDown(true);
+      } else if (delta < -6) {
+        setScrolledDown(false);
+      }
+      lastY = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const hidden = forceHidden || isDrawerOpen || scrolledDown;
 
   const handleItemClick = (e: React.MouseEvent, item: NavItem) => {
     if (item.protected && !isAuthenticated && !location.pathname.startsWith(item.to)) {

@@ -78,13 +78,6 @@ export const WOR_APP_CSS = `
   }
   .moon-copyright-notice { pointer-events: none; }
 
-  /* تنبيه الحقوق أسفل كل فصل */
-  .wor-copyright-guard {
-    margin: 30px 0 10px; padding: 12px 14px; border: 1px dashed color-mix(in srgb, var(--wor-text) 30%, transparent);
-    border-radius: 12px; font-size: .85em; line-height: 1.9; opacity: .8;
-    -webkit-user-select: none; user-select: none; pointer-events: none;
-  }
-
   /* ---- advanced formatting (dialogue / markdown / brackets / custom) ---- */
   .cm-dialogue-text   { color: var(--wor-fmt-dialogue-color, inherit); font-size: var(--wor-fmt-dialogue-size, 100%); font-weight: var(--wor-fmt-dialogue-weight, inherit); transition: color .3s ease, font-size .3s ease; }
   .cm-markdown-bold   { font-weight: 700; color: var(--wor-fmt-markdown-color, inherit); font-size: var(--wor-fmt-markdown-size, 100%); transition: color .3s ease, font-size .3s ease; }
@@ -1816,18 +1809,18 @@ function bridgeScript() {
 
   // ============================ 🛡️ حماية النصوص (anti-copy) ============================
   // منع النسخ/القص/قائمة الزر الأيمن/السحب على سطح القراءة — مع استثناء حقول
-  // الإدخال في الدرج (بحث/كلمات الاستبدال). أي محاولة تُظهر تنبيهاً صريحاً.
+  // الإدخال في الدرج (بحث/كلمات الاستبدال).
+  // 🔕 الحماية صامتة تماماً بلا أي تنبيهات — حُذفت تحذيرات النسخ بطلب المستخدم.
   (function guardCopy() {
     var allowed = function (el) {
       return !!(el && el.closest && el.closest('input, textarea, [contenteditable="true"], [data-allow-copy]'));
     };
-    var warn = function () { try { toast('⚠️ النسخ ممنوع — حقوق النشر محفوظة لقمر الروايات'); } catch (e) { /* ignore */ } };
     var inSurface = function (el) {
       return !!(el && el.closest && el.closest('.wor-reader-text-surface, .wor-chapter-sec, .wor-chapter-title-block'));
     };
     document.addEventListener('contextmenu', function (e) {
       if (allowed(e.target)) return;
-      if (inSurface(e.target)) { e.preventDefault(); warn(); }
+      if (inSurface(e.target)) e.preventDefault();
     });
     document.addEventListener('copy', function (e) {
       if (allowed(e.target)) return;
@@ -1836,13 +1829,11 @@ function bridgeScript() {
       var el = node && node.nodeType === 1 ? node : (node && node.parentElement) || e.target;
       if (inSurface(el)) {
         e.preventDefault();
-        if (e.clipboardData) e.clipboardData.setData('text/plain', 'النسخ ممنوع — جميع الحقوق محفوظة لموقع قمر الروايات 🌙');
-        warn();
       }
     });
     document.addEventListener('cut', function (e) {
       if (allowed(e.target)) return;
-      if (inSurface(e.target)) { e.preventDefault(); warn(); }
+      if (inSurface(e.target)) e.preventDefault();
     });
     document.addEventListener('dragstart', function (e) {
       if (inSurface(e.target)) e.preventDefault();
