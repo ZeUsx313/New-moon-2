@@ -1,6 +1,7 @@
 /**
  * هيكل لوحة التحكم الجديد — شريط جانبي أيمن بأقسام قابلة للتوسيع
  * (قسم المترجمين + قسم الإدارة) وكل وظيفة واجهة مستقلة كاملة كما في التطبيق.
+ * ملاحظة: المستخرج الذكي والمترجم الخالص بقسم الإدارة (حصريان للمشرف كما في التطبيق).
  *
  * - سطح المكتب: شريط ثابت على اليمين + محتوى.
  * - الجوال: الشريط يتحول لدرج يفتح بزر عائم.
@@ -39,8 +40,6 @@ const SECTIONS: SideSection[] = [
       { to: '/dashboard/chapters', label: 'إضافة وتعديل الفصول', Icon: Layers },
       { to: '/dashboard/bulk-upload', label: 'نشر جماعي ZIP', Icon: UploadCloud },
       { to: '/dashboard/glossary', label: 'إدارة المصطلحات', Icon: BookMarked },
-      { to: '/dashboard/glossary-ai', label: 'المستخرج الذكي (استخراج المصطلحات)', Icon: BookMarked },
-      { to: '/dashboard/pure-translate', label: 'المترجم الخالص (ترجمة فقط)', Icon: Zap },
     ],
   },
   {
@@ -51,6 +50,8 @@ const SECTIONS: SideSection[] = [
     items: [
       { to: '/dashboard/translation-jobs', label: 'المترجم الذكي (الترجمة الآلية)', Icon: Cpu },
       { to: '/dashboard/review-jobs', label: 'المراجع الذكي (جودة الفصول)', Icon: ShieldCheck },
+      { to: '/dashboard/glossary-ai', label: 'المستخرج الذكي (استخراج المصطلحات)', Icon: BookMarked },
+      { to: '/dashboard/pure-translate', label: 'المترجم الخالص (ترجمة فقط)', Icon: Zap },
       { to: '/dashboard/translation-settings', label: 'إعدادات المترجم', Icon: Settings },
       { to: '/dashboard/metadata-jobs', label: 'مهام تعريب البيانات', Icon: Database },
       { to: '/dashboard/title-generator', label: 'مولد عناوين الفصول', Icon: FileText },
