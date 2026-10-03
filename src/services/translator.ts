@@ -36,6 +36,27 @@ export const reviewService = {
   },
 };
 
+/* ═══════════ 📚 المستخرج الذكي — استخراج مصطلحات الرواية كاملة قبل الترجمة ═══════════
+ * نظام إضافي مستقل: مهمة تمر على الفصول الأصلية وتستخرج المصطلحات (شخصيات/أماكن/
+ * عناصر/رتب/أخرى) وتغذيها في المسرد — بنفس نقاط نمط المراجع الذكي حرفياً */
+export const glossaryAiService = {
+  async getJobs(): Promise<any[]> { return list(await http.get('/api/glossary-ai/jobs', { auth: true })); },
+  async getJob(id: string): Promise<any> { return http.get(`/api/glossary-ai/jobs/${id}`, { auth: true }); },
+  async start(payload: { novelId?: string; chapters?: 'all' | number[]; jobId?: string; chapterDelay?: number }): Promise<any> {
+    return http.post('/api/glossary-ai/start', payload, { auth: true, retries: 0, timeoutMs: 30000 });
+  },
+  async pauseJob(id: string): Promise<any> { return http.post(`/api/glossary-ai/jobs/${id}/pause`, {}, { auth: true }); },
+  async deleteJob(id: string): Promise<any> { return http.delete(`/api/glossary-ai/jobs/${id}`, { auth: true }); },
+  /* ⏱️ تغيير الفاصل بين الفصول لمهمة جارية (يسري من الفصل التالي مباشرة) */
+  async updateDelay(id: string, seconds: number): Promise<any> {
+    return http.post(`/api/glossary-ai/jobs/${id}/delay`, { seconds }, { auth: true });
+  },
+  async getNovels(search = '', page = 1, limit = 20): Promise<any[]> {
+    const q = new URLSearchParams({ search, page: String(page), limit: String(limit) });
+    return list(await http.get(`/api/glossary-ai/novels?${q}`, { auth: true }));
+  },
+};
+
 export const translatorService = {
   /* ═══════════ الترجمة الآلية (jobs) ═══════════ */
   async getJobs(): Promise<any[]> { return list(await http.get('/api/translator/jobs', { auth: true })); },

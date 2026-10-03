@@ -30,6 +30,7 @@ import Header from '../components/Header';
 import SafeImage from '../components/SafeImage';
 import DownloadModal from '../components/DownloadModal';
 import { novelService, novelCache, Novel, ChapterMeta, ChaptersListResponse } from '../services/novel';
+import { API_BASE_URL } from '../services/api';
 import { userService, UserProfile } from '../services/user';
 import { commentService, Comment } from '../services/comment';
 import { http } from '../lib/http';
@@ -154,7 +155,7 @@ const EnhancedPageSelectorModal = ({
 export default function NovelPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, openAuthModal } = useAuth();
+  const { isAuthenticated, openAuthModal, userInfo } = useAuth();
   const [novel, setNovel] = useState<Novel | null>(null);
   const [novelError, setNovelError] = useState<string | null>(null);
   const [chapters, setChapters] = useState<ChapterMeta[]>([]);
@@ -201,6 +202,11 @@ export default function NovelPage() {
   // Offline download state (التنزيل للقراءة دون اتصال)
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [offlineCount, setOfflineCount] = useState(0);
+  // 🔥 زر القراءة الذكي: «ابدأ القراءة» بلا رقم فصل لأول مرة، و«استئناف القراءة»
+  // عند وجود سجل قراءة (ينتقل لآخر فصل قُرئ) بدل زر ثابت على الفصل 1.
+  const [guestLastReadId, setGuestLastReadId] = useState(0);
+  // 🛡️ أدوات المالك/المشرف: تعديل الرواية + تنزيل الفصول ZIP
+  const [exportOpen, setExportOpen] = useState(false);
 
   // تتبّع الفصول المنزّلة لهذه الرواية (تحدّث تلقائياً بعد كل تغيير)
   useEffect(() => {
@@ -223,6 +229,11 @@ export default function NovelPage() {
   useEffect(() => {
     if (!slug) return;
     setLocalReadChapters(readNumberArray(`read_chapters_${slug}`));
+    // 🔥 آخر فصل مقروء محلياً (القارئ يكتب last_read_ دائماً — زوار ومسجلون)
+    try {
+      const saved = readJSON<{ id?: number }>(`last_read_${slug}`, {});
+      setGuestLastReadId(Number(saved?.id || 0));
+    } catch { setGuestLastReadId(0); }
     // reset scroll for every new novel (not just first mount)
     window.scrollTo(0, 0);
   }, [slug]);
@@ -265,6 +276,33 @@ export default function NovelPage() {
     const combined = new Set([...userProgress.readChapters, ...localReadChapters]);
     return Array.from(combined);
   }, [userProgress.readChapters, localReadChapters]);
+
+  // 🔥 آخر فصل مقروء: الخادم للمسجلين، والمحلي للزوار (أي منهما موجود)
+  const lastReadId = userProgress.lastChapterId || guestLastReadId;
+
+  // 🛡️ مالك الرواية (أو مشرف) — يرى زري التعديل وتنزيل الفصول ZIP
+  const isNovelOwner = useMemo(() => {
+    if (!userInfo || !novel) return false;
+    if (userInfo.role === 'admin') return true;
+    if (novel.authorId && String(novel.authorId) === String(userInfo._id)) return true;
+    if (novel.authorEmail && String(novel.authorEmail).toLowerCase() === String(userInfo.email || '').toLowerCase()) return true;
+    return false;
+  }, [userInfo, novel]);
+
+  // 🛡️ تنزيل فصول الرواية ZIP (نفس مسار التطبيق — الخادم يتحقق من الصلاحية)
+  const handleExportZip = useCallback((includeTitle: boolean) => {
+    setExportOpen(false);
+    if (!slug) return;
+    const token = localStorage.getItem('token') || '';
+    const url = `${API_BASE_URL}/api/admin/novels/${slug}/export?token=${encodeURIComponent(token)}&includeTitle=${includeTitle}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast.success('بدأ تنزيل ملف الفصول ZIP');
+  }, [slug]);
 
   // Fetch novel data — with offline fallback:
   // إذا فشل الشبكة وكانت الرواية منزّلة، نعرض بياناتها من المتجر المحلي
@@ -895,11 +933,20 @@ export default function NovelPage() {
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => { const c = defaultFirstChapter || chapters[0]; if (c) handleChapterClick(c); }}
+                        onClick={() => {
+                          if (lastReadId > 0) { navigate(`/novel/${slug}/reader/${lastReadId}`); return; }
+                          const c = defaultFirstChapter || chapters[0];
+                          if (c) handleChapterClick(c);
+                        }}
                         className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-primary-foreground px-4 h-full w-full rounded bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 font-bold py-3"
                       >
                         <BookOpen size={18} className="inline ml-2" />
-                        اقرأ الفصل {(defaultFirstChapter || chapters[0])?.number || '1'}
+                        {lastReadId > 0 ? 'استئناف القراءة' : 'ابدأ القراءة'}
+                        {lastReadId > 0 && (
+                          <span className="block text-[11px] font-semibold text-primary-foreground/80 mt-0.5">
+                            آخر قراءة: الفصل {lastReadId}
+                          </span>
+                        )}
                       </motion.button>
                     </div>
                     <div>
@@ -909,12 +956,12 @@ export default function NovelPage() {
                         onClick={handleAddToFavorites}
                         className={`inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 px-4 py-2 select-none w-full rounded h-12 font-bold transition-all duration-300 ${
                           isFavorite
-                            ? 'bg-gradient-to-r from-primary/20 to-primary/10 text-primary border border-primary/30'
+                            ? 'bg-red-500/15 text-red-400 border border-red-500/40 backdrop-blur-md shadow-[0_0_18px_rgba(239,68,68,0.22)] hover:bg-red-500/25'
                             : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/20'
                         }`}
                       >
-                        <Heart size={16} className={`ml-1 ${isFavorite ? 'fill-primary' : ''}`} />
-                        {isFavorite ? 'تمت الإضافة' : 'إضافة للمفضلة'}
+                        <Heart size={16} className={`ml-1 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
+                        {isFavorite ? 'في المفضلة' : 'إضافة للمفضلة'}
                       </motion.button>
                     </div>
                   </div>
@@ -937,6 +984,24 @@ export default function NovelPage() {
                     الإبلاغ عن مشكلة
                   </button>
                 </div>
+                {isNovelOwner && !isOfflineNovel && (
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <button
+                      onClick={() => navigate(`/dashboard/novel-edit/${slug}`)}
+                      className="h-11 rounded bg-white/5 border border-white/15 text-white/80 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-1.5 text-[13px] font-bold"
+                    >
+                      <PenLine size={15} />
+                      تعديل الرواية
+                    </button>
+                    <button
+                      onClick={() => setExportOpen(true)}
+                      className="h-11 rounded bg-white/5 border border-white/15 text-white/80 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-1.5 text-[13px] font-bold"
+                    >
+                      <Download size={15} />
+                      تنزيل الفصول ZIP
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Stats: Views & Favorites */}
@@ -996,11 +1061,20 @@ export default function NovelPage() {
                   <div className="grid grid-cols-2 gap-[.5rem] text-[.75rem] leading-4">
                     <div>
                       <button
-                        onClick={() => { const c = defaultFirstChapter || chapters[0]; if (c) handleChapterClick(c); }}
+                        onClick={() => {
+                          if (lastReadId > 0) { navigate(`/novel/${slug}/reader/${lastReadId}`); return; }
+                          const c = defaultFirstChapter || chapters[0];
+                          if (c) handleChapterClick(c);
+                        }}
                         className="items-center whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-primary-foreground px-4 h-full w-full rounded bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 font-bold py-3"
                       >
                         <BookOpen size={18} className="inline ml-2" />
-                        اقرأ الفصل {(defaultFirstChapter || chapters[0])?.number || '1'}
+                        {lastReadId > 0 ? 'استئناف القراءة' : 'ابدأ القراءة'}
+                        {lastReadId > 0 && (
+                          <span className="block text-[11px] font-semibold text-primary-foreground/80 mt-0.5">
+                            آخر قراءة: الفصل {lastReadId}
+                          </span>
+                        )}
                       </button>
                     </div>
                     <div>
@@ -1008,12 +1082,12 @@ export default function NovelPage() {
                         onClick={handleAddToFavorites}
                         className={`inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 px-4 py-2 select-none w-full rounded h-12 font-bold transition-all duration-300 ${
                           isFavorite
-                            ? 'bg-gradient-to-r from-primary/20 to-primary/10 text-primary border border-primary/30'
+                            ? 'bg-red-500/15 text-red-400 border border-red-500/40 backdrop-blur-md shadow-[0_0_18px_rgba(239,68,68,0.22)] hover:bg-red-500/25'
                             : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/20'
                         }`}
                       >
-                        <Heart size={16} className={`ml-1 ${isFavorite ? 'fill-primary' : ''}`} />
-                        {isFavorite ? 'تمت الإضافة' : 'إضافة للمفضلة'}
+                        <Heart size={16} className={`ml-1 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
+                        {isFavorite ? 'في المفضلة' : 'إضافة للمفضلة'}
                       </button>
                     </div>
                   </div>
@@ -1024,6 +1098,24 @@ export default function NovelPage() {
                     <Download size={17} />
                     {offlineCount > 0 ? `منزّل (${offlineCount} فصل) — إدارة` : 'تنزيل للقراءة دون اتصال'}
                   </button>
+                  {isNovelOwner && !isOfflineNovel && (
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <button
+                        onClick={() => navigate(`/dashboard/novel-edit/${slug}`)}
+                        className="h-11 rounded bg-white/5 border border-white/15 text-white/80 hover:bg-white/10 hover:text-white active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-[13px] font-bold"
+                      >
+                        <PenLine size={15} />
+                        تعديل الرواية
+                      </button>
+                      <button
+                        onClick={() => setExportOpen(true)}
+                        className="h-11 rounded bg-white/5 border border-white/15 text-white/80 hover:bg-white/10 hover:text-white active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-[13px] font-bold"
+                      >
+                        <Download size={15} />
+                        تنزيل الفصول ZIP
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1337,6 +1429,55 @@ export default function NovelPage() {
                     </>
                   )}
                 </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 🛡️ نافذة تنسيق تصدير الفصول ZIP — المالك/المشرف فقط */}
+      <AnimatePresence>
+        {exportOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+              onClick={() => setExportOpen(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 50 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-sm bg-[#1a1a1a] rounded-2xl shadow-2xl border border-white/10 overflow-hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-label="تنسيق التصدير"
+            >
+              <div className="p-5">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-bold text-white">تنسيق التصدير</h3>
+                  <button onClick={() => setExportOpen(false)} className="p-1 hover:bg-white/10 rounded-full transition-colors" aria-label="إغلاق">
+                    <X size={18} className="text-gray-400" />
+                  </button>
+                </div>
+                <p className="text-white/60 text-sm mb-4">هل تريد تضمين عنوان الفصل في بداية كل ملف نصي؟</p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => handleExportZip(true)}
+                    className="w-full bg-primary text-primary-foreground font-bold py-2.5 rounded-xl hover:bg-primary/80 transition-colors text-sm"
+                  >
+                    نعم (تضمين العنوان)
+                  </button>
+                  <button
+                    onClick={() => handleExportZip(false)}
+                    className="w-full bg-white/10 border border-white/15 text-white font-bold py-2.5 rounded-xl hover:bg-white/20 transition-colors text-sm"
+                  >
+                    لا (النص فقط)
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>

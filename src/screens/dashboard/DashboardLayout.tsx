@@ -39,6 +39,7 @@ const SECTIONS: SideSection[] = [
       { to: '/dashboard/chapters', label: 'إضافة وتعديل الفصول', Icon: Layers },
       { to: '/dashboard/bulk-upload', label: 'نشر جماعي ZIP', Icon: UploadCloud },
       { to: '/dashboard/glossary', label: 'إدارة المصطلحات', Icon: BookMarked },
+      { to: '/dashboard/glossary-ai', label: 'المستخرج الذكي (استخراج المصطلحات)', Icon: BookMarked },
     ],
   },
   {

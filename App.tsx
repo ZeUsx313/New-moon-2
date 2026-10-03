@@ -45,6 +45,10 @@ const ReviewJobsPage = lazy(() => import('./src/screens/dashboard/ReviewPages').
 const ReviewJobDetailPage = lazy(() => import('./src/screens/dashboard/ReviewPages').then((m) => ({ default: m.ReviewJobDetailPage })));
 const ReviewStartPage = lazy(() => import('./src/screens/dashboard/ReviewPages').then((m) => ({ default: m.ReviewStartPage })));
 const ReviewFindingsPage = lazy(() => import('./src/screens/dashboard/ReviewPages').then((m) => ({ default: m.ReviewFindingsPage })));
+// 📚 المستخرج الذكي — استخراج مصطلحات الرواية قبل الترجمة
+const GlossaryAiJobsPage = lazy(() => import('./src/screens/dashboard/GlossaryAiPages').then((m) => ({ default: m.GlossaryAiJobsPage })));
+const GlossaryAiStartPage = lazy(() => import('./src/screens/dashboard/GlossaryAiPages').then((m) => ({ default: m.GlossaryAiStartPage })));
+const GlossaryAiJobDetailPage = lazy(() => import('./src/screens/dashboard/GlossaryAiPages').then((m) => ({ default: m.GlossaryAiJobDetailPage })));
 const MetadataJobsPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataJobsPage })));
 const MetadataStartPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataStartPage })));
 const TitleGenHubPage = lazy(() => import('./src/screens/dashboard/TitleGenPages').then((m) => ({ default: m.TitleGenHubPage })));
@@ -156,6 +160,10 @@ function Layout() {
               <Route path="review-jobs/:jobId" element={<ReviewJobDetailPage />} />
               <Route path="review-start" element={<ReviewStartPage />} />
               <Route path="review-findings" element={<ReviewFindingsPage />} />
+              {/* 📚 المستخرج الذكي — استخراج مصطلحات الرواية قبل الترجمة */}
+              <Route path="glossary-ai" element={<GlossaryAiJobsPage />} />
+              <Route path="glossary-ai/start" element={<GlossaryAiStartPage />} />
+              <Route path="glossary-ai/jobs/:jobId" element={<GlossaryAiJobDetailPage />} />
               <Route path="metadata-jobs" element={<MetadataJobsPage />} />
               <Route path="metadata-start" element={<MetadataStartPage />} />
               <Route path="title-generator" element={<TitleGenHubPage />} />
