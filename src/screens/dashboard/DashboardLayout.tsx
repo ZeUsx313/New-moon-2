@@ -13,7 +13,7 @@ import {
   BookOpen, ChevronDown, ChevronLeft, Menu, X, Users, Wrench, Settings,
   PlusSquare, FileEdit, Layers, UploadCloud, BookMarked, Cpu, Database,
   FileText, ListTree, Bot, WrenchIcon, DownloadCloud, KeyRound, Tags,
-  ScrollText, BarChart3, ShieldAlert, Eraser, Copyright, LayoutDashboard, ShieldCheck,
+  ScrollText, BarChart3, ShieldAlert, Eraser, Copyright, LayoutDashboard, ShieldCheck, Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Header from '../../components/Header';
@@ -40,6 +40,7 @@ const SECTIONS: SideSection[] = [
       { to: '/dashboard/bulk-upload', label: 'نشر جماعي ZIP', Icon: UploadCloud },
       { to: '/dashboard/glossary', label: 'إدارة المصطلحات', Icon: BookMarked },
       { to: '/dashboard/glossary-ai', label: 'المستخرج الذكي (استخراج المصطلحات)', Icon: BookMarked },
+      { to: '/dashboard/pure-translate', label: 'المترجم الخالص (ترجمة فقط)', Icon: Zap },
     ],
   },
   {

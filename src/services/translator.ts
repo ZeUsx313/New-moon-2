@@ -57,6 +57,28 @@ export const glossaryAiService = {
   },
 };
 
+/* ═══════════ ⚡ المترجم الخالص — ترجمة فقط بالمسرد الجاهز (بلا استخراج مصطلحات) ═══════════
+ * نظام إضافي مستقل تماماً عن المترجم الذكي القائم: يفترض أن مسرد الرواية مستخرج
+ * مسبقاً (عبر «المستخرج الذكي») فيقرأه ويحقنه في الترجمة ويترجم الفصل فقط —
+ * لا يضيف ولا يعدّل أي مصطلح أبداً. نفس نقاط نمط المترجم/المستخرج حرفياً */
+export const pureTranslateService = {
+  async getJobs(): Promise<any[]> { return list(await http.get('/api/pure-translate/jobs', { auth: true })); },
+  async getJob(id: string): Promise<any> { return http.get(`/api/pure-translate/jobs/${id}`, { auth: true }); },
+  async start(payload: { novelId?: string; chapters?: 'all' | number[]; jobId?: string; chapterDelay?: number }): Promise<any> {
+    return http.post('/api/pure-translate/start', payload, { auth: true, retries: 0, timeoutMs: 30000 });
+  },
+  async pauseJob(id: string): Promise<any> { return http.post(`/api/pure-translate/jobs/${id}/pause`, {}, { auth: true }); },
+  async deleteJob(id: string): Promise<any> { return http.delete(`/api/pure-translate/jobs/${id}`, { auth: true }); },
+  /* ⏱️ تغيير الفاصل بين الفصول لمهمة جارية (يسري من الفصل التالي مباشرة) */
+  async updateDelay(id: string, seconds: number): Promise<any> {
+    return http.post(`/api/pure-translate/jobs/${id}/delay`, { seconds }, { auth: true });
+  },
+  async getNovels(search = '', page = 1, limit = 20): Promise<any[]> {
+    const q = new URLSearchParams({ search, page: String(page), limit: String(limit) });
+    return list(await http.get(`/api/pure-translate/novels?${q}`, { auth: true }));
+  },
+};
+
 export const translatorService = {
   /* ═══════════ الترجمة الآلية (jobs) ═══════════ */
   async getJobs(): Promise<any[]> { return list(await http.get('/api/translator/jobs', { auth: true })); },

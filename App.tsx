@@ -49,6 +49,10 @@ const ReviewFindingsPage = lazy(() => import('./src/screens/dashboard/ReviewPage
 const GlossaryAiJobsPage = lazy(() => import('./src/screens/dashboard/GlossaryAiPages').then((m) => ({ default: m.GlossaryAiJobsPage })));
 const GlossaryAiStartPage = lazy(() => import('./src/screens/dashboard/GlossaryAiPages').then((m) => ({ default: m.GlossaryAiStartPage })));
 const GlossaryAiJobDetailPage = lazy(() => import('./src/screens/dashboard/GlossaryAiPages').then((m) => ({ default: m.GlossaryAiJobDetailPage })));
+// ⚡ المترجم الخالص — ترجمة فقط بالمسرد الجاهز (بلا استخراج مصطلحات) — نظام مستقل
+const PureTranslationJobsPage = lazy(() => import('./src/screens/dashboard/PureTranslationPages').then((m) => ({ default: m.PureTranslationJobsPage })));
+const PureTranslationStartPage = lazy(() => import('./src/screens/dashboard/PureTranslationPages').then((m) => ({ default: m.PureTranslationStartPage })));
+const PureTranslationJobDetailPage = lazy(() => import('./src/screens/dashboard/PureTranslationPages').then((m) => ({ default: m.PureTranslationJobDetailPage })));
 const MetadataJobsPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataJobsPage })));
 const MetadataStartPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataStartPage })));
 const TitleGenHubPage = lazy(() => import('./src/screens/dashboard/TitleGenPages').then((m) => ({ default: m.TitleGenHubPage })));
@@ -164,6 +168,11 @@ function Layout() {
               <Route path="glossary-ai" element={<GlossaryAiJobsPage />} />
               <Route path="glossary-ai/start" element={<GlossaryAiStartPage />} />
               <Route path="glossary-ai/jobs/:jobId" element={<GlossaryAiJobDetailPage />} />
+
+              {/* ⚡ المترجم الخالص — ترجمة فقط بالمسرد الجاهز (بلا استخراج مصطلحات) */}
+              <Route path="pure-translate" element={<PureTranslationJobsPage />} />
+              <Route path="pure-translate/start" element={<PureTranslationStartPage />} />
+              <Route path="pure-translate/jobs/:jobId" element={<PureTranslationJobDetailPage />} />
               <Route path="metadata-jobs" element={<MetadataJobsPage />} />
               <Route path="metadata-start" element={<MetadataStartPage />} />
               <Route path="title-generator" element={<TitleGenHubPage />} />
