@@ -40,6 +40,11 @@ const TranslationJobsPage = lazy(() => import('./src/screens/dashboard/AiPages')
 const TranslationJobDetailPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationJobDetailPage })));
 const TranslationStartPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationStartPage })));
 const TranslationSettingsPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.TranslationSettingsPage })));
+// 🔍 المراجع الذكي — مراجعة جودة الفصول بالذكاء الاصطناعي
+const ReviewJobsPage = lazy(() => import('./src/screens/dashboard/ReviewPages').then((m) => ({ default: m.ReviewJobsPage })));
+const ReviewJobDetailPage = lazy(() => import('./src/screens/dashboard/ReviewPages').then((m) => ({ default: m.ReviewJobDetailPage })));
+const ReviewStartPage = lazy(() => import('./src/screens/dashboard/ReviewPages').then((m) => ({ default: m.ReviewStartPage })));
+const ReviewFindingsPage = lazy(() => import('./src/screens/dashboard/ReviewPages').then((m) => ({ default: m.ReviewFindingsPage })));
 const MetadataJobsPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataJobsPage })));
 const MetadataStartPage = lazy(() => import('./src/screens/dashboard/AiPages').then((m) => ({ default: m.MetadataStartPage })));
 const TitleGenHubPage = lazy(() => import('./src/screens/dashboard/TitleGenPages').then((m) => ({ default: m.TitleGenHubPage })));
@@ -139,6 +144,11 @@ function Layout() {
               <Route path="translation-jobs/:jobId" element={<TranslationJobDetailPage />} />
               <Route path="translation-start" element={<TranslationStartPage />} />
               <Route path="translation-settings" element={<TranslationSettingsPage />} />
+              {/* 🔍 المراجع الذكي */}
+              <Route path="review-jobs" element={<ReviewJobsPage />} />
+              <Route path="review-jobs/:jobId" element={<ReviewJobDetailPage />} />
+              <Route path="review-start" element={<ReviewStartPage />} />
+              <Route path="review-findings" element={<ReviewFindingsPage />} />
               <Route path="metadata-jobs" element={<MetadataJobsPage />} />
               <Route path="metadata-start" element={<MetadataStartPage />} />
               <Route path="title-generator" element={<TitleGenHubPage />} />

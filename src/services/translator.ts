@@ -8,6 +8,30 @@ import { http } from '../lib/http';
 
 const list = <T>(data: any): T[] => (Array.isArray(data) ? data : data?.items || data?.jobs || []);
 
+/* ═══════════ 🔍 المراجع الذكي — مراجعة جودة الفصول بالذكاء الاصطناعي ═══════════
+ * نفس نقاط نمط المترجم الذكي: مهام (قائمة/تفاصيل/إيقاف/حذف/استئناف) + فصول معلَّمة */
+export const reviewService = {
+  async getJobs(): Promise<any[]> { return list(await http.get('/api/review/jobs', { auth: true })); },
+  async getJob(id: string): Promise<any> { return http.get(`/api/review/jobs/${id}`, { auth: true }); },
+  async start(payload: { novelId?: string; chapters?: 'all' | number[]; jobId?: string }): Promise<any> {
+    return http.post('/api/review/start', payload, { auth: true, retries: 0, timeoutMs: 30000 });
+  },
+  async pauseJob(id: string): Promise<any> { return http.post(`/api/review/jobs/${id}/pause`, {}, { auth: true }); },
+  async deleteJob(id: string): Promise<any> { return http.delete(`/api/review/jobs/${id}`, { auth: true }); },
+  async getNovels(search = '', page = 1, limit = 20): Promise<any[]> {
+    const q = new URLSearchParams({ search, page: String(page), limit: String(limit) });
+    return list(await http.get(`/api/review/novels?${q}`, { auth: true }));
+  },
+  /* الفصول التي بها خلل: بلا novelId = روايات مجمعة، مع novelId = فصول الرواية */
+  async getFindings(novelId?: string): Promise<any[]> {
+    return list(await http.get(novelId ? `/api/review/findings?novelId=${novelId}` : '/api/review/findings', { auth: true }));
+  },
+  async removeFinding(id: string): Promise<any> { return http.delete(`/api/review/findings/${id}`, { auth: true }); },
+  async reReviewFlagged(novelId: string): Promise<any> {
+    return http.post('/api/review/findings/re-review', { novelId }, { auth: true, retries: 0, timeoutMs: 30000 });
+  },
+};
+
 export const translatorService = {
   /* ═══════════ الترجمة الآلية (jobs) ═══════════ */
   async getJobs(): Promise<any[]> { return list(await http.get('/api/translator/jobs', { auth: true })); },

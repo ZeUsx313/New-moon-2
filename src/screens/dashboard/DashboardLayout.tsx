@@ -13,7 +13,7 @@ import {
   BookOpen, ChevronDown, ChevronLeft, Menu, X, Users, Wrench, Settings,
   PlusSquare, FileEdit, Layers, UploadCloud, BookMarked, Cpu, Database,
   FileText, ListTree, Bot, WrenchIcon, DownloadCloud, KeyRound, Tags,
-  ScrollText, BarChart3, ShieldAlert, Eraser, Copyright, LayoutDashboard,
+  ScrollText, BarChart3, ShieldAlert, Eraser, Copyright, LayoutDashboard, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Header from '../../components/Header';
@@ -48,6 +48,7 @@ const SECTIONS: SideSection[] = [
     adminOnly: true,
     items: [
       { to: '/dashboard/translation-jobs', label: 'المترجم الذكي (الترجمة الآلية)', Icon: Cpu },
+      { to: '/dashboard/review-jobs', label: 'المراجع الذكي (جودة الفصول)', Icon: ShieldCheck },
       { to: '/dashboard/translation-settings', label: 'إعدادات المترجم', Icon: Settings },
       { to: '/dashboard/metadata-jobs', label: 'مهام تعريب البيانات', Icon: Database },
       { to: '/dashboard/title-generator', label: 'مولد عناوين الفصول', Icon: FileText },

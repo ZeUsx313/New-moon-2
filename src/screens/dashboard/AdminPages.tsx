@@ -729,6 +729,7 @@ const API_SECRET = 'Zeusndndjddnejdjdjdejekk29393838msmskxcm9239484jdndjdnddjj99
 
 export function AutoImportPage() {
   const [url, setUrl] = useState('');
+  const [chaptersInput, setChaptersInput] = useState(''); // 🎯 نطاق انتقائي اختياري: "10-20" / "12,50" / "10-!"
   const [busy, setBusy] = useState(false);
   const [logs, setLogs] = useState<ScraperLog[]>([]);
   const [watchlist, setWatchlist] = useState<any[]>([]);
@@ -781,7 +782,8 @@ export function AutoImportPage() {
       const res = await fetch(SCRAPER_URL, {
         method: 'POST',
         headers: { Authorization: API_SECRET, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
+        // 🎯 سحب انتقائي: فصول محددة بدل الرواية كاملة (توفير استهلاك المواقع المحدودة مثل TomatoMTL)
+        body: JSON.stringify({ url: url.trim(), ...(chaptersInput.trim() ? { chapters: chaptersInput.trim() } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (data.error) throw new Error(data.error);
@@ -842,8 +844,19 @@ export function AutoImportPage() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
           <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2"><DownloadCloud size={15} /> سحب رواية من رابط</h3>
           <input className={inputCls} placeholder="https://m.wfxs.tw/xiaoshuo/2309384/" value={url} onChange={(e) => setUrl(e.target.value)} dir="ltr" />
+          {/* 🎯 نطاق الفصول الاختياري — يُترك فارغاً لسحب الرواية كاملة */}
+          <input
+            className={inputCls + ' mt-2 text-center'}
+            placeholder="نطاق الفصول (اختياري): 10-20 أو 12,50 أو 10-!"
+            value={chaptersInput}
+            onChange={(e) => setChaptersInput(e.target.value)}
+            dir="ltr"
+          />
+          {chaptersInput.trim() !== '' && (
+            <p className="text-yellow-400/80 text-[11px] mt-1.5">🎯 سيُسحب فقط: {chaptersInput.trim()} — الفصل الموجود مسبقاً لن يُعاد سحبه</p>
+          )}
           <p className="text-white/30 text-[11px] mt-2 mb-3">
-            المواقع المدعومة: wfxs.tw، quanben.io، 69shu، novel543، twkan، jwxs، linovelib، novelfire، freewebnovel، rewayat، ar-no وغيرها (24 موقعاً)
+            المواقع المدعومة: wfxs.tw، quanben.io، 69shu، novel543، twkan، jwxs، linovelib، novelfire، tadu، bixiange، ffxs8، jpxs123، tomatomtl، wtr-lab، rewayat، ar-no وغيرها (32 موقعاً)
           </p>
           <button onClick={startScrape} disabled={busy} className={btnPrimary + ' w-full'}>
             {busy ? <Spinner /> : <Play size={15} />} بدء السحب

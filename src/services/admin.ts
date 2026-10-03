@@ -83,7 +83,8 @@ export const adminService = {
   },
 
   async batchDeleteChapters(novelId: string, numbers: number[]): Promise<{ message?: string }> {
-    return http.post('/api/admin/chapters/batch-delete', { novelId, numbers }, { auth: true, retries: 0, timeoutMs: 60000 });
+    // الخادم يتوقع chapterNumbers (كما يرسل التطبيق بالضبط)
+    return http.post('/api/admin/chapters/batch-delete', { novelId, chapterNumbers: numbers }, { auth: true, retries: 0, timeoutMs: 60000 });
   },
 
   async bulkUploadZip(novelId: string, file: File): Promise<{ message?: string }> {
