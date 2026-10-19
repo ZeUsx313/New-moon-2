@@ -1,0 +1,36 @@
+name: Website account providers
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Check out the tested backend contract
+        uses: actions/checkout@v4
+        with:
+          repository: cobrapk8ggggggg-tech/C
+          ref: 362a26425fab6ddea0d3157094008020c821a7f2
+          path: .test-backend
+      - name: Install backend test dependencies
+        run: npm ci --prefix .test-backend/backend
+      - run: npx playwright install --with-deps chromium
+      - name: Browser → real API → real MongoDB (AI upstream simulated)
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-report
+          path: |
+            playwright-report
+            test-results

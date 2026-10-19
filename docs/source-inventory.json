@@ -1,0 +1,2237 @@
+{
+  "repository": "https://github.com/ZeUsx313/New-moon-2",
+  "revision": "bb075d3b4af6431bd3eb2662875ab980eae85734",
+  "files": 93,
+  "textFiles": 88,
+  "textLines": 23359,
+  "entries": [
+    {
+      "path": ".gitignore",
+      "bytes": 280,
+      "sha256": "1c71ffb900c248ae97058e7fc08e357ddd5ae6d0160dc2817837e18d08d47555",
+      "type": "text",
+      "lines": 27
+    },
+    {
+      "path": ".npmrc",
+      "bytes": 21,
+      "sha256": "57739718c1255e6634faf8b05862c4464c4c81463cddc4c5a1a25037ebdbd6da",
+      "type": "text",
+      "lines": 1
+    },
+    {
+      "path": "App.tsx",
+      "bytes": 15941,
+      "sha256": "b7a8ef69a39eebcf7e5420f3145aae482f85ca59fdca37c66a73541451a5fccd",
+      "type": "text",
+      "lines": 244,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "@tanstack/react-query",
+        "react-helmet-async",
+        "react-hot-toast",
+        "./src/context/AuthContext",
+        "./src/context/ThemeContext",
+        "./src/context/UIContext",
+        "./src/components/Modal/AuthRequirementModal",
+        "./src/components/ErrorBoundary",
+        "./src/components/ScrollToTop",
+        "./src/components/OfflineBanner",
+        "./src/components/Footer",
+        "./src/components/BottomNav",
+        "./src/components/CaptchaGate",
+        "./src/lib/analytics",
+        "./src/screens/Home"
+      ],
+      "functions": [
+        "PageLoader",
+        "GlobalAuthModal",
+        "Layout",
+        "App"
+      ],
+      "apiCalls": [],
+      "routes": [
+        "/",
+        "/novel/:slug",
+        "/novel/:novelId/reader/:chapterId",
+        "/library",
+        "/downloads",
+        "/history",
+        "/my-page",
+        "/user/:userId",
+        "/dashboard",
+        "novels",
+        "novels/new",
+        "novel-edit",
+        "novel-edit/:novelId",
+        "chapters",
+        "chapters/:novelId",
+        "bulk-upload",
+        "bulk-upload/:novelId",
+        "glossary",
+        "glossary/:novelId",
+        "translation-jobs",
+        "translation-jobs/:jobId",
+        "translation-start",
+        "translation-settings",
+        "review-jobs",
+        "review-jobs/:jobId",
+        "review-start",
+        "review-findings",
+        "glossary-ai",
+        "glossary-ai/start",
+        "glossary-ai/jobs/:jobId",
+        "pure-translate",
+        "pure-translate/start",
+        "pure-translate/jobs/:jobId",
+        "metadata-jobs",
+        "metadata-start",
+        "title-generator",
+        "title-generator/start",
+        "title-generator/settings",
+        "title-generator/jobs/:jobId",
+        "title-fixer",
+        "title-fixer/jobs/:jobId",
+        "auto-import",
+        "scraper-keys",
+        "users",
+        "categories",
+        "cleaner",
+        "copyright",
+        "logs",
+        "analytics",
+        "security",
+        "/login",
+        "/signup",
+        "/auth/google/callback",
+        "/about",
+        "/privacy",
+        "/terms",
+        "*"
+      ],
+      "parseErrors": 0
+    },
+    {
+      "path": "index.css",
+      "bytes": 1877,
+      "sha256": "98c7204dbf7274046516e3be87b45091baa724d4d77cc2d3ebb493c46c6a40ee",
+      "type": "text",
+      "lines": 73
+    },
+    {
+      "path": "index.html",
+      "bytes": 3375,
+      "sha256": "d80b56da6a99129e9ec3db8361864c3045830b3f99721c7e62b557f3ca486629",
+      "type": "text",
+      "lines": 60
+    },
+    {
+      "path": "index.tsx",
+      "bytes": 412,
+      "sha256": "16072543635adf40ec22b5d4f3164f4a5b6d012c2cf0339b97486509647b72ac",
+      "type": "text",
+      "lines": 16,
+      "imports": [
+        "react",
+        "react-dom/client",
+        "./App"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "main.tsx",
+      "bytes": 756,
+      "sha256": "618361f004d3be76bbbc8f5d95a0b1e48ebf7032d8a5c5bb23d49f5073ff428c",
+      "type": "text",
+      "lines": 20,
+      "imports": [
+        "react",
+        "react-dom/client",
+        "./App",
+        "./index.css",
+        "./src/lib/analytics",
+        "./src/lib/coverFallback"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "metadata.json",
+      "bytes": 93,
+      "sha256": "8094381fb293c39f52cb46fabcee34fc13d93eabf6b2d0a96203460462602385",
+      "type": "text",
+      "lines": 5
+    },
+    {
+      "path": "package.json",
+      "bytes": 832,
+      "sha256": "71c695875cd789a2f3b40e7231e61bcd809671097946f5aa41a4f13709745efe",
+      "type": "text",
+      "lines": 36
+    },
+    {
+      "path": "public/adaptive-icon.png",
+      "bytes": 95403,
+      "sha256": "d13828c4d1470a64ca6e1f585f553be4dfe748d00ae9e96a5a5c8a0c6e9a6523",
+      "type": "binary"
+    },
+    {
+      "path": "public/icon.png",
+      "bytes": 1734082,
+      "sha256": "c502ee597992167759d03604245cd90f0ba1c42f212b8365d074945c031be08a",
+      "type": "binary"
+    },
+    {
+      "path": "public/manifest.json",
+      "bytes": 635,
+      "sha256": "d38dfb47c25759a97c1df8a40d46b0569059bcfe1630832817654ddfab081848",
+      "type": "text",
+      "lines": 25
+    },
+    {
+      "path": "public/robots.txt",
+      "bytes": 1249,
+      "sha256": "69a6f7a89a7ac5e5a99093f1f9eb3e82953b4775b176510a7c74a3b02aa5f2c0",
+      "type": "text",
+      "lines": 58
+    },
+    {
+      "path": "public/sitemap.xml",
+      "bytes": 907,
+      "sha256": "744189b781fb60c79ff2252829129b3fecc7a14b0f4e8d5cf8c67f6707180a07",
+      "type": "text",
+      "lines": 34
+    },
+    {
+      "path": "public/sw.js",
+      "bytes": 5737,
+      "sha256": "72dcd1f2330a37f4539267fca532900a04fee8333d49fa39df1d144d28c13b58",
+      "type": "text",
+      "lines": 161,
+      "imports": [],
+      "functions": [
+        "handleImageRequest"
+      ],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "'accept'"
+        },
+        {
+          "method": "PUT",
+          "target": "'/index.html'"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/assets/AF32FFD4-DC2A-4D6A-9C05-F0A2E7288DC9.png",
+      "bytes": 95403,
+      "sha256": "d13828c4d1470a64ca6e1f585f553be4dfe748d00ae9e96a5a5c8a0c6e9a6523",
+      "type": "binary"
+    },
+    {
+      "path": "src/assets/adaptive-icon.PNG",
+      "bytes": 95403,
+      "sha256": "d13828c4d1470a64ca6e1f585f553be4dfe748d00ae9e96a5a5c8a0c6e9a6523",
+      "type": "binary"
+    },
+    {
+      "path": "src/assets/adaptive-icon.png",
+      "bytes": 95403,
+      "sha256": "d13828c4d1470a64ca6e1f585f553be4dfe748d00ae9e96a5a5c8a0c6e9a6523",
+      "type": "binary"
+    },
+    {
+      "path": "src/components/BottomNav.tsx",
+      "bytes": 6978,
+      "sha256": "45065e743c2d2b1fcff5c61d28c604e640978ba4367c0d263538cecfd1a7cd18",
+      "type": "text",
+      "lines": 176,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "lucide-react",
+        "motion/react",
+        "../context/AuthContext",
+        "../context/UIContext"
+      ],
+      "functions": [
+        "BottomNav"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/CaptchaGate.tsx",
+      "bytes": 6818,
+      "sha256": "acae394846f10289b17094e836b9be965869d6dd513850060c78673ca62258ec",
+      "type": "text",
+      "lines": 162,
+      "imports": [
+        "react",
+        "motion/react",
+        "lucide-react",
+        "../lib/captchaPass",
+        "../services/api"
+      ],
+      "functions": [
+        "loadTurnstileScript",
+        "CaptchaGate"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/CommentSection.tsx",
+      "bytes": 5375,
+      "sha256": "a5a934cbbf35f8777b9211a8dc493dff6b3d6daff644423c012c47e7b32bc52b",
+      "type": "text",
+      "lines": 143,
+      "imports": [
+        "react",
+        "motion/react",
+        "lucide-react",
+        "../context/AuthContext",
+        "../services/comment",
+        "./Skeleton",
+        "./SafeImage",
+        "react-hot-toast"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/DownloadModal.tsx",
+      "bytes": 14995,
+      "sha256": "d9f9ae652d3ea15258a5091df898f5a733f0e1d2ed91a6d4c184794afe7cb8d1",
+      "type": "text",
+      "lines": 314,
+      "imports": [
+        "react",
+        "motion/react",
+        "react-router-dom",
+        "lucide-react",
+        "react-hot-toast",
+        "../services/novel",
+        "../lib/offlineStore",
+        "../lib/offlineDownloads"
+      ],
+      "functions": [
+        "DownloadModal"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/ErrorBoundary.tsx",
+      "bytes": 2224,
+      "sha256": "828d5321eea2a8076a190b91f4f18b29dd919b96314508d0e1c09622445d6636",
+      "type": "text",
+      "lines": 69,
+      "imports": [
+        "react"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/Footer.tsx",
+      "bytes": 3342,
+      "sha256": "2a1b09f1020645e73ba143b109b7a22e2d3109b4755e12a1fabbc360d638e248",
+      "type": "text",
+      "lines": 71,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "../lib/site"
+      ],
+      "functions": [
+        "Footer"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/Header.tsx",
+      "bytes": 25382,
+      "sha256": "34d85778a4858d2f8c459094b08281d30c50cd6e16ab19cff1fcb0dc69ff95e4",
+      "type": "text",
+      "lines": 573,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "lucide-react",
+        "motion/react",
+        "react-hot-toast",
+        "../context/AuthContext",
+        "../context/UIContext",
+        "../assets/AF32FFD4-DC2A-4D6A-9C05-F0A2E7288DC9.png",
+        "../assets/adaptive-icon.png"
+      ],
+      "functions": [
+        "UserAvatar",
+        "Header"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/Modal/AuthRequirementModal.tsx",
+      "bytes": 4088,
+      "sha256": "c492187fe328f52324051e5250ed127d73d5321c0c8de2e705e7b9a4ccb78e30",
+      "type": "text",
+      "lines": 102,
+      "imports": [
+        "react",
+        "motion/react",
+        "react-router-dom",
+        "lucide-react"
+      ],
+      "functions": [
+        "AuthRequirementModal"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/OfflineBanner.tsx",
+      "bytes": 1234,
+      "sha256": "c4927ddb785fa74071d99b9c3a89fdb10036242aa22df0e5bbe556f961316bab",
+      "type": "text",
+      "lines": 39,
+      "imports": [
+        "react",
+        "motion/react",
+        "lucide-react"
+      ],
+      "functions": [
+        "OfflineBanner"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/ResumeReading.tsx",
+      "bytes": 7528,
+      "sha256": "a42e00f845f622a7b6fca88ef6850283c33a0951e310c26fef343455de8d7ae0",
+      "type": "text",
+      "lines": 177,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "motion/react",
+        "lucide-react",
+        "./SafeImage",
+        "../services/novel",
+        "../lib/storage",
+        "../context/AuthContext"
+      ],
+      "functions": [
+        "loadGuestResume",
+        "ResumeReading"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/SEO.tsx",
+      "bytes": 3996,
+      "sha256": "c0b3b402a8d4f87974f84db2ad5af15439461e7fa9a9cbe7dd313d2f9d86f3af",
+      "type": "text",
+      "lines": 108,
+      "imports": [
+        "react",
+        "react-helmet-async",
+        "../lib/site"
+      ],
+      "functions": [
+        "SEO"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/SafeImage.tsx",
+      "bytes": 3086,
+      "sha256": "497f937fd9d4eca47b167aaa95ecbfe5a076d70b60b58c6416e58600df627e82",
+      "type": "text",
+      "lines": 83,
+      "imports": [
+        "react",
+        "../lib/coverFallback"
+      ],
+      "functions": [
+        "SafeImage"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/ScrollToTop.tsx",
+      "bytes": 388,
+      "sha256": "3fe29fc7f71630d9c37f2749a5ce4c5c6c52c4be74df09a22f58fda349e7ae31",
+      "type": "text",
+      "lines": 16,
+      "imports": [
+        "react",
+        "react-router-dom"
+      ],
+      "functions": [
+        "ScrollToTop"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/components/Skeleton.tsx",
+      "bytes": 2452,
+      "sha256": "664a6f6b4550f4a11c7e4f7aaaea1409b4c6c59d8a45e08362f283674f5f04f0",
+      "type": "text",
+      "lines": 66,
+      "imports": [
+        "react",
+        "motion/react"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/context/AuthContext.tsx",
+      "bytes": 3352,
+      "sha256": "83f2042420190b82d9aed85b401cd483489369d5b25d328c6714f822c41800e8",
+      "type": "text",
+      "lines": 110,
+      "imports": [
+        "react",
+        "../services/auth"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/context/ThemeContext.tsx",
+      "bytes": 1641,
+      "sha256": "5438f461870afaba3e465d5e801dfb274b5fabec96c93b2f14256fd55cd28bfe",
+      "type": "text",
+      "lines": 48,
+      "imports": [
+        "react"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/context/UIContext.tsx",
+      "bytes": 1341,
+      "sha256": "3ad3519bb9171929eed2a6c87cd4249249d5858485f1b748a908b7fea7c8c415",
+      "type": "text",
+      "lines": 35,
+      "imports": [
+        "react"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/hooks/useDebounce.ts",
+      "bytes": 385,
+      "sha256": "c04236ece843bc5e022684da966742a058c05bb184bff23a11514e923d341f85",
+      "type": "text",
+      "lines": 17,
+      "imports": [
+        "react"
+      ],
+      "functions": [
+        "useDebounce"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/analytics.ts",
+      "bytes": 4745,
+      "sha256": "cc1c3969d4d90d33e227dd27915e26b72b23ddd7461dba7e645106d8d7a608ff",
+      "type": "text",
+      "lines": 136,
+      "imports": [],
+      "functions": [
+        "uuid",
+        "getClientId",
+        "getSessionId",
+        "deviceType",
+        "dntRespected",
+        "flush",
+        "schedule",
+        "trackPageview",
+        "trackNovelOpen",
+        "initGoogleAnalytics",
+        "gtag"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/apiCache.ts",
+      "bytes": 3987,
+      "sha256": "465db68afe751c37a7a9f78eabfb78d420404d8d2d434a1d0953e0738ca19651",
+      "type": "text",
+      "lines": 128,
+      "imports": [],
+      "functions": [
+        "now",
+        "isFresh",
+        "readSession",
+        "writeSession"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/captchaPass.ts",
+      "bytes": 1622,
+      "sha256": "59164c894c66ac3418c9fa247c9d6fef20b975134385625681488cfdea3fa91c",
+      "type": "text",
+      "lines": 42,
+      "imports": [],
+      "functions": [
+        "dispatchCaptchaRequired",
+        "hasCaptchaPass",
+        "captchaPassHeader",
+        "storeCaptchaPass"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/coverFallback.ts",
+      "bytes": 3011,
+      "sha256": "390abfddfb8026a88d09d907ad3548a54c08334a1cab4b9adc2d00ef282e369a",
+      "type": "text",
+      "lines": 58,
+      "imports": [
+        "../services/api"
+      ],
+      "functions": [
+        "normalizeCoverUrl",
+        "installCoverFallback"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/http.ts",
+      "bytes": 5870,
+      "sha256": "3a8395a8d110376a4496d4c31140e419e3f497583649e3a6089113f773869a38",
+      "type": "text",
+      "lines": 140,
+      "imports": [
+        "../services/api",
+        "./captchaPass",
+        "./readerSession"
+      ],
+      "functions": [
+        "parseResponseBody",
+        "buildHeaders",
+        "request"
+      ],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "'content-type'"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/offlineDownloads.ts",
+      "bytes": 11517,
+      "sha256": "71bd5b7b5a8d0c71d79fbaad6c35831a39a7ee3449b4fe90d043e5bc1ac726d6",
+      "type": "text",
+      "lines": 245,
+      "imports": [
+        "../services/novel",
+        "./http",
+        "./offlineStore"
+      ],
+      "functions": [
+        "retryAfterMs"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/offlineStore.ts",
+      "bytes": 10119,
+      "sha256": "669d56f4514952ea114fcaeb353d2d0d9be22c6bd2bdb56e13c9360970b5c1c9",
+      "type": "text",
+      "lines": 257,
+      "imports": [],
+      "functions": [
+        "emitChange",
+        "openDb",
+        "tx",
+        "idbPut",
+        "idbGet",
+        "idbDelete",
+        "idbGetAll"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/protection.ts",
+      "bytes": 3607,
+      "sha256": "0e1bf322252829a779f6026f96b3a72f303807a2d62a2b9ad6215528da021894",
+      "type": "text",
+      "lines": 55,
+      "imports": [],
+      "functions": [
+        "sanitizeRawText",
+        "protectChapterContent",
+        "copyrightNoticeHtml"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/readerRisk.ts",
+      "bytes": 6463,
+      "sha256": "6c975d9348ff8da604988508e1ea3af9cb8f53e78d3fcce51ee6c1d5e5b0795e",
+      "type": "text",
+      "lines": 159,
+      "imports": [],
+      "functions": [
+        "readState",
+        "writeState",
+        "noteChapterOpen",
+        "noteReaderEngagement",
+        "shouldChallengeBeforeNext",
+        "flagServer",
+        "markChallengeSolved",
+        "riskSnapshot"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/readerSession.ts",
+      "bytes": 3652,
+      "sha256": "170653794ca998ed1e0cc55debcb05063a8d73930b1a1edc0108627d4da903ef",
+      "type": "text",
+      "lines": 87,
+      "imports": [],
+      "functions": [
+        "readCache",
+        "writeCache",
+        "ensureReaderSession",
+        "readerSessionHeader",
+        "readerSessionHeaderSync"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/site.ts",
+      "bytes": 2539,
+      "sha256": "d000965e99352ee3114134f62c03de33e8d363078548b5af61f384d9c496c395",
+      "type": "text",
+      "lines": 57,
+      "imports": [],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/lib/storage.ts",
+      "bytes": 1003,
+      "sha256": "d29afc74644c076d5ad8a5b32e826d90accd2449ed860d7f5808d58355d66da1",
+      "type": "text",
+      "lines": 36,
+      "imports": [],
+      "functions": [
+        "readJSON",
+        "writeJSON",
+        "readNumberArray",
+        "safeRemove"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/reader/optionalModules.ts",
+      "bytes": 725,
+      "sha256": "2f8d8e16f695482574338ce364a80059990599d207c428cdd93a0b66825e4438",
+      "type": "text",
+      "lines": 27,
+      "imports": [],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/reader/storage.ts",
+      "bytes": 910,
+      "sha256": "b90217980a9db4b68ef89bd02304dc3d7ff3efab2ce1064c4f54e14ac57903c1",
+      "type": "text",
+      "lines": 33,
+      "imports": [],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/reader/worCSS.js",
+      "bytes": 488398,
+      "sha256": "488619ac4dd34ed287084daac622fef547d8314b8e3c97f717c30f52c0277f7d",
+      "type": "text",
+      "lines": 10,
+      "imports": [],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/reader/worFonts.js",
+      "bytes": 5424,
+      "sha256": "7b247974b76290916dcf58e775927feecf43889da1fdad2c1d6853f29132a822",
+      "type": "text",
+      "lines": 45,
+      "imports": [],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/reader/worShell.js",
+      "bytes": 144496,
+      "sha256": "054d2bfc96cff0aeaa6914016d209a19970055432c07721ced200cd55706014e",
+      "type": "text",
+      "lines": 2593,
+      "imports": [
+        "./worCSS",
+        "./worFonts"
+      ],
+      "functions": [
+        "bridgeScript",
+        "buildWorShell"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/reader/wordsStore.js",
+      "bytes": 7921,
+      "sha256": "2c4c03d29f3a208cec2e6d3f35d0c6a671fdd5f1911f5a718cc23f7f1974f8ae",
+      "type": "text",
+      "lines": 188,
+      "imports": [
+        "./storage"
+      ],
+      "functions": [
+        "saveWordsStore",
+        "loadWordsStore",
+        "effectiveTerms",
+        "replaceTermsInText",
+        "buildColoredTerms",
+        "buildColoredRegexSources"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/Downloads.tsx",
+      "bytes": 16959,
+      "sha256": "135b5c7a15c9e13a050308dfe2011a19223bd648e502b77959e477ea79adf9df",
+      "type": "text",
+      "lines": 351,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "motion/react",
+        "react-helmet-async",
+        "lucide-react",
+        "../components/Header",
+        "../components/SafeImage",
+        "../context/ThemeContext",
+        "../lib/offlineStore",
+        "../lib/offlineDownloads",
+        "../lib/site"
+      ],
+      "functions": [
+        "Downloads"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/HistoryPage.tsx",
+      "bytes": 13297,
+      "sha256": "242eaf0f2d64392696ba0f85762760e244b975fa50022cb1cf4b16f135d34f47",
+      "type": "text",
+      "lines": 274,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "react-helmet-async",
+        "motion/react",
+        "lucide-react",
+        "../components/Header",
+        "../components/SafeImage",
+        "../services/novel",
+        "../lib/storage",
+        "../context/AuthContext",
+        "../lib/site"
+      ],
+      "functions": [
+        "HistoryPage"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/Home.tsx",
+      "bytes": 22538,
+      "sha256": "3e38b5a251bbab33bf64e92628f1c7f82d2d3983147b2d7be5a4f013671b673c",
+      "type": "text",
+      "lines": 457,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "@tanstack/react-query",
+        "swiper/react",
+        "swiper/modules",
+        "motion/react",
+        "lucide-react",
+        "react-helmet-async",
+        "../components/SEO",
+        "../components/Header",
+        "../components/SafeImage",
+        "../components/ResumeReading",
+        "../services/novel",
+        "../lib/site",
+        "swiper/css",
+        "swiper/css/pagination",
+        "swiper/css/navigation"
+      ],
+      "functions": [
+        "Home"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/Library.tsx",
+      "bytes": 17518,
+      "sha256": "fed682316b4980292432ecd06c3babb927d46d094de93dbf167631d9231f74df",
+      "type": "text",
+      "lines": 441,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "motion/react",
+        "react-helmet-async",
+        "@tanstack/react-query",
+        "lucide-react",
+        "../services/novel",
+        "../services/category",
+        "../hooks/useDebounce",
+        "../components/Header",
+        "../assets/adaptive-icon.png"
+      ],
+      "functions": [
+        "Library"
+      ],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "'q'"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/MyPage.tsx",
+      "bytes": 40344,
+      "sha256": "b0b5217df84a5440277848dc2ae77cf3dd88fd179b76c48cbf9f101fc7cd1197",
+      "type": "text",
+      "lines": 946,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "motion/react",
+        "react-helmet-async",
+        "../context/AuthContext",
+        "../services/user",
+        "../services/novel",
+        "lucide-react",
+        "react-hot-toast",
+        "../assets/adaptive-icon.png"
+      ],
+      "functions": [
+        "MyPage"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/NotFound.tsx",
+      "bytes": 1688,
+      "sha256": "158c711d55fa059c61c9a1bfcd63902e58e1163e30b1f13072934aa77742c7c6",
+      "type": "text",
+      "lines": 43,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "react-helmet-async",
+        "lucide-react"
+      ],
+      "functions": [
+        "NotFound"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/NovelPage.tsx",
+      "bytes": 72818,
+      "sha256": "92a22b2eb0aaeb6fe11d0b4983e5b80b32726d723a1f54a9188f9e07db99c818",
+      "type": "text",
+      "lines": 1491,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "@tanstack/react-query",
+        "motion/react",
+        "react-helmet-async",
+        "../components/SEO",
+        "../lib/analytics",
+        "dompurify",
+        "../context/AuthContext",
+        "lucide-react",
+        "../components/Header",
+        "../components/SafeImage",
+        "../components/DownloadModal",
+        "../services/novel",
+        "../services/api",
+        "../services/user",
+        "../services/comment",
+        "../lib/http",
+        "../components/Skeleton",
+        "../components/CommentSection",
+        "react-hot-toast",
+        "../lib/site",
+        "../lib/storage",
+        "../lib/offlineStore",
+        "../hooks/useDebounce",
+        "../assets/adaptive-icon.png"
+      ],
+      "functions": [
+        "NovelPage"
+      ],
+      "apiCalls": [
+        {
+          "method": "POST",
+          "target": "'/api/reports'"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/Reader/components/CommentsModal.tsx",
+      "bytes": 3625,
+      "sha256": "02012d08fd712dc95acb7563903f8e92b25e0c266a48e871b9c0535402ce3096",
+      "type": "text",
+      "lines": 102,
+      "imports": [
+        "react",
+        "motion/react",
+        "lucide-react",
+        "../../../components/CommentSection",
+        "../../../services/comment"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/Reader/index.tsx",
+      "bytes": 311,
+      "sha256": "9cb84f3941a2f35f662c8a37abf7a45a9687e5c46ae700fec0a46797e5a3d52e",
+      "type": "text",
+      "lines": 10,
+      "imports": [
+        "react",
+        "./wor/WorReader"
+      ],
+      "functions": [
+        "Reader"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/Reader/wor/WorReader.tsx",
+      "bytes": 77066,
+      "sha256": "21a93569c666e45c9d10a839b62237b91073979f01bc3be5bfa2622af79b6699",
+      "type": "text",
+      "lines": 1499,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "react-helmet-async",
+        "lucide-react",
+        "../../../context/AuthContext",
+        "../../../services/api",
+        "../../../services/novel",
+        "../../../lib/apiCache",
+        "../../../lib/protection",
+        "../../../lib/readerRisk",
+        "../../../lib/captchaPass",
+        "../../../lib/readerSession",
+        "../../../lib/offlineStore",
+        "../../../services/comment",
+        "../../../services/user",
+        "react-hot-toast",
+        "../components/CommentsModal",
+        "../../../reader/worShell",
+        "../../../reader/wordsStore",
+        "../../../reader/optionalModules",
+        "./sections"
+      ],
+      "functions": [
+        "WorReader"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/Reader/wor/sections.ts",
+      "bytes": 10798,
+      "sha256": "eef54a69d93e810a28c97f29c4cbfa30112b27b7ec07e6a9a450d3a22272a7be",
+      "type": "text",
+      "lines": 215,
+      "imports": [],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/StaticPages.tsx",
+      "bytes": 26985,
+      "sha256": "20e98aa0bbdf1d57487a82ef04fcb16ab9fe7e4e4412c2150f82a127e3629909",
+      "type": "text",
+      "lines": 444,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "react-helmet-async",
+        "lucide-react",
+        "../components/Header",
+        "../components/Footer",
+        "../context/ThemeContext",
+        "../lib/site"
+      ],
+      "functions": [
+        "StaticShell",
+        "SectionTitle",
+        "Bullets",
+        "LastUpdated",
+        "About",
+        "Privacy",
+        "Terms"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/UserProfile.tsx",
+      "bytes": 11230,
+      "sha256": "e4a1112518afb36871090301f608dbdbe24e27bc78432f7ce063d1c05e752b3a",
+      "type": "text",
+      "lines": 250,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "@tanstack/react-query",
+        "motion/react",
+        "react-helmet-async",
+        "lucide-react",
+        "../components/Header",
+        "../components/SafeImage",
+        "../context/ThemeContext",
+        "../services/user",
+        "../services/novel",
+        "../components/Skeleton",
+        "../lib/site",
+        "../assets/adaptive-icon.png"
+      ],
+      "functions": [
+        "UserProfile"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/auth/GoogleCallback.tsx",
+      "bytes": 3340,
+      "sha256": "4e18ef2f294580cb6cd428af47f05cc935c51a4db4b72e736c51c590c4007f1b",
+      "type": "text",
+      "lines": 90,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "react-helmet-async",
+        "../../services/auth",
+        "../../context/AuthContext"
+      ],
+      "functions": [
+        "GoogleCallback"
+      ],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "'auth_error'"
+        },
+        {
+          "method": "GET",
+          "target": "'token'"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/auth/Login.tsx",
+      "bytes": 9872,
+      "sha256": "83fe74af9c133d51fded5fcef3657d82dc2e349f61f3b25a245ff089ee51cd7a",
+      "type": "text",
+      "lines": 223,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "motion/react",
+        "react-helmet-async",
+        "lucide-react",
+        "../../context/AuthContext",
+        "../../services/auth",
+        "../../services/api",
+        "react-hot-toast",
+        "../../assets/adaptive-icon.png"
+      ],
+      "functions": [
+        "Login"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/auth/Signup.tsx",
+      "bytes": 10784,
+      "sha256": "3ea7dfe1a6744576c250c08eeccc4213397e476bc3f567bd21bb22ae99c15fef",
+      "type": "text",
+      "lines": 247,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "motion/react",
+        "react-helmet-async",
+        "lucide-react",
+        "../../context/AuthContext",
+        "../../services/auth",
+        "react-hot-toast",
+        "../../assets/adaptive-icon.png"
+      ],
+      "functions": [
+        "Signup"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/auth/index.ts",
+      "bytes": 89,
+      "sha256": "e39b839633b89ead4ca8720cf5f341fbb652a4ff8a36ef54d696f6d819e1a85a",
+      "type": "text",
+      "lines": 2,
+      "imports": [],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/dashboard/AdminPages.tsx",
+      "bytes": 48478,
+      "sha256": "5b99c9e34326f9a0aa9205f6b03a1e6bcd903a8d7505fd44359dfcee0c64aa04",
+      "type": "text",
+      "lines": 947,
+      "imports": [
+        "react",
+        "motion/react",
+        "lucide-react",
+        "react-hot-toast",
+        "../../services/admin",
+        "../../services/category",
+        "../../services/translator",
+        "./shared"
+      ],
+      "functions": [
+        "UsersPage",
+        "CategoriesPage",
+        "LogsPage",
+        "AnalyticsPage",
+        "SecurityPage",
+        "CleanerPage",
+        "CopyrightPage",
+        "ScraperKeysPage",
+        "AutoImportPage"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/dashboard/AiPages.tsx",
+      "bytes": 88536,
+      "sha256": "99bbed664446ad15f31e330ae41376d6aa1857ed855a4c84f6a20d14d0f4dd2c",
+      "type": "text",
+      "lines": 1724,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "lucide-react",
+        "react-hot-toast",
+        "motion/react",
+        "../../services/translator",
+        "./shared"
+      ],
+      "functions": [
+        "Glass",
+        "ConfirmDialog",
+        "LiveTerminal",
+        "StatusDot",
+        "Toggle",
+        "useTranslatorNovels",
+        "SearchBox",
+        "SubHead",
+        "TranslationJobsPage",
+        "TranslationStartPage",
+        "TranslationJobDetailPage",
+        "MetadataJobsPage",
+        "MetadataStartPage",
+        "TranslationSettingsPage"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/dashboard/CorePages.tsx",
+      "bytes": 63325,
+      "sha256": "4b5848b573702f14b5bb7904c2b335ee55a270eee4d4aa0e1ac535d37ce82486",
+      "type": "text",
+      "lines": 1354,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "motion/react",
+        "lucide-react",
+        "react-hot-toast",
+        "../../services/admin",
+        "../../services/novel",
+        "../../services/category",
+        "../../services/user",
+        "../../context/AuthContext",
+        "../../services/translator",
+        "./shared",
+        "./AiPages"
+      ],
+      "functions": [
+        "useConfirm",
+        "NovelsPage",
+        "NovelForm",
+        "XCircleIcon",
+        "NovelCreatePage",
+        "NovelEditPage",
+        "ChaptersPage",
+        "ChaptersManager",
+        "BulkUploadPage",
+        "GlossaryPage"
+      ],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "'add'"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/dashboard/DashboardLayout.tsx",
+      "bytes": 10986,
+      "sha256": "898ae90162123c4996a649d359ba29f24158ff9396106f0fbd24a47975f3ed94",
+      "type": "text",
+      "lines": 233,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "react-helmet-async",
+        "motion/react",
+        "lucide-react",
+        "../../context/AuthContext",
+        "../../components/Header",
+        "./shared"
+      ],
+      "functions": [
+        "SideLink",
+        "SideContent",
+        "DashboardLayout"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/dashboard/GlossaryAiPages.tsx",
+      "bytes": 32365,
+      "sha256": "59a3b705d64ec46920fe63e95cd3f71ad6adb2f62e04e62e22b2c162e0c7e8d0",
+      "type": "text",
+      "lines": 674,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "lucide-react",
+        "react-hot-toast",
+        "../../services/translator",
+        "./AiPages",
+        "./shared"
+      ],
+      "functions": [
+        "Glass",
+        "StatusDot",
+        "SearchBox",
+        "SubHead",
+        "useGlossaryAiNovels",
+        "GlossaryAiJobsPage",
+        "GlossaryAiStartPage",
+        "GlossaryAiJobDetailPage"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/dashboard/PureTranslationPages.tsx",
+      "bytes": 32568,
+      "sha256": "357ff7d120301958fb8a0d22388c4652a1c7066aefd1caff8378008a70ed3f53",
+      "type": "text",
+      "lines": 677,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "lucide-react",
+        "react-hot-toast",
+        "../../services/translator",
+        "./AiPages",
+        "./shared"
+      ],
+      "functions": [
+        "Glass",
+        "StatusDot",
+        "SearchBox",
+        "SubHead",
+        "usePureTranslateNovels",
+        "PureTranslationJobsPage",
+        "PureTranslationStartPage",
+        "PureTranslationJobDetailPage"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/dashboard/ReviewPages.tsx",
+      "bytes": 40747,
+      "sha256": "1359e4c2b5dbb6224c1a5400f3fe56a25d195d9fa83008b379a65e772cf6fe8b",
+      "type": "text",
+      "lines": 862,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "lucide-react",
+        "react-hot-toast",
+        "../../services/translator",
+        "./AiPages",
+        "./shared"
+      ],
+      "functions": [
+        "Glass",
+        "StatusDot",
+        "SearchBox",
+        "SubHead",
+        "useReviewNovels",
+        "ReviewJobsPage",
+        "ReviewStartPage",
+        "ReviewJobDetailPage",
+        "ReviewFindingsPage"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/dashboard/TitleGenPages.tsx",
+      "bytes": 49897,
+      "sha256": "a680402bb2d63ff27cce22da64ab80186ad938f0cc6eea1e747aa48b8b7d93ce",
+      "type": "text",
+      "lines": 1096,
+      "imports": [
+        "react",
+        "react-router-dom",
+        "lucide-react",
+        "react-hot-toast",
+        "../../services/translator",
+        "../../hooks/useDebounce",
+        "./shared"
+      ],
+      "functions": [
+        "Dot",
+        "StatusBadge",
+        "logTone",
+        "JobTerminal",
+        "ConfirmDialog",
+        "useNovelList",
+        "NovelListItem",
+        "NovelListPane",
+        "ModeSwitch",
+        "TitleGenHubPage",
+        "TitleGenStartPage",
+        "TitleGenSettingsPage",
+        "TitleGenDetailPage",
+        "ExtractJobCard",
+        "TitleFixerSelectPage",
+        "TitleFixerDetailPage"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/screens/dashboard/shared.tsx",
+      "bytes": 17077,
+      "sha256": "ecf6a852c4efb33119a953efe41b54a6c64062602a954792656370ed92fae20a",
+      "type": "text",
+      "lines": 344,
+      "imports": [
+        "react",
+        "motion/react",
+        "lucide-react",
+        "react-hot-toast",
+        "../../services/admin",
+        "../../services/novel",
+        "../../services/user",
+        "../../context/AuthContext",
+        "../../components/Header"
+      ],
+      "functions": [
+        "Spinner",
+        "Modal",
+        "StaffGate",
+        "NovelFormModal",
+        "ChapterModal",
+        "NovelPicker",
+        "PageHead"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/services/admin.ts",
+      "bytes": 5231,
+      "sha256": "b76f60b0a69d9d1c0b6b718ca2b1758caf8d8a7f65ab53f087417640ad914109",
+      "type": "text",
+      "lines": 143,
+      "imports": [
+        "../lib/http"
+      ],
+      "functions": [],
+      "apiCalls": [
+        {
+          "method": "POST",
+          "target": "'/api/admin/novels'"
+        },
+        {
+          "method": "PUT",
+          "target": "`/api/admin/novels/${id}`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/admin/novels/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/chapters'"
+        },
+        {
+          "method": "PUT",
+          "target": "`/api/admin/chapters/${novelId}/${chapterNumber}`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/admin/chapters/${novelId}/${chapterNumber}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/chapters/batch-delete'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/chapters/bulk-upload'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/admin/users'"
+        },
+        {
+          "method": "PUT",
+          "target": "`/api/admin/users/${userId}/role`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/categories'"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/admin/categories/${encodeURIComponent(name)}`"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/scraper/logs'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/admin/security/bans'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/security/unban'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/security/unban-all'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/admin/security/stats'"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/analytics/summary?days=${days}`"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/services/api.ts",
+      "bytes": 664,
+      "sha256": "e1dc6d78fdb1067b963660bb1ea1e8f7fde2290e022ac28ded7d403bb5a12fe1",
+      "type": "text",
+      "lines": 25,
+      "imports": [],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/services/auth.ts",
+      "bytes": 1460,
+      "sha256": "774fa8e20d2a953ae72e7818cf64bb2778a9b547ed56979b2b3c2126e7c358d0",
+      "type": "text",
+      "lines": 51,
+      "imports": [
+        "../lib/http",
+        "../lib/storage"
+      ],
+      "functions": [],
+      "apiCalls": [
+        {
+          "method": "POST",
+          "target": "'/auth/signup'"
+        },
+        {
+          "method": "POST",
+          "target": "'/auth/login'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/user'"
+        },
+        {
+          "method": "PUT",
+          "target": "'/auth/password'"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/services/category.ts",
+      "bytes": 893,
+      "sha256": "3de56b4b67806b03f13894623938d4c48b6a31ffbab45107c1c2c77db34ea7fd",
+      "type": "text",
+      "lines": 25,
+      "imports": [
+        "../lib/http"
+      ],
+      "functions": [],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "'/api/categories'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/categories'"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/admin/categories/${encodeURIComponent(name)}`"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/services/comment.ts",
+      "bytes": 2139,
+      "sha256": "6c9f23cadfae9900479114136f24e829df66797b5c7ed63cc2950be6a9984b77",
+      "type": "text",
+      "lines": 73,
+      "imports": [
+        "../lib/http"
+      ],
+      "functions": [],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "`/api/novels/${novelId}/comments?${query.toString()}`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/comments/${commentId}/replies`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/comments'"
+        },
+        {
+          "method": "PUT",
+          "target": "`/api/comments/${commentId}`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/comments/${commentId}`"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/comments/${commentId}/action`"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/services/novel.ts",
+      "bytes": 9023,
+      "sha256": "695598ab827a5a2eeac50c56f3eddb324734792a66251b6d1247a7e1425b59d8",
+      "type": "text",
+      "lines": 273,
+      "imports": [
+        "../lib/http",
+        "../lib/apiCache",
+        "../lib/storage"
+      ],
+      "functions": [
+        "ensureArray"
+      ],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "`/api/novels?${query.toString()}`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/novels/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/novels/${novelId}/view`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/novels/${id}/chapters-list?${qs.toString()}`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/novels/${novelId}/chapters/${chapterId}`"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/novels/${novelId}/react`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/novel/update'"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/novel/library?${query.toString()}`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/novel/status/${novelId}`"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/services/translator.ts",
+      "bytes": 15071,
+      "sha256": "e379676e4586cecda86e1bfdbeb62bc841649b589c6d419c1a7d32a2edb671a2",
+      "type": "text",
+      "lines": 180,
+      "imports": [
+        "../lib/http"
+      ],
+      "functions": [],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "'/api/review/jobs'"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/review/jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/review/start'"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/review/jobs/${id}/pause`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/review/jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/review/jobs/${id}/delay`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/review/novels?${q}`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/review/findings/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/review/findings/re-review'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/glossary-ai/jobs'"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/glossary-ai/jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/glossary-ai/start'"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/glossary-ai/jobs/${id}/pause`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/glossary-ai/jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/glossary-ai/jobs/${id}/delay`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/glossary-ai/novels?${q}`"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/pure-translate/jobs'"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/pure-translate/jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/pure-translate/start'"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/pure-translate/jobs/${id}/pause`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/pure-translate/jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/pure-translate/jobs/${id}/delay`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/pure-translate/novels?${q}`"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/translator/jobs'"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/translator/jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/translator/start'"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/translator/jobs/${id}/pause`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/translator/jobs/${id}`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/translator/novels?${q}`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/translator/glossary/${novelId}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/translator/glossary'"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/translator/glossary/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/translator/glossary/bulk-delete'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/translator/settings'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/translator/settings'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/translator/providers/models'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/translator/metadata-jobs'"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/translator/metadata-jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/admin/novels/${novelId}/translate-metadata`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/translator/metadata-jobs/${id}`"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/title-gen/settings'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/title-gen/settings'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/title-gen/jobs'"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/title-gen/jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/title-gen/start'"
+        },
+        {
+          "method": "POST",
+          "target": "`/api/title-gen/jobs/${id}/pause`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/title-gen/jobs/${id}`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/novels/${novelId}/chapters-list?limit=10000`"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/admin/tools/extract-titles/jobs'"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/admin/tools/extract-titles/jobs/${id}`"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/tools/extract-titles/start'"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/admin/tools/extract-titles/jobs/${id}`"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/admin/scraper-keys'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/scraper-keys'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/admin/scraper-keys/check'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/scraper-keys'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/scraper-keys/check-tomatomtl'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/scraper-keys'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/scraper-keys/check-wtrlab'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/admin/watchlist'"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/admin/cleaner'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/cleaner'"
+        },
+        {
+          "method": "PUT",
+          "target": "`/api/admin/cleaner/${index}`"
+        },
+        {
+          "method": "DELETE",
+          "target": "`/api/admin/cleaner/${encodeURIComponent(word)}`"
+        },
+        {
+          "method": "GET",
+          "target": "'/api/admin/copyright'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/admin/copyright'"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/services/user.ts",
+      "bytes": 2135,
+      "sha256": "2d8ec7ca2901981736d89568d0e37760edfd156e9aa808c7b0069afd32cec0b7",
+      "type": "text",
+      "lines": 71,
+      "imports": [
+        "../lib/http",
+        "../lib/apiCache"
+      ],
+      "functions": [],
+      "apiCalls": [
+        {
+          "method": "GET",
+          "target": "`/api/user/public-profile?${query.toString()}`"
+        },
+        {
+          "method": "GET",
+          "target": "`/api/user/stats?${query.toString()}`"
+        },
+        {
+          "method": "PUT",
+          "target": "'/api/user/profile'"
+        },
+        {
+          "method": "POST",
+          "target": "'/api/upload'"
+        }
+      ],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/utils/deobfuscate.ts",
+      "bytes": 2475,
+      "sha256": "625458d5b157d0b705b8aff8313a054030d8553646408e6cef02c891e3b76534",
+      "type": "text",
+      "lines": 73,
+      "imports": [],
+      "functions": [
+        "looksLikeRealText",
+        "deobfuscate"
+      ],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "src/vite-env.d.ts",
+      "bytes": 38,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
+      "type": "text",
+      "lines": 2,
+      "imports": [],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 542,
+      "sha256": "8641deb29adfd1958488d1951f0d5ddf3013f498aa67ce0f621e347f0ef608d2",
+      "type": "text",
+      "lines": 29
+    },
+    {
+      "path": "vercel.json",
+      "bytes": 933,
+      "sha256": "d3fb74d266c33d2c42196d89e436238f90a59a57d2f602de1648bb4e8cbf0de1",
+      "type": "text",
+      "lines": 31
+    },
+    {
+      "path": "vite.config.ts",
+      "bytes": 464,
+      "sha256": "41df4faa12dd8ff180be144197db0b5d00abd90d605124b96e8549e123d5d54a",
+      "type": "text",
+      "lines": 22,
+      "imports": [
+        "path",
+        "vite",
+        "@vitejs/plugin-react",
+        "@tailwindcss/vite"
+      ],
+      "functions": [],
+      "apiCalls": [],
+      "routes": [],
+      "parseErrors": 0
+    }
+  ]
+}

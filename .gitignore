@@ -23,4 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 bun.lock
-package-lock.json
+
+# Local test backends, browser reports and private environment files
+.test-backend/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example

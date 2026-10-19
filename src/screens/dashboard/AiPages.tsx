@@ -16,12 +16,14 @@ import {
   Play, Pause, Trash2, Plus, ArrowRight, ArrowUp, ArrowDown, X, Search,
   CheckCircle2, Circle, Loader2, Zap, Sparkles, Globe, Settings2, ListOrdered,
   BookOpen, Layers, AlertTriangle, ChevronDown, ChevronUp, PlusCircle, MinusCircle,
-  CloudDownload, Wrench, Languages, Square,
+  CloudDownload, Wrench, Languages, Square, MessageSquarePlus,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { translatorService } from '../../services/translator';
+import AccountProviderControls from '../../components/providers/AccountProviderControls';
+import { isAccountProvider, isChatGPTProvider, isDeepSeekWorkerProvider, pickAccountSettings, validateAccountSettings, type TaskPurpose, type TaskConversation } from '../../lib/translationProviders';
 import {
   inputCls, Spinner, Modal, PageHead,
 } from './shared';
@@ -1010,14 +1012,17 @@ export function MetadataStartPage() {
 /* ═══════════════ 6. إعدادات المترجم — TranslatorSettingsScreen (944 سطراً كاملة) ═══════════════ */
 
 const PROVIDER_TEMPLATES = [
+  { type: 'chatgpt', title: 'ChatGPT Android', subtitle: 'حساب ChatGPT + مشاريع + محادثات مستقلة لكل مهمة + مرفقات', Icon: MessageSquarePlus },
+  { type: 'deepseek_worker', title: 'DeepSeek 3MH / Telegram', subtitle: 'وكيل محادثة كامل؛ تفكير وبحث وجلسات متعددة', Icon: Zap },
   { type: 'deepseek', title: 'DeepSeek', subtitle: 'وضع عادي/خبير + مزودي POW + توكنات متعددة', Icon: Zap },
   { type: 'qwen', title: 'Qwen', subtitle: 'نموذج + تفكير + بحث، بدون POW', Icon: Sparkles },
-  { type: 'gemini_web', title: 'Gemini Web', subtitle: 'كوكيز Google أو وضع الضيف بدون كوكيز — إكمال تلقائي ضد قطع الفصول ومنع تكرار الفقرات', Icon: Globe },
+  { type: 'gemini_web', title: 'Gemini Web', subtitle: 'كوكيز Google + محادثات حسب المهمة + مرفقات + فحص اكتمال الفقرات', Icon: Globe },
   { type: 'custom', title: 'مزوّد مخصص (OpenAI متوافق)', subtitle: 'Base URL + مفاتيح + جلب النماذج تلقائياً من الرابط', Icon: Wrench },
 ];
 
 // 🔥 خوادم POW — Railway/Ngrok القديمة ماتت (404) والوكيل الجديد هو العامل الوحيد (تم التحقق حياً)
 const DEFAULT_POW_PROVIDERS = [
+  { id: '3mh', name: '3MH Telegram POW', url: 'https://deepseek-pow.contact-3mh.workers.dev/get_pow' },
   { id: 'zeus', name: 'Zeus POW', url: 'http://107.172.78.104:8800/get_pow' },
   { id: 'railway', name: 'Railway (قديم)', url: 'https://web-production-c09dc.up.railway.app/pow' },
   { id: 'ngrok', name: 'Ngrok (قديم)', url: 'https://immunize-quintet-trimmer.ngrok-free.dev/get_pow' },
@@ -1039,6 +1044,8 @@ export function TranslationSettingsPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingAccounts, setPendingAccounts] = useState<Record<string, boolean>>({});
+  const accountsBusy = Object.values(pendingAccounts).some(Boolean);
 
   // الحقول العامة
   const [transPrompt, setTransPrompt] = useState('');
@@ -1068,6 +1075,7 @@ export function TranslationSettingsPage() {
         setExtractPrompt(res.translatorExtractPrompt || '');
         const fetchedProviders = res.translationProviders || [];
         const normalized = fetchedProviders.map((p: any, idx: number) => ({
+          ...pickAccountSettings(p),
           providerId: p.providerId || `provider_${idx}`,
           name: p.name || 'مزوّد جديد',
           baseUrl: p.baseUrl || '',
@@ -1081,7 +1089,7 @@ export function TranslationSettingsPage() {
           deepSeekTokens: p.deepSeekTokens || [],
           qwenTokens: p.qwenTokens || [],
           powProviders: normalizePowProviders(p.powProviders),
-          selectedPowProviderId: p.selectedPowProviderId || 'zeus',
+          selectedPowProviderId: p.selectedPowProviderId || '3mh',
           modelsFetched: false,
         }));
         setProviders(normalized);
@@ -1102,14 +1110,21 @@ export function TranslationSettingsPage() {
       deepSeekModelType: 'default', deepSeekTokens: [] as string[], qwenTokens: [] as string[],
       powProviders: [] as any[], selectedPowProviderId: '', modelsFetched: false,
     };
+    if (type === 'chatgpt') return { ...base, name: 'ChatGPT Android',
+      models: [{ modelId: 'auto', modelName: 'Auto' }], selectedModel: 'auto', reasoningEffort: 'auto',
+      taskConversations: {}, translationChunkChars: 2400 };
+    if (type === 'deepseek_worker') return { ...base, name: 'DeepSeek 3MH / Telegram',
+      baseUrl: 'https://deepseek-pow.contact-3mh.workers.dev', selectedModel: 'deepseek-chat',
+      models: [{ modelId: 'deepseek-chat', modelName: 'DeepSeek Chat' }], searchEnabled: false,
+      maxTokens: 16384, taskConversations: {}, translationChunkChars: 2400 };
     if (type === 'deepseek') {
-      return { ...base, name: 'DeepSeek', models: [{ modelId: 'deepseek-chat', modelName: 'DeepSeek Chat' }], selectedModel: 'deepseek-chat', powProviders: normalizePowProviders(DEFAULT_POW_PROVIDERS), selectedPowProviderId: 'zeus' };
+      return { ...base, name: 'DeepSeek', models: [{ modelId: 'deepseek-chat', modelName: 'DeepSeek Chat' }], selectedModel: 'deepseek-chat', powProviders: normalizePowProviders(DEFAULT_POW_PROVIDERS), selectedPowProviderId: '3mh' };
     }
     if (type === 'qwen') {
       return { ...base, name: 'Qwen', models: [{ modelId: 'qwen3.8-max', modelName: 'Qwen 3.8 Max' }], selectedModel: 'qwen3.8-max', thinkingEnabled: true, searchEnabled: true };
     }
     if (type === 'gemini_web') {
-      return { ...base, name: 'Gemini Web', models: [{ modelId: 'gemini-web', modelName: 'Gemini Web' }], selectedModel: 'gemini-web' };
+      return { ...base, name: 'Gemini Web', models: [{ modelId: 'gemini-web', modelName: 'Gemini Adaptive' }], selectedModel: 'gemini-web', geminiAccountIndex: 1, allowGuestFallback: false, translationChunkChars: 2400, taskConversations: {} };
     }
     return { ...base, name: 'مزوّد مخصص', models: [{ modelId: '', modelName: '' }], selectedModel: '' };
   };
@@ -1122,7 +1137,9 @@ export function TranslationSettingsPage() {
   };
 
   const saveProviders = async (list: any[]) => {
+    list.forEach(validateAccountSettings);
     const cleanedProviders = list.map((p) => ({
+      ...pickAccountSettings(p),
       providerId: p.providerId,
       name: p.name,
       baseUrl: p.baseUrl || '',
@@ -1138,7 +1155,7 @@ export function TranslationSettingsPage() {
       powProviders: isDeepSeekProvider(p)
         ? normalizePowProviders(p.powProviders).filter((pow: any) => (pow.url || '').trim() !== '').map((pow: any) => ({ id: pow.id, name: pow.name, url: normalizePowProviderUrl(pow.url) }))
         : [],
-      selectedPowProviderId: isDeepSeekProvider(p) ? (p.selectedPowProviderId || 'zeus') : '',
+      selectedPowProviderId: isDeepSeekProvider(p) ? (p.selectedPowProviderId || '3mh') : '',
     }));
     await translatorService.saveSettings({
       customPrompt: transPrompt,
@@ -1153,8 +1170,8 @@ export function TranslationSettingsPage() {
       await saveProviders(providers);
       toast.success('تم حفظ الإعدادات بنجاح');
       navigate('/dashboard/translation-jobs');
-    } catch {
-      toast.error('فشل الحفظ');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'فشل الحفظ');
     } finally {
       setSaving(false);
     }
@@ -1211,6 +1228,13 @@ export function TranslationSettingsPage() {
 
   const updateProviderField = (providerId: string, field: string, value: any) => {
     setProviders((prev) => prev.map((p) => (p.providerId === providerId ? { ...p, [field]: value } : p)));
+  };
+
+  const updateTaskConversation = (providerId: string, purpose: TaskPurpose, patch: TaskConversation) => {
+    setProviders(current => current.map(provider => provider.providerId !== providerId ? provider : {
+      ...provider, taskConversations: { ...provider.taskConversations,
+        [purpose]: { ...provider.taskConversations?.[purpose], ...patch } },
+    }));
   };
 
   const updateProviderKeys = (providerId: string, text: string) => {
@@ -1298,7 +1322,7 @@ export function TranslationSettingsPage() {
       <div className="flex items-center justify-between mb-5">
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || accountsBusy}
           className="inline-flex items-center gap-2 bg-white text-black font-extrabold rounded-xl px-4 py-2.5 text-sm hover:bg-white/85 transition-colors disabled:opacity-60"
         >
           {saving ? <Spinner /> : 'حفظ الإعدادات'}
@@ -1390,7 +1414,7 @@ export function TranslationSettingsPage() {
       {[...providers].sort((a, b) => a.priority - b.priority).map((provider, index) => {
         const isExpanded = expandedProvider === provider.providerId;
         const isSelected = selectedIds.includes(provider.providerId);
-        const isChatTemplate = isDeepSeekProvider(provider) || isQwenProvider(provider) || isGeminiWebProvider(provider);
+        const isChatTemplate = isDeepSeekProvider(provider) || isQwenProvider(provider) || isGeminiWebProvider(provider) || isChatGPTProvider(provider);
         return (
           <Glass key={provider.providerId} className={`mt-3 ${isSelected ? 'border-green-400/60' : ''}`}>
             {/* رأس البطاقة */}
@@ -1442,7 +1466,7 @@ export function TranslationSettingsPage() {
                 )}
 
                 {/* صندوق DeepSeek */}
-                {isDeepSeekProvider(provider) && (
+                {isDeepSeekProvider(provider) && !isDeepSeekWorkerProvider(provider) && (
                   <div className="mt-3 bg-white/[0.03] border border-white/10 rounded-xl p-3.5">
                     <p className="text-white font-bold text-xs">وضع مزوّد المحادثة</p>
                     <p className={hintSmall}>خاص بـ DeepSeek: وضع عادي/خبير مع التفكير والبحث وخوادم POW.</p>
@@ -1479,17 +1503,18 @@ export function TranslationSettingsPage() {
                   </div>
                 )}
 
-                {/* صندوق Gemini Web */}
-                {isGeminiWebProvider(provider) && (
-                  <div className="mt-3 bg-white/[0.03] border border-white/10 rounded-xl p-3.5">
-                    <p className="text-white font-bold text-xs">إعدادات Gemini Web</p>
-                    <p className={hintSmall}>يستخدم واجهة gemini.google.com عبر كوكيز حساب Google. عند انقطاع الرد في منتصف الفصل يتم إكماله تلقائياً في نفس المحادثة، والتكرار للفقرات يُكشف ويُعاد إصلاحه آلياً.</p>
-                    <p className={`${hintSmall} mt-2`}>🟡 يعمل أيضاً بدون أي كوكيز في وضع الضيف (وصول مجهول)، وسيظهر تنبيه واضح في سجل الترجمة عند دخول وضع الضيف أو الانتقال إليه تلقائياً عند فشل الكوكيز. وضع الضيف قد يكون أبطأ وقد يحدّه Google — الكوكيز تبقى الخيار الأفضل.</p>
-                  </div>
+                {isAccountProvider(provider) && (
+                  <AccountProviderControls provider={provider}
+                    onChange={(field, value) => updateProviderField(provider.providerId, field, value)}
+                    onTaskChange={(purpose, patch) => updateTaskConversation(provider.providerId, purpose, patch)}
+                    onPendingChange={busy => setPendingAccounts(current => ({ ...current, [provider.providerId]: busy }))}
+                    onModels={models => setProviders(current => current.map(p => p.providerId !== provider.providerId ? p : {
+                      ...p, models, selectedModel: models.some(m => m.modelId === p.selectedModel) ? p.selectedModel : models[0]?.modelId || p.selectedModel,
+                    }))} />
                 )}
 
                 {/* مزودو POW — DeepSeek فقط */}
-                {isDeepSeekProvider(provider) && (
+                {isDeepSeekProvider(provider) && !isDeepSeekWorkerProvider(provider) && (
                   <>
                     <label className={miniLabel}>مزود POW</label>
                     <p className={hintSmall}>الخوادم الافتراضية معروضة أدناه، ويمكنك إضافة خادم POW مخصص برابطك الخاص واختياره من القائمة.</p>
@@ -1554,16 +1579,18 @@ export function TranslationSettingsPage() {
 
                 {/* المفاتيح */}
                 <label className={miniLabel}>
-                  {isDeepSeekProvider(provider) ? 'توكنات DeepSeek (كل توكن في سطر)' : isQwenProvider(provider) ? 'توكنات Qwen (كل توكن في سطر)' : isGeminiWebProvider(provider) ? 'كوكيز Gemini (اختيارية — فارغة = وضع الضيف)' : 'مفاتيح API (كل مفتاح في سطر)'}
+                  {isDeepSeekProvider(provider) ? 'توكنات DeepSeek (كل توكن في سطر)' : isQwenProvider(provider) ? 'توكنات Qwen (كل توكن في سطر)' : isGeminiWebProvider(provider) ? 'كوكيز Gemini (كل حساب في سطر)' : isChatGPTProvider(provider) ? 'رموز جلسة ChatGPT (كل حساب في سطر)' : 'مفاتيح API (كل مفتاح في سطر)'}
                 </label>
                 <p className={hintSmall}>
                   {isGeminiWebProvider(provider)
-                    ? '🟡 اترك الحقل فارغاً تماماً للعمل في وضع الضيف (بدون حساب — وصول مجهول). أو للحصول على أفضل تجربة: سجّل الدخول في gemini.google.com من المتصفح ← F12 ← Application ← Cookies ← انسخ قيمة __Secure-1PSID و __Secure-1PSIDTS بالشكل: __Secure-1PSID=...; __Secure-1PSIDTS=... (كل حساب في سطر = جلسة مستقلة). الكوكيز تنتهي دورياً — وعند فشلها ينتقل النظام تلقائياً لوضع الضيف مع تنبيه واضح في السجل.'
-                    : isDeepSeekProvider(provider)
-                      ? '🔑 بالنسبة لـ DeepSeek: ضع توكنات الحساب هنا؛ سيتم استخدامها فعلياً بدل التوكن الافتراضي.'
-                      : isQwenProvider(provider)
-                        ? '🔑 بالنسبة لـ Qwen: ضع توكنات الحساب هنا وسيعاملها النظام مثل DeepSeek.'
-                        : '🔑 مفاتيح هذا المزوّد مستقلة تماماً ويُرسل معها الطلب إلى Base URL أعلاه.'}
+                    ? 'ضع ترويسة كوكيز Google كاملة بصيغة name=value; name=value. حدّد رقم الحساب الصحيح. وضع الضيف يحتاج تفعيله صراحة.'
+                    : isChatGPTProvider(provider)
+                      ? 'ضع access token لحساب ChatGPT. مفتاح OpenAI API لا يعمل مع قالب الحساب. تُرسل البيانات إلى خادم الموقع ولا تُحفظ في تخزين المتصفح.'
+                      : isDeepSeekProvider(provider)
+                        ? 'ضع توكن حساب DeepSeek الخاص بك. عند استخدام خدمة 3MH يصل التوكن إليها لتشغيل الطلب.'
+                        : isQwenProvider(provider)
+                          ? 'ضع توكن حساب Qwen.'
+                          : 'مفاتيح هذا المزوّد مستقلة وترسل إلى رابطه.'}
                 </p>
                 <textarea
                   className={inputCls + ' mt-2 font-mono text-xs leading-relaxed'}
@@ -1575,8 +1602,8 @@ export function TranslationSettingsPage() {
                       : isQwenProvider(provider)
                         ? 'Qwen token 1\nQwen token 2'
                         : isGeminiWebProvider(provider)
-                          ? 'اختياري — __Secure-1PSID=...; __Secure-1PSIDTS=...\nأو اتركه فارغاً لوضع الضيف'
-                          : 'sk-...\nمفتاح آخر'
+                          ? '__Secure-1PSID=...; __Secure-1PSIDTS=...'
+                          : isChatGPTProvider(provider) ? 'ChatGPT session access token' : 'sk-...\nمفتاح آخر'
                   }
                   value={provider._keysText !== undefined ? provider._keysText : (provider.apiKeys || []).join('\n')}
                   onChange={(e) => updateProviderKeys(provider.providerId, e.target.value)}
@@ -1713,7 +1740,7 @@ export function TranslationSettingsPage() {
       {/* زر الحفظ */}
       <button
         onClick={handleSave}
-        disabled={saving}
+        disabled={saving || accountsBusy}
         className="mt-5 mb-8 w-full bg-white text-black rounded-2xl py-4 font-extrabold hover:bg-white/85 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
       >
         {saving ? <Spinner /> : 'حفظ الإعدادات'}
