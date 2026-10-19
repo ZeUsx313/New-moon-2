@@ -79,3 +79,19 @@ test('guests cannot read account settings or call account APIs', async ({ browse
   await expect(page.getByText('سجّل دخولك بحساب مترجم أو مشرف للوصول')).toBeVisible();
   expect((await request.post(backend + '/api/translator/accounts/models', { data: {} })).status()).toBe(401); await context.close();
 });
+
+test('Gemini paragraph toggle persists off and on after save and page reload', async ({ page, request }) => {
+  for (const enabled of [false, true]) {
+    await page.goto('/dashboard/translation-settings');
+    await page.getByRole('button', { name: /Gemini Test Account/ }).click();
+    const toggle = page.getByRole('checkbox', { name: 'تقسيم الفصل وفحص الفقرات' });
+    await toggle.setChecked(enabled);
+    await page.getByRole('button', { name: 'حفظ الإعدادات', exact: true }).first().click();
+    await expect(page).toHaveURL(/translation-jobs$/);
+    const saved = await evidence(request);
+    expect(saved.settings.translationProviders.find((p: any) => p.providerId === 'gemini_web_e2e').geminiParagraphMode).toBe(enabled);
+    await page.goto('/dashboard/translation-settings');
+    await page.getByRole('button', { name: /Gemini Test Account/ }).click();
+    await expect(page.getByRole('checkbox', { name: 'تقسيم الفصل وفحص الفقرات' })).toBeChecked({ checked: enabled });
+  }
+});

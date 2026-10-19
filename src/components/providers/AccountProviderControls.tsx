@@ -111,6 +111,10 @@ export default function AccountProviderControls({ provider, onChange, onTaskChan
     {notice && <p role="status" className="flex gap-2 text-xs text-green-300"><Check size={15} className="shrink-0" />{notice}</p>}
     {busy && <p role="status" className="flex items-center gap-2 text-xs text-white/60"><Loader2 size={15} className="animate-spin" />جارٍ الاتصال بالمزوّد…</p>}
     {catalog?.warnings?.map(w => <p key={w} className="text-xs text-amber-200">{w}</p>)}
+    {gemini && <div className="space-y-2 rounded-lg border border-white/10 p-3">
+      <label className="flex items-center gap-2 text-xs text-white/80"><input type="checkbox" disabled={!!busy} checked={provider.geminiParagraphMode !== false} onChange={e => onChange('geminiParagraphMode', e.target.checked)} />تقسيم الفصل وفحص الفقرات</label>
+      <p className="text-[11px] leading-relaxed text-white/50">خاص بـGemini. عند التفعيل يُقسّم الفصل وتُفحص تغطية فقراته. عند التعطيل يُرسل الفصل كاملًا بالطريقة العادية، دون تقسيم أو علامات للفقرات. احفظ الإعدادات لتطبيق التغيير.</p>
+    </div>}
     {!catalog && <p className="text-xs text-white/50">الإعداد الافتراضي ينشئ محادثة مستقلة لكل مهمة تلقائيًا. لعرض محادثاتك المحفوظة اربط الحساب.</p>}
     {catalog && <fieldset disabled={!!busy} className="min-w-0 space-y-4">
       <legend className="sr-only">محادثات المهام</legend>

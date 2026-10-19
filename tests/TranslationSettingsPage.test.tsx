@@ -12,7 +12,7 @@ const service = vi.mocked(translatorService);
 const initial = {
   customPrompt: 'translate completely', translatorExtractPrompt: 'terms only', translationProviders: [
     { providerId: 'chatgpt_1', name: 'My ChatGPT', apiKeys: ['test-session'], models: [{ modelId: 'auto', modelName: 'Auto' }], selectedModel: 'auto', chatgptAccountId: 'a', reasoningEffort: 'extended', translationChunkChars: 1800, taskConversations: { translation: { mode: 'reuse', projectId: 'p', conversationId: 'translation' }, glossary: { mode: 'reuse', projectId: 'p', conversationId: 'glossary' }, review: { mode: 'reuse', projectId: 'p', conversationId: 'review' } } },
-    { providerId: 'gemini_web_1', name: 'Google', apiKeys: ['__Secure-1PSID=fake; __Secure-1PSIDTS=fake'], models: [{ modelId: 'gemini-web', modelName: 'Gemini' }], geminiAccountIndex: 0, geminiModelHeader: '[1]', geminiBuildLabel: 'build', allowGuestFallback: false, taskConversations: { review: { mode: 'reuse', conversationId: 'gem-c', responseId: 'r', choiceId: 'choice' } } },
+    { providerId: 'gemini_web_1', name: 'Google', apiKeys: ['__Secure-1PSID=fake; __Secure-1PSIDTS=fake'], models: [{ modelId: 'gemini-web', modelName: 'Gemini' }], geminiParagraphMode: false, geminiAccountIndex: 0, geminiModelHeader: '[1]', geminiBuildLabel: 'build', allowGuestFallback: false, taskConversations: { review: { mode: 'reuse', conversationId: 'gem-c', responseId: 'r', choiceId: 'choice' } } },
     { providerId: 'deepseek_worker_1', name: 'Worker', apiKeys: ['fake-ds'], models: [{ modelId: 'deepseek-chat', modelName: 'DS' }], baseUrl: 'https://deepseek-pow.contact-3mh.workers.dev', temperature: 0, maxTokens: 30000, presencePenalty: -1, frequencyPenalty: 0, thinkingEnabled: true, searchEnabled: false },
   ],
 };
@@ -24,7 +24,7 @@ it('round-trips all account options and independent conversations without droppi
   expect(saved.customPrompt).toBe(initial.customPrompt); expect(saved.translatorExtractPrompt).toBe(initial.translatorExtractPrompt);
   const [gpt, gemini, worker] = saved.translationProviders;
   expect(gpt.taskConversations).toEqual(initial.translationProviders[0].taskConversations); expect(gpt.reasoningEffort).toBe('extended'); expect(gpt.translationChunkChars).toBe(1800);
-  expect(gemini.geminiAccountIndex).toBe(0); expect(gemini.allowGuestFallback).toBe(false); expect(gemini.geminiBuildLabel).toBe('build'); expect(gemini.geminiModelHeader).toBe('[1]');
+  expect(gemini.geminiParagraphMode).toBe(false); expect(gemini.geminiAccountIndex).toBe(0); expect(gemini.allowGuestFallback).toBe(false); expect(gemini.geminiBuildLabel).toBe('build'); expect(gemini.geminiModelHeader).toBe('[1]');
   expect(worker.temperature).toBe(0); expect(worker.maxTokens).toBe(30000); expect(worker.searchEnabled).toBe(false); expect(worker.presencePenalty).toBe(-1);
 });
 it('adds new account templates with correct defaults', async () => {

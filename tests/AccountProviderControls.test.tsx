@@ -84,3 +84,17 @@ it('clears stale manual account/thinking overrides and offers only advertised re
   await userEvent.selectOptions(screen.getByLabelText('تفكير الترجمة'), 'high'); expect(latest.taskConversations?.translation?.reasoningEffort).toBe('high');
   expect(screen.queryByRole('option', { name: 'invented' })).toBeNull();
 });
+it('offers a Gemini-only paragraph mode toggle before connecting and allows restoring normal full-chapter mode', async () => {
+  const panel = render(<Harness initial={{ providerId: 'gemini_web_1' }} />);
+  const toggle = screen.getByRole('checkbox', { name: 'تقسيم الفصل وفحص الفقرات' });
+  expect((toggle as HTMLInputElement).checked).toBe(true);
+  await userEvent.click(toggle); expect(latest.geminiParagraphMode).toBe(false);
+  await userEvent.click(toggle); expect(latest.geminiParagraphMode).toBe(true);
+  panel.unmount(); render(<Harness initial={{ providerId: 'chatgpt_1' }} />);
+  expect(screen.queryByRole('checkbox', { name: 'تقسيم الفصل وفحص الفقرات' })).toBeNull();
+});
+it('shows saved Gemini paragraph mode disabled without changing it on connection', async () => {
+  render(<Harness initial={{ providerId: 'gemini_web_1', geminiParagraphMode: false }} />); await connect();
+  expect((screen.getByRole('checkbox', { name: 'تقسيم الفصل وفحص الفقرات' }) as HTMLInputElement).checked).toBe(false);
+  expect(latest.geminiParagraphMode).toBe(false);
+});

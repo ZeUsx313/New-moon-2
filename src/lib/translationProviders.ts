@@ -29,6 +29,7 @@ export interface AccountSettings {
   maxTokens?: number;
   presencePenalty?: number;
   frequencyPenalty?: number;
+  geminiParagraphMode?: boolean;
   translationChunkChars?: number;
   taskConversations?: Partial<Record<TaskPurpose, TaskConversation>>;
 }
@@ -51,7 +52,7 @@ export interface TranslationProvider extends AccountSettings {
 export const ACCOUNT_SETTING_KEYS = [
   'chatgptAccountId', 'reasoningEffort', 'geminiAccountIndex', 'geminiBuildLabel', 'geminiModelHeader',
   'allowGuestFallback', 'temperature', 'maxTokens', 'presencePenalty', 'frequencyPenalty',
-  'translationChunkChars', 'taskConversations',
+  'geminiParagraphMode', 'translationChunkChars', 'taskConversations',
 ] as const satisfies readonly (keyof AccountSettings)[];
 
 export const isChatGPTProvider = (p: Pick<TranslationProvider, 'providerId'>) => /^chatgpt(?:_|$)/i.test(p.providerId || '');

@@ -1124,7 +1124,7 @@ export function TranslationSettingsPage() {
       return { ...base, name: 'Qwen', models: [{ modelId: 'qwen3.8-max', modelName: 'Qwen 3.8 Max' }], selectedModel: 'qwen3.8-max', thinkingEnabled: true, searchEnabled: true };
     }
     if (type === 'gemini_web') {
-      return { ...base, name: 'Gemini Web', models: [{ modelId: 'gemini-web', modelName: 'Gemini Adaptive' }], selectedModel: 'gemini-web', geminiAccountIndex: 1, allowGuestFallback: false, translationChunkChars: 2400, taskConversations: {} };
+      return { ...base, name: 'Gemini Web', models: [{ modelId: 'gemini-web', modelName: 'Gemini Adaptive' }], selectedModel: 'gemini-web', geminiParagraphMode: true, geminiAccountIndex: 1, allowGuestFallback: false, translationChunkChars: 2400, taskConversations: {} };
     }
     return { ...base, name: 'مزوّد مخصص', models: [{ modelId: '', modelName: '' }], selectedModel: '' };
   };
