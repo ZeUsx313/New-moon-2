@@ -1,7 +1,7 @@
 import { ApiError, http } from '../lib/http';
 import type { ProviderModel, TaskConversation, TaskPurpose, TranslationProvider } from '../lib/translationProviders';
 
-export interface AccountChat { id: string; title?: string }
+export interface AccountChat { id: string; title?: string; parentMessageId?: string }
 export interface AccountProject { id: string; name: string; chats: AccountChat[] }
 export interface AccountAttachment {
   displayName?: string;
@@ -11,6 +11,15 @@ export interface AccountAttachment {
   kind?: string;
   attachment?: { id: string; name: string; mime_type?: string; size?: number };
   part?: Record<string, unknown>;
+}
+export interface AccountCatalog {
+  profile: { name: string };
+  models: ProviderModel[];
+  projects: { items: AccountProject[]; cursor?: string; next_cursor?: string };
+  chats: { items: AccountChat[]; total?: number; limited?: boolean; limit?: number };
+  capabilities: { projects: boolean; chats: boolean; attachments: boolean };
+  detectedSettings?: Pick<TranslationProvider, 'geminiAccountIndex'>;
+  warnings?: string[];
 }
 export interface AccountReply { reply: string; context: TaskConversation }
 const PREFIX = '/api/translator/accounts';
@@ -25,10 +34,12 @@ async function call<T>(action: string, provider: TranslationProvider, body: Reco
   }
 }
 export const accountProviderService = {
+  connect(provider: TranslationProvider) { return call<AccountCatalog>('connect', provider, {}, 180000); },
+  projectChats(provider: TranslationProvider, projectId: string, cursor?: string) { return call<{ items: AccountChat[]; cursor?: string; next_cursor?: string }>('project-chats', provider, { projectId, cursor }); },
   models(provider: TranslationProvider) { return call<{ models: ProviderModel[] }>('models', provider); },
   projects(provider: TranslationProvider, cursor?: string) { return call<{ items: AccountProject[]; cursor?: string; next_cursor?: string }>('projects', provider, { ...(cursor ? { cursor } : {}) }); },
-  chats(provider: TranslationProvider, offset = 0) { return call<{ items: AccountChat[]; total?: number }>('chats', provider, { offset }); },
-  conversation(provider: TranslationProvider, conversationId: string) { return call<{ id: string; title?: string; projectId?: string }>('conversation', provider, { conversationId }); },
+  chats(provider: TranslationProvider, offset = 0, limit = 50) { return call<{ items: AccountChat[]; total?: number }>('chats', provider, { offset, limit }); },
+  conversation(provider: TranslationProvider, conversationId: string) { return call<{ id: string; title?: string; projectId?: string; responseId?: string; choiceId?: string; parentMessageId?: string }>('conversation', provider, { conversationId }); },
   send(provider: TranslationProvider, purpose: TaskPurpose, prompt: string, createNew: boolean, attachments: AccountAttachment[]) {
     return call<AccountReply>('send', provider, { purpose, prompt, createNew, attachments }, 310000);
   },

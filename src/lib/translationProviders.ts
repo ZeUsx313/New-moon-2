@@ -17,7 +17,7 @@ export interface TaskConversation {
   model?: string;
   reasoningEffort?: string;
 }
-export interface ProviderModel { modelId: string; modelName: string }
+export interface ProviderModel { modelId: string; modelName: string; reasoningEfforts?: string[] }
 export interface AccountSettings {
   chatgptAccountId?: string;
   reasoningEffort?: string;

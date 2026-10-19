@@ -24,7 +24,7 @@ let mongo, server, nextConversation = 0;
 const messages = [];
 function seed() {
   return [
-    { providerId: 'chatgpt_e2e', name: 'ChatGPT Test Account', apiKeys: ['fake-chatgpt-session'], chatgptAccountId: 'test-account', selectedModel: 'auto', models: [{ modelId: 'auto', modelName: 'Auto' }], taskConversations: {} },
+    { providerId: 'chatgpt_e2e', name: 'ChatGPT Test Account', apiKeys: ['fake-chatgpt-session'], chatgptAccountId: 'stale-manual-account', selectedModel: 'auto', models: [{ modelId: 'auto', modelName: 'Auto' }], taskConversations: {} },
     { providerId: 'gemini_web_e2e', name: 'Gemini Test Account', apiKeys: ['__Secure-1PSID=e2e-fake; __Secure-1PSIDTS=e2e-fake'], selectedModel: 'gemini-web', models: [{ modelId: 'gemini-web', modelName: 'Adaptive' }], geminiAccountIndex: 1, allowGuestFallback: false, taskConversations: {} },
     { providerId: 'deepseek_worker_e2e', name: 'DeepSeek Worker Test', apiKeys: ['fake-ds-token'], baseUrl: 'https://deepseek-pow.contact-3mh.workers.dev', selectedModel: 'deepseek-chat', models: [{ modelId: 'deepseek-chat', modelName: 'DeepSeek Chat' }], searchEnabled: false },
   ];
@@ -33,10 +33,12 @@ function upstream() {
   nock = backendRequire('nock');
   nock.disableNetConnect(); nock.enableNetConnect(/^(127\.0\.0\.1|localhost)(:\d+)?$/);
   const gpt = nock('https://android.chat.openai.com').persist();
+  nock('https://android.chat.openai.com', { badheaders: ['chatgpt-account-id'] }).persist().get('/backend-api/accounts/check/v4-2023-04-27').reply(200, { default_account_id: 'test-account' });
   gpt.get('/backend-api/models').reply(200, { models: [{ slug: 'auto', title: 'Auto' }, { slug: 'gpt-test', title: 'GPT Test' }] });
-  gpt.get('/backend-api/gizmos/snorlax/sidebar').query(true).reply(200, { items: [{ gizmo: { gizmo: { id: 'novel-project', display: { name: 'Novel project' } } }, conversations: { items: [{ id: 'project-existing-chat', title: 'Existing project chat' }] } }] });
-  gpt.get('/backend-api/conversations').query(true).reply(200, { items: [{ id: 'general-chat', title: 'General chat' }], total: 1 });
-  gpt.get(/\/backend-api\/conversation\/.+/).reply(uri => [200, { current_node: 'latest-parent', gizmo_id: uri.includes('general-chat') ? '' : 'novel-project', title: 'Conversation' }]);
+  gpt.get('/backend-api/gizmos/snorlax/sidebar').query(q => q.conversations_per_gizmo === '5').reply(200, { items: [{ gizmo: { gizmo: { id: 'novel-project', display: { name: 'Novel project' } } }, conversations: { items: [{ id: 'project-existing-chat', title: 'Existing project chat' }] } }] });
+  gpt.get('/backend-api/gizmos/novel-project/conversations').query(true).reply(200, { items: [{ id: 'project-existing-chat', title: 'Existing project chat' }, { id: 'sixth-project-chat', title: 'Sixth project chat' }] });
+  gpt.get('/backend-api/conversations').query(true).reply(200, { items: [{ id: 'general-chat', title: 'General chat' }, { id: 'glossary-chat', title: 'Glossary chat' }, { id: 'review-chat', title: 'Review chat' }], total: 3 });
+  gpt.get(/\/backend-api\/conversation\/.+/).reply(uri => [200, { current_node: 'latest-parent', gizmo_id: uri.includes('project-chat') ? 'novel-project' : '', title: 'Conversation' }]);
   gpt.post('/backend-api/conversation').reply((uri, body) => {
     messages.push(body);
     const cid = body.conversation_id || `new-project-chat-${++nextConversation}`;
@@ -45,6 +47,24 @@ function upstream() {
   gpt.post('/backend-api/files').reply(200, { file_id: 'e2e-file', upload_url: 'https://storage.example.invalid/upload' });
   nock('https://storage.example.invalid').persist().put('/upload').reply(201);
   gpt.post('/backend-api/files/e2e-file/uploaded').reply(200, {});
+  const gem = nock('https://gemini.google.com').persist();
+  gem.get('/u/0/app').reply(200, '"SNlM0e":"csrf","FdrFJe":"-42","cfb2h":"live-build"');
+  gem.post('/u/0/_/BardChatUi/data/batchexecute').query(true).reply((uri, body) => {
+    const form = new URLSearchParams(typeof body === 'string' ? body : Object.entries(body));
+    const id = JSON.parse(form.get('f.req'))[0][0][0];
+    let result;
+    if (id === 'otAQ7b') {
+      result = []; result[14] = 1000; const model = []; model[0] = 'gem-model'; model[11] = 'Gemini Pro'; model[17] = 1;
+      result[15] = [model]; result[16] = []; result[17] = [];
+    } else if (id === 'MaZiqc') result = [null, null, [['gem-conversation', 'Gemini novel conversation']]];
+    else if (id === 'hNvQHb') { const turn = []; turn[0] = ['gem-conversation', 'gem-response']; turn[3] = [[['gem-choice', ['Answer']]]]; result = [[turn]]; }
+    else return [400, {}];
+    return [200, ")]}'\n\n100\n" + JSON.stringify([['wrb.fr', id, JSON.stringify(result)]])];
+  });
+  const worker = nock('https://deepseek-pow.contact-3mh.workers.dev').persist();
+  worker.get('/v1/models').reply(200, { data: [{ id: 'deepseek-chat', name: 'DeepSeek Chat' }] });
+  worker.post('/api/chat/sessions/list').reply(200, { success: true, sessions: [{ id: 'ds-session', title: 'DeepSeek novel', last_response_id: 12 }] });
+
 }
 (async () => {
   // Start DB before blocking external hosts; downloading MongoDB is allowed if uncached.

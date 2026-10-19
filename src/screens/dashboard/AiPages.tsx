@@ -1455,8 +1455,10 @@ export function TranslationSettingsPage() {
             {/* المحتوى القابل للطي */}
             {isExpanded && !selectionMode && (
               <div className="px-4 pb-4 border-t border-white/10 pt-1">
-                <label className={miniLabel}>اسم المزوّد</label>
-                <input className={inputCls} value={provider.name} onChange={(e) => updateProviderField(provider.providerId, 'name', e.target.value)} placeholder="مثل: مزودي الخاص، OpenRouter" />
+                {isAccountProvider(provider) ? <p className="mt-3 text-xs font-bold text-white/70">{provider.name}</p> : <>
+                  <label className={miniLabel}>اسم المزوّد</label>
+                  <input className={inputCls} value={provider.name} onChange={(e) => updateProviderField(provider.providerId, 'name', e.target.value)} placeholder="مثل: مزودي الخاص، OpenRouter" />
+                </>}
 
                 {!isChatTemplate && (
                   <>
@@ -1503,15 +1505,7 @@ export function TranslationSettingsPage() {
                   </div>
                 )}
 
-                {isAccountProvider(provider) && (
-                  <AccountProviderControls provider={provider}
-                    onChange={(field, value) => updateProviderField(provider.providerId, field, value)}
-                    onTaskChange={(purpose, patch) => updateTaskConversation(provider.providerId, purpose, patch)}
-                    onPendingChange={busy => setPendingAccounts(current => ({ ...current, [provider.providerId]: busy }))}
-                    onModels={models => setProviders(current => current.map(p => p.providerId !== provider.providerId ? p : {
-                      ...p, models, selectedModel: models.some(m => m.modelId === p.selectedModel) ? p.selectedModel : models[0]?.modelId || p.selectedModel,
-                    }))} />
-                )}
+
 
                 {/* مزودو POW — DeepSeek فقط */}
                 {isDeepSeekProvider(provider) && !isDeepSeekWorkerProvider(provider) && (
@@ -1609,6 +1603,17 @@ export function TranslationSettingsPage() {
                   onChange={(e) => updateProviderKeys(provider.providerId, e.target.value)}
                 />
 
+                {isAccountProvider(provider) && (
+                  <AccountProviderControls provider={provider}
+                    onChange={(field, value) => updateProviderField(provider.providerId, field, value)}
+                    onTaskChange={(purpose, patch) => updateTaskConversation(provider.providerId, purpose, patch)}
+                    onPendingChange={busy => setPendingAccounts(current => ({ ...current, [provider.providerId]: busy }))}
+                    onModels={models => setProviders(current => current.map(p => p.providerId !== provider.providerId ? p : {
+                      ...p, models, selectedModel: models.some(m => m.modelId === p.selectedModel) ? p.selectedModel : models[0]?.modelId || p.selectedModel,
+                    }))} />
+                )}
+
+                {!isAccountProvider(provider) && <>
                 {/* النماذج */}
                 <div className="flex items-center justify-between mt-3">
                   <span className="text-white/70 text-xs font-bold">النماذج</span>
@@ -1703,6 +1708,7 @@ export function TranslationSettingsPage() {
                     </button>
                   </>
                 )}
+                </>}
               </div>
             )}
           </Glass>

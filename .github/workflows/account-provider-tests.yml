@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: cobrapk8ggggggg-tech/C
-          ref: 362a26425fab6ddea0d3157094008020c821a7f2
+          ref: 40b6fbc7cab4665dfa2e67ce9485c4996548d8c1
           path: .test-backend
       - name: Install backend test dependencies
         run: npm ci --prefix .test-backend/backend
