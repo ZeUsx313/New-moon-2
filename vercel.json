@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "https://c-production-6948.up.railway.app/api/sitemap" },
+    { "source": "/sitemap.xml", "destination": "https://c-flow-backend.vercel.app/api/sitemap" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
