@@ -48,6 +48,7 @@ const SECTIONS: SideSection[] = [
     Icon: Wrench,
     adminOnly: true,
     items: [
+      ...(import.meta.env.VITE_DURABLE_JOBS === 'true' ? [{ to: '/dashboard/automation', label: 'مهام ZEUS', Icon: ListTree }] : []),
       { to: '/dashboard/translation-jobs', label: 'المترجم الذكي (الترجمة الآلية)', Icon: Cpu },
       { to: '/dashboard/review-jobs', label: 'المراجع الذكي (جودة الفصول)', Icon: ShieldCheck },
       { to: '/dashboard/glossary-ai', label: 'المستخرج الذكي (استخراج المصطلحات)', Icon: BookMarked },
