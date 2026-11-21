@@ -29,6 +29,7 @@ const Login = lazy(() => import('./src/screens/auth/Login'));
 const Signup = lazy(() => import('./src/screens/auth/Signup'));
 const GoogleCallback = lazy(() => import('./src/screens/auth/GoogleCallback'));
 const NotFound = lazy(() => import('./src/screens/NotFound'));
+const AutomationPage = lazy(() => import('./src/screens/dashboard/AutomationPage'));
 const DashboardLayout = lazy(() => import('./src/screens/dashboard/DashboardLayout'));
 const DashboardIndex = lazy(() => import('./src/screens/dashboard/CorePages').then((m) => ({ default: m.NovelsPage })));
 const NovelCreatePage = lazy(() => import('./src/screens/dashboard/CorePages').then((m) => ({ default: m.NovelCreatePage })));
@@ -170,6 +171,7 @@ function Layout() {
               <Route path="glossary-ai/jobs/:jobId" element={<GlossaryAiJobDetailPage />} />
 
               {/* ⚡ المترجم الخالص — ترجمة فقط بالمسرد الجاهز (بلا استخراج مصطلحات) */}
+              <Route path="automation" element={<AutomationPage />} />
               <Route path="pure-translate" element={<PureTranslationJobsPage />} />
               <Route path="pure-translate/start" element={<PureTranslationStartPage />} />
               <Route path="pure-translate/jobs/:jobId" element={<PureTranslationJobDetailPage />} />
