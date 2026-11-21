@@ -267,7 +267,7 @@ export function TranslationJobsPage() {
         <div className="flex flex-col gap-3.5 pb-8">
           {jobs.map((job) => {
             const translated = job.translated ?? job.translatedCount ?? 0;
-            const total = job.total ?? job.totalToTranslate ?? 0;
+            const total = job.totalToTranslate ?? job.total ?? 0;
             const pct = total > 0 ? Math.min(100, (translated / total) * 100) : 0;
             return (
               <Glass key={job.id || job._id} onClick={() => navigate(`/dashboard/translation-jobs/${job.id || job._id}`)}>
@@ -639,7 +639,7 @@ export function TranslationJobDetailPage() {
             }`}
           >
             {status === 'active' && <Loader2 size={12} className="animate-spin" />}
-            {status === 'active' ? 'نشط' : status === 'paused' ? 'متوقف مؤقتاً' : status === 'completed' ? 'مكتمل' : 'فشل/توقف'}
+            {status === 'active' ? 'نشط' : status === 'paused' ? (job.blockedCode ? 'متوقف بسبب خطأ' : 'متوقف مؤقتاً') : status === 'completed' ? 'مكتمل' : 'فشل/توقف'}
           </span>
           <h2 className="text-white font-extrabold text-base truncate">{job.novelTitle}</h2>
         </div>

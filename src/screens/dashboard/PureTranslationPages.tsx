@@ -162,8 +162,8 @@ export function PureTranslationJobsPage() {
       ) : (
         <div className="flex flex-col gap-3.5">
           {jobs.map((job) => {
-            const done = job.translated || 0;
-            const total = job.total || job.totalToTranslate || 0;
+            const done = job.translatedCount ?? job.translated ?? 0;
+            const total = job.totalToTranslate ?? job.total ?? 0;
             const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
             return (
               <Glass key={job.id || job._id} onClick={() => navigate(`/dashboard/pure-translate/jobs/${job.id || job._id}`)}>
@@ -591,7 +591,7 @@ export function PureTranslationJobDetailPage() {
             }`}
           >
             {status === 'active' && <Loader2 size={12} className="animate-spin" />}
-            {status === 'active' ? 'نشط' : status === 'paused' ? 'متوقف مؤقتاً' : status === 'completed' ? 'مكتمل' : 'فشل/توقف'}
+            {status === 'active' ? 'نشط' : status === 'paused' ? (job.blockedCode ? 'متوقف بسبب خطأ' : 'متوقف مؤقتاً') : status === 'completed' ? 'مكتمل' : 'فشل/توقف'}
           </span>
           <h2 className="text-white font-extrabold text-base truncate">{job.novelTitle}</h2>
         </div>
