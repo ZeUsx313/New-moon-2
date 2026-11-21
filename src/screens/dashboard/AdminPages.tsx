@@ -7,13 +7,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Users as UsersIcon, Plus, X, RefreshCcw, ShieldAlert, Eraser, Copyright,
-  KeyRound, Trash2, Save, Search, Loader2, Cookie, Activity, Globe,
+  KeyRound, DownloadCloud, Play, Trash2, Save, Search, Loader2, Cookie, Activity, Globe,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { adminService, AdminUser, ScraperLog } from '../../services/admin';
 import { categoryService } from '../../services/category';
-import AutomationPage from './AutomationPage';
+import { automationService, type AutomationJob, type AutomationEvent } from '../../services/automation';
 import { translatorService } from '../../services/translator';
 import { inputCls, btnPrimary, btnGhost, Spinner, PageHead, jobStatus } from './shared';
 
@@ -723,6 +723,283 @@ export function ScraperKeysPage() {
   );
 }
 
+/* ═══════════ الاستيراد التلقائي (واجهة السكرابر) ═══════════ */
 export function AutoImportPage() {
-  return <AutomationPage scrapeOnly />;
+  const [url, setUrl] = useState('');
+  const [chaptersInput, setChaptersInput] = useState(''); // 🎯 نطاق انتقائي اختياري: "10-20" / "12,50" / "10-!"
+  const [busy, setBusy] = useState(false);
+  const [logs, setLogs] = useState<ScraperLog[]>([]);
+  const [watchlist, setWatchlist] = useState<any[]>([]);
+  const [scheduler, setScheduler] = useState({ enabled: false, interval: 60, loaded: false, inProgress: false });
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [activeJob, setActiveJob] = useState<AutomationJob | null>(null);
+  const logsEndRef = React.useRef<HTMLDivElement>(null);
+  const selectedJob = React.useRef<string | null>(null);
+  const requestKey = React.useRef<{ input: string; key: string } | null>(null);
+  const recentEvents = React.useRef<{ jobId: string; rows: AutomationEvent[] }>({ jobId: '', rows: [] });
+  const readingLogs = React.useRef(false);
+
+  const fetchLogs = useCallback(async () => {
+    if (readingLogs.current) return;
+    readingLogs.current = true;
+    try {
+      const [legacy, jobs] = await Promise.all([
+        adminService.getLogs().catch(() => []),
+        automationService.list(),
+      ]);
+      const scrapes = jobs.filter(job => job.kind === 'scrape');
+      const focus = scrapes.find(job => job.id === selectedJob.current) || scrapes[0];
+      if (selectedJob.current && focus?.id !== selectedJob.current) return;
+      setActiveJob(focus || null);
+      const events = recentEvents.current;
+      if (focus && events.jobId !== focus.id) recentEvents.current = { jobId: focus.id, rows: [] };
+      const current = recentEvents.current;
+      if (focus) {
+        const incoming = await automationService.events(focus.id, current.rows.at(-1)?._id).catch(() => []);
+        if (selectedJob.current && selectedJob.current !== focus.id) return;
+        if (Array.isArray(incoming)) current.rows = [...current.rows, ...incoming].slice(-100);
+      }
+      const rows = (focus ? current.rows : []).map(event => ({
+        _id: event._id,
+        timestamp: event.createdAt,
+        type: event.type === 'error' ? 'error' : ['completed', 'no_missing_chapters', 'stage_committed'].includes(event.code) ? 'success' : 'info',
+        message: event.code === 'catalog_ready' ? 'حُفظ فهرس الرواية وتحدد نطاق السحب.'
+          : event.code === 'no_missing_chapters' ? 'اكتمل الفحص، لا توجد فصول جديدة.'
+          : event.chapter && ['completed', 'stage_committed'].includes(event.code) ? `حُفظ الفصل ${event.chapter} وتأكدت قراءته.`
+          : `تحديث حالة المهمة: ${event.code}`,
+      }));
+      setLogs([...legacy, ...rows].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)).slice(-100));
+    } catch { /* keep the previous console when a poll fails */ }
+    finally { readingLogs.current = false; }
+  }, []);
+
+  const fetchWatchlist = useCallback(async () => {
+    try {
+      const novels = await translatorService.getWatchlist();
+      if (Array.isArray(novels)) setWatchlist(novels);
+    }
+    catch { /* keep the previous watchlist */ }
+  }, []);
+
+  const fetchScheduler = useCallback(async () => {
+    try {
+      const data = await automationService.watchSchedule();
+      setScheduler({ enabled: data.enabled, interval: data.intervalMinutes, loaded: true, inProgress: data.inProgress });
+    } catch { toast.error('تعذر جلب إعداد الجدولة'); }
+  }, []);
+
+  useEffect(() => {
+    void fetchLogs();
+    void fetchWatchlist();
+    void fetchScheduler();
+    const timer = setInterval(() => { void fetchLogs(); }, 5000);
+    const watchTimer = setInterval(() => {
+      void fetchWatchlist();
+      void automationService.watchSchedule().then(data => {
+        setScheduler(current => ({ ...current, inProgress: data.inProgress }));
+      }).catch(() => {});
+    }, 15000);
+    return () => { clearInterval(timer); clearInterval(watchTimer); };
+  }, [fetchLogs, fetchWatchlist, fetchScheduler]);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
+  }, [logs.length]);
+
+  const startScrape = async () => {
+    const source = url.trim(), spec = chaptersInput.trim();
+    if (!source) { toast.error('أدخل رابط الرواية'); return; }
+    const input = JSON.stringify([source, spec]);
+    if (requestKey.current?.input !== input) requestKey.current = { input, key: crypto.randomUUID() };
+    setBusy(true);
+    try {
+      const job = await automationService.scrape(source, spec, requestKey.current.key);
+      requestKey.current = null;
+      selectedJob.current = job.id;
+      setActiveJob(job);
+      toast.success(job.status === 'completed' ? 'نتيجة السحب محفوظة' : 'حُفظت مهمة السحب — تابع السجل الحي');
+      void fetchLogs();
+      void fetchWatchlist();
+    } catch (error) {
+      const failure = error as { status?: number; message?: string };
+      toast.error(failure.status === 409 ? 'توجد مهمة نشطة للرواية نفسها'
+        : failure.status === 400 ? 'تحقق من رابط الرواية ونطاق الفصول. الحد 2000 فصل لكل مهمة.'
+          : 'تعذر تأكيد بدء السحب. أعد المحاولة للتحقق من الطلب نفسه.');
+    } finally { setBusy(false); }
+  };
+
+  const saveScheduler = async (patch: Partial<{ enabled: boolean; interval: number }>) => {
+    const next = { ...scheduler, ...patch };
+    if (!scheduler.loaded || savingSchedule) return;
+    if (!Number.isInteger(next.interval) || next.interval < 10 || next.interval > 1440) {
+      toast.error('حدد الفاصل بين 10 و1440 دقيقة');
+      void fetchScheduler();
+      return;
+    }
+    setSavingSchedule(true);
+    try {
+      const data = await automationService.saveWatchSchedule(next.enabled, next.interval);
+      setScheduler({ enabled: data.enabled, interval: data.intervalMinutes, loaded: true, inProgress: data.inProgress });
+      toast.success('حُفظ إعداد الجدولة');
+    } catch { toast.error('فشل حفظ الجدولة'); void fetchScheduler(); }
+    finally { setSavingSchedule(false); }
+  };
+
+  const updateAll = async () => {
+    if (!watchlist.length) return;
+    setBusy(true);
+    try {
+      await automationService.refreshWatchlist();
+      setScheduler(current => ({ ...current, inProgress: true }));
+      toast.success('حُفظ طلب تحديث قائمة المتابعة');
+      void fetchLogs();
+    } catch { toast.error('تعذر حفظ طلب تحديث قائمة المتابعة'); }
+    finally { setBusy(false); }
+  };
+
+  const refreshWatchedNovel = async (novelId: string, title: string) => {
+    setBusy(true);
+    try {
+      const job = await automationService.refreshWatched(novelId, crypto.randomUUID());
+      selectedJob.current = job.id;
+      setActiveJob(job);
+      toast.success(`حُفظ طلب فحص «${title}»`);
+      void fetchLogs();
+    } catch (error) {
+      toast.error((error as { status?: number })?.status === 409
+        ? 'توجد مهمة نشطة لهذه الرواية' : 'تعذر إنشاء مهمة فحص التحديث');
+    } finally { setBusy(false); }
+  };
+
+  const controlJob = async (action: 'resume' | 'cancel') => {
+    if (!activeJob || (action === 'cancel' && !window.confirm('إلغاء ما تبقى من المهمة؟'))) return;
+    setBusy(true);
+    try { setActiveJob(await automationService.control(activeJob.id, action)); void fetchLogs(); }
+    catch { toast.error('تعذر تغيير حالة المهمة'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div>
+      <PageHead title="الاستيراد التلقائي (السكرابر)" desc="اسحب رواية كاملة من أي موقع مدعوم — تابع الكونسول الحي ثم حدّث قائمة المتابعة">
+        <button onClick={updateAll} disabled={busy || watchlist.length === 0} className={btnGhost}>
+          <RefreshCcw size={15} /> تحديث كل المتبعة ({watchlist.length})
+        </button>
+      </PageHead>
+
+      <div className="grid lg:grid-cols-2 gap-5">
+        {/* السحب */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+          <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2"><DownloadCloud size={15} /> سحب رواية من رابط</h3>
+          <input className={inputCls} placeholder="https://m.wfxs.tw/xiaoshuo/2309384/" value={url} onChange={(e) => setUrl(e.target.value)} dir="ltr" />
+          {/* 🎯 نطاق الفصول الاختياري — يُترك فارغاً لسحب الرواية كاملة */}
+          <input
+            className={inputCls + ' mt-2 text-center'}
+            placeholder="نطاق الفصول (اختياري): 10-20 أو 12,50 أو 10-!"
+            value={chaptersInput}
+            onChange={(e) => setChaptersInput(e.target.value)}
+            dir="ltr"
+          />
+          {chaptersInput.trim() !== '' && (
+            <p className="text-yellow-400/80 text-[11px] mt-1.5">🎯 سيُسحب فقط: {chaptersInput.trim()} — الفصل الموجود مسبقاً لن يُعاد سحبه</p>
+          )}
+          <p className="text-white/30 text-[11px] mt-2 mb-3">
+            المواقع المدعومة: wfxs.tw، quanben.io، 69shu، novel543، twkan، jwxs، linovelib، novelfire، tadu، bixiange، ffxs8، jpxs123، tomatomtl، wtr-lab، rewayat، ar-no وغيرها (32 موقعاً)
+          </p>
+          <button onClick={startScrape} disabled={busy} className={btnPrimary + ' w-full'}>
+            {busy ? <Spinner /> : <Play size={15} />} بدء السحب
+          </button>
+
+          {activeJob && (
+            <div className="mt-2 text-white/60 text-xs" aria-label="حالة مهمة السحب">
+              {activeJob.total > 0 ? `حُفظ ${activeJob.completed} من ${activeJob.total}`
+                : activeJob.status === 'completed' ? 'لا توجد فصول جديدة' : 'جارٍ تحديد الفصول من الفهرس'}
+              {activeJob.novelId && <a className="mr-2 underline" href={`/dashboard/chapters/${encodeURIComponent(activeJob.novelId)}`}>إدارة فصول الرواية</a>}
+              {activeJob.blockedCode === 'scrape_selection_too_large' && <p className="text-red-400">اختر نطاقًا لا يتجاوز 2000 فصل لكل مهمة.</p>}
+              {activeJob.status === 'blocked' && activeJob.blockedCode !== 'scrape_selection_too_large' &&
+                <p className="text-red-400">توقفت المهمة. راجع آخر رسالة في سجل السحب.</p>}
+              {['paused', 'failed', 'blocked'].includes(activeJob.status) &&
+                <button type="button" className="mr-2 underline" disabled={busy} onClick={() => void controlJob('resume')}>استئناف</button>}
+              {!['completed', 'cancelled'].includes(activeJob.status) &&
+                <button type="button" className="mr-2 underline" disabled={busy} onClick={() => void controlJob('cancel')}>إلغاء الباقي</button>}
+            </div>
+          )}
+
+          {/* الجدولة */}
+          <div className="mt-5 pt-4 border-t border-white/10">
+            <h4 className="text-white font-bold text-sm mb-3">التحديث التلقائي المجدول</h4>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-white/70 text-sm cursor-pointer">
+                <input type="checkbox" disabled={!scheduler.loaded || savingSchedule} checked={scheduler.enabled} onChange={(e) => saveScheduler({ enabled: e.target.checked })} className="accent-white" />
+                مفعّل
+              </label>
+              <label className="flex items-center gap-2 text-white/60 text-xs">
+                كل
+                <input
+                  type="number" min={10}
+                  max={1440}
+                  disabled={!scheduler.loaded || savingSchedule}
+                  className="w-20 bg-white/5 border border-white/15 rounded-lg px-2 py-1.5 text-white text-xs"
+                  value={scheduler.interval}
+                  onChange={(e) => setScheduler((p) => ({ ...p, interval: parseInt(e.target.value) || 60 }))}
+                  onBlur={(e) => saveScheduler({ interval: parseInt(e.target.value) || 60 })}
+                />
+                دقيقة
+              </label>
+            </div>
+            {savingSchedule && <p className="mt-2 text-white/50 text-xs">جارٍ حفظ إعداد الجدولة…</p>}
+            {scheduler.inProgress && <p className="mt-2 text-white/50 text-xs">تحديث قائمة المتابعة جارٍ.</p>}
+          </div>
+        </div>
+
+        {/* الكونسول */}
+        <div className="bg-black/40 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+            <h3 className="text-white font-bold text-sm">كونسول السحب الحي</h3>
+            <button onClick={fetchLogs} className="p-1.5 rounded-lg hover:bg-white/10 text-white/70" aria-label="تحديث"><RefreshCcw size={14} /></button>
+          </div>
+          <div className="flex-1 max-h-[45vh] overflow-y-auto p-3 font-mono text-[11px] space-y-1" dir="rtl">
+            {logs.length === 0 ? (
+              <p className="text-white/30 text-center py-8">لا سجلات بعد — ابدأ سحباً</p>
+            ) : logs.map((l) => (
+              <div key={l._id} className={l.type === 'error' ? 'text-red-400' : l.type === 'success' ? 'text-green-400' : 'text-white/70'}>
+                <span className="text-white/30 ml-2" dir="ltr">{new Date(l.timestamp).toLocaleTimeString('ar-EG')}</span>
+                {l.message}
+              </div>
+            ))}
+            <div ref={logsEndRef} />
+          </div>
+        </div>
+      </div>
+
+      {/* قائمة المتابعة */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden mt-5">
+        <div className="px-4 py-3 border-b border-white/10">
+          <h3 className="text-white font-bold text-sm">روايات المتابعة ({watchlist.length}) — تُحدّث تلقائياً حسب الجدولة</h3>
+        </div>
+        <div className="divide-y divide-white/5 max-h-[40vh] overflow-y-auto">
+          {watchlist.length === 0 ? (
+            <p className="py-10 text-center text-white/40 text-sm">لا روايات متابعة — اسحب رواية لتُضاف تلقائياً</p>
+          ) : watchlist.map((w, i) => (
+            <motion.div key={w._id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3 px-4 py-3">
+              {w.cover && <img src={w.cover} alt="" className="w-9 h-12 rounded object-cover bg-black/40" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.15'; }} />}
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-bold truncate">{w.title}</p>
+                <p className="text-white/30 text-[11px] truncate" dir="ltr">{w.sourceUrl || ''}</p>
+              </div>
+              {w.sourceUrl && (
+                <button
+                  onClick={() => void refreshWatchedNovel(w._id, w.title)}
+                  disabled={busy}
+                  className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg px-3 py-1.5"
+                >
+                  فحص تحديث
+                </button>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
