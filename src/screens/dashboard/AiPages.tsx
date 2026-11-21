@@ -22,6 +22,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { translatorService } from '../../services/translator';
+import { showTranslationRequestError } from '../../lib/translationError';
 import AccountProviderControls from '../../components/providers/AccountProviderControls';
 import { isAccountProvider, isChatGPTProvider, isDeepSeekWorkerProvider, pickAccountSettings, validateAccountSettings, type TaskPurpose, type TaskConversation } from '../../lib/translationProviders';
 import {
@@ -395,8 +396,8 @@ export function TranslationStartPage() {
       });
       toast.success('تم بدء المهمة');
       navigate('/dashboard/translation-jobs');
-    } catch {
-      toast.error('فشل بدء المهمة');
+    } catch (error) {
+      showTranslationRequestError(error, 'فشل بدء المهمة', navigate);
     } finally {
       setStarting(false);
     }
@@ -553,7 +554,6 @@ export function TranslationJobDetailPage() {
   const navigate = useNavigate();
   const [job, setJob] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
-  const [novelMaxChapter, setNovelMaxChapter] = useState(0);
   const [confirm, setConfirm] = useState<{ open: boolean; tone: 'info' | 'warning' | 'danger'; title: string; message: string; confirmText: string; action?: () => void }>({ open: false, tone: 'info', title: '', message: '', confirmText: '' });
 
   useEffect(() => {
@@ -563,7 +563,6 @@ export function TranslationJobDetailPage() {
         if (res) {
           setJob(res);
           setLogs(Array.isArray(res.logs) ? [...res.logs].reverse() : []);
-          if (res.novelMaxChapter) setNovelMaxChapter(res.novelMaxChapter);
         }
       } catch { /* التحديث الدوري يعيد المحاولة */ }
     };
@@ -581,7 +580,7 @@ export function TranslationJobDetailPage() {
       try {
         await translatorService.start({ jobId: job?._id || job?.id });
         toast.success('تم استئناف المهمة');
-      } catch { toast.error('فشل الاستئناف'); }
+      } catch (error) { showTranslationRequestError(error, 'فشل الاستئناف', navigate); }
     });
 
   const requestPause = () =>
@@ -613,8 +612,10 @@ export function TranslationJobDetailPage() {
   }
 
   const status = job.status;
-  const pct = novelMaxChapter > 0 ? Math.min(100, ((job.currentChapter || 0) / novelMaxChapter) * 100) : 0;
-  const remaining = Math.max(0, novelMaxChapter - (job.currentChapter || 0));
+  const completed = job.translatedCount ?? 0;
+  const remaining = Array.isArray(job.targetChapters) ? job.targetChapters.length : Math.max(0, (job.totalToTranslate ?? 0) - completed);
+  const total = job.totalToTranslate || completed + remaining;
+  const pct = total ? Math.min(100, completed * 100 / total) : 0;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -645,7 +646,7 @@ export function TranslationJobDetailPage() {
         <div className="w-full h-1.5 bg-white/10 rounded-full mt-4 mb-1.5 overflow-hidden">
           <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
         </div>
-        <p className="text-white/40 text-xs text-left">الوصول للفصل {job.currentChapter || 0} / {novelMaxChapter || '—'}</p>
+        <p className="text-white/40 text-xs text-left">الفصول المحفوظة {completed} / {total || '—'}</p>
       </Glass>
 
       {/* شبكة التحليلات: تمت ترجمته / متبقي */}

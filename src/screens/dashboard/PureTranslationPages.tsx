@@ -23,6 +23,7 @@ import {
 import toast from 'react-hot-toast';
 
 import { pureTranslateService, translatorService } from '../../services/translator';
+import { showTranslationRequestError } from '../../lib/translationError';
 import { ConfirmDialog, LiveTerminal } from './AiPages';
 import { Spinner, PageHead } from './shared';
 
@@ -308,8 +309,8 @@ export function PureTranslationStartPage() {
       });
       toast.success('تم بدء الترجمة الخالصة');
       navigate('/dashboard/pure-translate');
-    } catch {
-      toast.error('فشل بدء الترجمة');
+    } catch (error) {
+      showTranslationRequestError(error, 'فشل بدء الترجمة', navigate);
     } finally {
       setStarting(false);
     }
@@ -478,7 +479,6 @@ export function PureTranslationJobDetailPage() {
   const navigate = useNavigate();
   const [job, setJob] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
-  const [novelMaxChapter, setNovelMaxChapter] = useState(0);
   // ⏱️ التحكم الحي في الفاصل بين الفصول (بالثواني)
   const [delayInput, setDelayInput] = useState('2');
   const [savingDelay, setSavingDelay] = useState(false);
@@ -492,7 +492,6 @@ export function PureTranslationJobDetailPage() {
         if (res) {
           setJob(res);
           setLogs(Array.isArray(res.logs) ? [...res.logs].reverse() : []);
-          if (res.novelMaxChapter) setNovelMaxChapter(res.novelMaxChapter);
           // مزامنة حقل الفاصل مع الخادم فقط إن لم يعدّله المستخدم الآن
           if (!savingDelay && !delayDirtyRef.current && res.chapterDelayMs !== undefined && res.chapterDelayMs !== null) {
             setDelayInput(String(res.chapterDelayMs / 1000));
@@ -514,7 +513,7 @@ export function PureTranslationJobDetailPage() {
       try {
         await pureTranslateService.start({ jobId: job?._id || job?.id });
         toast.success('تم استئناف المهمة');
-      } catch { toast.error('فشل الاستئناف'); }
+      } catch (error) { showTranslationRequestError(error, 'فشل الاستئناف', navigate); }
     });
 
   const requestPause = () =>
@@ -565,8 +564,10 @@ export function PureTranslationJobDetailPage() {
   }
 
   const status = job.status;
-  const remaining = Array.isArray(job.targetChapters) ? job.targetChapters.length : 0;
-  const pct = novelMaxChapter > 0 ? Math.min(100, ((job.currentChapter || 0) / novelMaxChapter) * 100) : 0;
+  const completed = job.translatedCount ?? 0;
+  const remaining = Array.isArray(job.targetChapters) ? job.targetChapters.length : Math.max(0, (job.totalToTranslate ?? 0) - completed);
+  const total = job.totalToTranslate || completed + remaining;
+  const pct = total ? Math.min(100, completed * 100 / total) : 0;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -597,7 +598,7 @@ export function PureTranslationJobDetailPage() {
         <div className="w-full h-1.5 bg-white/10 rounded-full mt-4 mb-1.5 overflow-hidden">
           <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
         </div>
-        <p className="text-white/40 text-xs text-left">الوصول للفصل {job.currentChapter || 0} / {novelMaxChapter || '—'}</p>
+        <p className="text-white/40 text-xs text-left">الفصول المحفوظة {completed} / {total || '—'}</p>
       </Glass>
 
       {/* شبكة التحليلات: تمت ترجمته / متبقي — كواجهة المترجم بالضبط */}
