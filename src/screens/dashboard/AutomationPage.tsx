@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { automationService, type AutomationJob, type ChapterProgress, type JobInput, type JobKind } from '../../services/automation';
+import { automationService, parseScrapeChapters, type AutomationJob, type ChapterProgress, type JobInput, type JobKind } from '../../services/automation';
 import { translatorService } from '../../services/translator';
 import { btnGhost, btnPrimary, inputCls, PageHead } from './shared';
 export const jobLabels: Record<string, string> = {
@@ -10,8 +10,9 @@ const kinds: Record<JobKind, string> = { scrape: 'سحب الفصول', smart_tr
 const stages: Record<string, string> = { source: 'تثبيت المصدر', generate: 'ترجمة جزء', check_unit: 'فحص الجزء', residue: 'إصلاح المقاطع', review: 'مراجعة الجودة', quality: 'فحص الفصل', extract: 'استخراج المصطلحات', glossary_commit: 'حفظ المصطلحات', publish: 'تجهيز النشر', verify: 'تأكيد الحفظ', done: 'مكتمل' };
 const errors: Record<string, string> = { source_missing: 'لم يُعثر على النص الأصلي؛ بقي الفصل محفوظًا في قائمة العمل.', budget_approval_required: 'اختبار المزود يحتاج تحديد ميزانية أو تأكيد حصته المجانية.', provider_credential_missing: 'بيانات اتصال المزود غير متاحة.', provider_settings_changed: 'تغيرت إعدادات المزود أثناء المهمة.', ambiguous_retry_exhausted: 'تعذر تأكيد رد المزود بعد إعادة واحدة؛ يلزم التحقق قبل طلب جديد.', translation_quality_failed: 'لم يجتز الجزء فحص الجودة.', chapter_quality_failed: 'لم يجتز الفصل فحص الجودة.', glossary_quality_failed: 'لم تُعتمد نتيجة استخراج المصطلحات.', firestore_not_configured: 'مخزن الفصول غير متاح حاليًا.', publication_too_large: 'حجم النص يتجاوز حد النشر المدعوم؛ لم يُحذف المحتوى.' };
 function errorText(code?: string) { return code ? errors[code] || 'تعذر استكمال المرحلة الحالية. راجع إعدادات المهمة والمحاولة التالية.' : ''; }
-export default function AutomationPage() {
-  const enabled = import.meta.env.VITE_DURABLE_JOBS === 'true';
+export default function AutomationPage({ scrapeOnly = false }: { scrapeOnly?: boolean }) {
+  const enabled = scrapeOnly || import.meta.env.VITE_DURABLE_JOBS === 'true';
+  const [scrapeChapters, setScrapeChapters] = useState('1');
   const [jobs, setJobs] = useState<AutomationJob[]>([]), [selected, setSelected] = useState<AutomationJob | null>(null);
   const [chapters, setChapters] = useState<ChapterProgress[]>([]), [novels, setNovels] = useState<{ _id: string; title: string }[]>([]);
   const [form, setForm] = useState<JobInput>({ kind: 'scrape', sourceUrl: '', startChapter: 1, endChapter: 1 });
@@ -45,13 +46,24 @@ export default function AutomationPage() {
   }, [enabled, form.kind]);
   const change = (patch: Partial<JobInput>) => { requestKey.current = null; setForm(value => ({ ...value, ...patch })); };
   async function submit(event: React.FormEvent) {
-    event.preventDefault(); setBusy(true); setError(''); setNotice('');
+    event.preventDefault(); setError(''); setNotice('');
+    let input = form;
+    if (scrapeOnly) {
+      try { input = { ...form, chapters: parseScrapeChapters(scrapeChapters) }; }
+      catch (e) { setError((e as Error).message); return; }
+    }
+    setBusy(true);
     requestKey.current ||= crypto.randomUUID();
     try {
-      const job = await automationService.create(form, requestKey.current);
+      const job = await automationService.create(input, requestKey.current);
       setPageCursors([undefined]); setSelected(job); setJobs(list => [job, ...list.filter(j => j.id !== job.id)]);
       requestKey.current = null; setNotice('حُفظت المهمة على الخادم. يمكنك إغلاق الصفحة ومراجعة التقدم لاحقًا.');
-    } catch { setError('لم يتأكد إنشاء المهمة. يمكنك إعادة المحاولة؛ سيُستخدم طلب الإنشاء نفسه لمنع الازدواج.'); }
+    } catch (e) {
+      const status = (e as { status?: number })?.status;
+      if (status === 403) setError('حسابك لا يملك صلاحية إنشاء هذه المهمة.');
+      else if (status === 409) setError('توجد مهمة نشطة لهذه الرواية. افتحها من قائمة المهام لمتابعتها.');
+      else setError('تعذر تأكيد إنشاء المهمة. إعادة المحاولة تستخدم الطلب نفسه لمنع الازدواج.');
+    }
     finally { setBusy(false); }
   }
   async function control(action: 'pause' | 'resume' | 'cancel') {
@@ -63,25 +75,28 @@ export default function AutomationPage() {
     finally { setBusy(false); }
   }
   if (!enabled) return <p dir="rtl">صفحة المهام ستتاح بعد اعتماد المحرك وإعداد بيئة التشغيل.</p>;
+  const visibleJobs = scrapeOnly ? jobs.filter(job => job.kind === 'scrape') : jobs;
   return <div dir="rtl" className="space-y-6">
-    <PageHead title="مهام ZEUS" desc="تابع الفصول التي تأكد حفظها، وأوقف العمل أو استأنفه من هنا." />
+    <PageHead title={scrapeOnly ? 'الاستيراد التلقائي (السكرابر)' : 'مهام ZEUS'} desc="تابع الفصول التي تأكد حفظها، وأوقف العمل أو استأنفه من هنا." />
     {error && <p role="alert" className="text-red-300">{error}</p>}
     {notice && <p role="status" className="text-green-300">{notice}</p>}
     <form onSubmit={submit} className="grid gap-3 rounded-xl border border-white/15 p-4">
-      <label>نوع المهمة<select className={inputCls} value={form.kind} onChange={e => change({ kind: e.target.value as JobKind })}>{Object.entries(kinds).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+      {!scrapeOnly && <label>نوع المهمة<select className={inputCls} value={form.kind} onChange={e => change({ kind: e.target.value as JobKind })}>{Object.entries(kinds).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>}
       {form.kind === 'scrape' ? <label>رابط الرواية<input required type="url" className={inputCls} value={form.sourceUrl} onChange={e => change({ sourceUrl: e.target.value })} /></label> :
         <label>الرواية<select required className={inputCls} value={form.novelId || ''} onChange={e => change({ novelId: e.target.value })}><option value="">اختر رواية</option>{novels.map(n => <option key={n._id} value={n._id}>{n.title}</option>)}</select></label>}
-      <div className="flex gap-3"><label>من الفصل<input required type="number" min="1" className={inputCls} value={form.startChapter} onChange={e => change({ startChapter: Number(e.target.value) })} /></label><label>إلى الفصل<input required type="number" min={form.startChapter} max={form.startChapter + 1999} className={inputCls} value={form.endChapter} onChange={e => change({ endChapter: Number(e.target.value) })} /></label></div>
+      {scrapeOnly ? <label>الفصول المطلوبة<input required className={inputCls} dir="ltr" placeholder="1-10 أو 12,50" value={scrapeChapters} onChange={e => { requestKey.current = null; setScrapeChapters(e.target.value); }} /></label> :
+        <div className="flex gap-3"><label>من الفصل<input required type="number" min="1" className={inputCls} value={form.startChapter} onChange={e => change({ startChapter: Number(e.target.value) })} /></label><label>إلى الفصل<input required type="number" min={form.startChapter} max={form.startChapter + 1999} className={inputCls} value={form.endChapter} onChange={e => change({ endChapter: Number(e.target.value) })} /></label></div>}
       {form.kind !== 'scrape' && <label className="flex gap-2"><input type="checkbox" checked={form.sourceSelection === 'current_content'} onChange={e => change({ sourceSelection: e.target.checked ? 'current_content' : 'verified_original' })} />للروايات القديمة: استخدم النص الحالي مصدرًا واحفظ نسخة منه لهذه المهمة</label>}
-      <button className={btnPrimary} disabled={busy}>إنشاء مهمة</button>
+      <button className={btnPrimary} disabled={busy}>{scrapeOnly ? 'بدء السحب' : 'إنشاء مهمة'}</button>
     </form>
-    <ul className="space-y-2" aria-label="قائمة المهام">{jobs.map(j => <li key={j.id}><button className={btnGhost + ' w-full justify-between'} onClick={() => { setPageCursors([undefined]); setChapters([]); setSelected(j); }}><span>{j.title ? `${j.title} — ` : ''}{kinds[j.kind]} — {jobLabels[j.status] || j.status}</span><span>{j.completed} / {j.total}</span></button></li>)}</ul>
+    <ul className="space-y-2" aria-label="قائمة المهام">{visibleJobs.map(j => <li key={j.id}><button className={btnGhost + ' w-full justify-between'} onClick={() => { setPageCursors([undefined]); setChapters([]); setSelected(j); }}><span>{j.title ? `${j.title} — ` : ''}{kinds[j.kind]} — {jobLabels[j.status] || j.status}</span><span>{j.completed} / {j.total}</span></button></li>)}</ul>
     {jobs.length >= 50 && !noMoreJobs && <button className={btnGhost} onClick={async () => { try { const rows = await automationService.list(jobs.at(-1)?.id); setJobs(all => [...all, ...rows.filter(r => !all.some(j => j.id === r.id))]); setNoMoreJobs(rows.length < 50); } catch { setError('تعذر تحميل المهام الأقدم.'); } }}>مهام أقدم</button>}
-    {!jobs.length && <p>لا توجد مهام معروضة.</p>}
+    {!visibleJobs.length && <p>لا توجد مهام معروضة.</p>}
     {selected && <section aria-label="تفاصيل المهمة" className="space-y-3 rounded-xl border border-white/15 p-4">
       <h2 className="font-bold">{selected.title ? `${selected.title} — ` : ''}{kinds[selected.kind]} — {jobLabels[selected.status] || selected.status}</h2>
       <progress className="w-full" max={selected.total || 1} value={selected.completed} aria-label="الفصول المكتملة" />
       <p>حُفظ {selected.completed} من {selected.total} فصلًا — المتبقي {selected.remaining}</p>
+      {selected.novelId && <a className={btnGhost} href={`/dashboard/chapters/${encodeURIComponent(selected.novelId)}`}>إدارة فصول الرواية</a>}
       {selected.workerClass === 'long' && selected.status === 'queued' && <p>بانتظار تشغيل عامل الدفعات. التقدم السابق محفوظ.</p>}
       <p>الفصل الجاري: {selected.currentChapter || '—'} — {stages[selected.stage || ''] || 'في الانتظار'}</p>
       <p>إعادات المحاولة: {selected.retries || 0} — المعدل: {(selected.ratePerMinute || 0).toFixed(2)} فصل/دقيقة</p>
